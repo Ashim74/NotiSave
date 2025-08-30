@@ -1,0 +1,154 @@
+package com.droidnova.notificationhistory.presentation.screens.manage_notification
+
+import android.content.Context
+import android.graphics.drawable.Drawable
+import android.util.Log
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
+import com.droidnova.notificationhistory.MainViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ManageAppNotificationScreen(
+    mainViewModel: MainViewModel,
+) {
+    // Collect your list from VM (UI only)
+    val allInstalledApps by mainViewModel.allInstalledApps.collectAsState()
+    Log.e("MyTag", "ManageAppNotificationScreen: $allInstalledApps")
+
+
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Choose App", style = MaterialTheme.typography.titleLarge) })
+        },
+    ) { innerPadding ->
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 12.dp)
+        ) {
+            // Header text
+            item {
+                Text(
+                    text = "Select the apps for which you want to track notification",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+            }
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "All Apps",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
+            // Loading / empty
+            if (allInstalledApps.isEmpty()) {
+                item {
+                    Column {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Searching... Please wait",
+                            style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray),
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+                    }
+                }
+            } else {
+
+                items(
+                    allInstalledApps,
+                    key = { it.packageName }
+                ) { app ->
+                    AppCard(
+                        apps = app,
+                        modifier = Modifier.animateItem(),
+                        onToggle = { checked ->
+                            mainViewModel.addToAllowedApps(app.packageName, checked)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AppCard(
+    apps: AppInfo,
+    modifier: Modifier,
+    onToggle: (Boolean) -> Unit
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            AppIcon1(packageName = apps.packageName)
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Text(
+                text = apps.appName,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+
+            // UI-only switch (no logic)
+            Switch(
+                checked = apps.isAllowed,
+                onCheckedChange = { checked ->
+                    Log.e("Mantsh2232"," ManageAppNotificationScreen isallowed ${apps.isAllowed}")
+                    Log.e("Mantsh2232","ManageAppNotificationScreen checked $checked")
+                    onToggle(checked)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppIcon1(packageName: String) {
+    val context = LocalContext.current
+    val bitmap = remember(packageName) {
+        runCatching { context.packageManager.getApplicationIcon(packageName).toBitmap() }
+            .getOrNull()
+    }?.asImageBitmap()
+
+    if (bitmap != null) {
+        Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.size(24.dp))
+    }
+}
+
