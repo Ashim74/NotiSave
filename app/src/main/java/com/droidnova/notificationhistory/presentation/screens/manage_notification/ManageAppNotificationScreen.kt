@@ -1,7 +1,5 @@
 package com.droidnova.notificationhistory.presentation.screens.manage_notification
 
-import android.content.Context
-import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*

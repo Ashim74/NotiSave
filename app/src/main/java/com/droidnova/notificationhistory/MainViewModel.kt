@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -39,8 +40,11 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     private val _events = MutableSharedFlow<HomeUiEvent>()
     val events: SharedFlow<HomeUiEvent> = _events.asSharedFlow()
 
-    private val _apps = MutableStateFlow<List<NotificationModel>>(emptyList())
-    val apps: StateFlow<List<NotificationModel>> = _apps.asStateFlow()
+    // Live stream from Room → map to UI models → StateFlow for Compose
+    val apps: StateFlow<List<NotificationModel>> =
+        dao.observeAll()
+            .map { entities -> entities.map { convertEntityToModel(getApplication(), it) } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
 
     private val _allInstalledApps = MutableStateFlow<List<AppInfo>>(emptyList())
@@ -61,12 +65,12 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             userPrefs.userToggleTracking.collect { toggle ->
+                Log.d("toggle", "MainViewModel.init() userToggleTracking=$toggle")
                 _homeUiState.update { it.copy(userToggleTracking = toggle) }
             }
-
         }
         refreshListenerGranted()
-        loadAllApps()
+       // loadAllApps()
     }
     /** Called when user taps "Enable". */
     fun onEnableClick() {
@@ -77,7 +81,6 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
             // Already granted: persist toggle + do work
             viewModelScope.launch {
                 userPrefs.setToggleTracking(true)
-                _homeUiState.update { it.copy(listenerGranted = true) }
                 _events.emit(HomeUiEvent.DoWorkAfterEnabled)
             }
         } else {
@@ -91,20 +94,20 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     /** Call from UI when screen resumes (user could have granted in Settings). */
     fun onResume() {
-        Log.d("MyTAG", "MainViewModel.onResume() called")
+        Log.e("switch", "onresumefunction called ")
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
         Log.e("MyTAG", "MainViewModel.onResume() granted=$granted")
         if (granted) {
-            _homeUiState.update { it.copy(listenerGranted = true) }
             if (awaitingGrant) {
                 awaitingGrant = false
                 viewModelScope.launch {
+                    Log.e("switch", "MainViewModel.onResume() granted=true")
                     userPrefs.setToggleTracking(true)
                     _events.emit(HomeUiEvent.DoWorkAfterEnabled)
                 }
             }
         } else {
-            _homeUiState.update { it.copy(listenerGranted = false) }
+            Log.e("switch", "MainViewModel.onResume() granted=false")
         }
     }
 
@@ -117,22 +120,22 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     fun refreshListenerGranted() = onResume()
 
-    fun loadAllApps() {
-        viewModelScope.launch {
-            //to check all apps
-            val allApps = dao.getAllApps()
-            Log.d("loadAllApps", "All apps in DB: $allApps")
-
-            val allNotificationList = mutableListOf<NotificationModel>()
-            Log.d("loadAllApps", "All apps in DB: $allApps")
-            allApps.forEach { app->
-               val notificationModel = convertEntityToModel(application,app)
-                allNotificationList.add(notificationModel)
-            }
-            _apps.value = allNotificationList
-
-        }
-    }
+//    fun loadAllApps() {
+//        viewModelScope.launch {
+//            //to check all apps
+//            val allApps = dao.getAllApps()
+//            Log.d("loadAllApps", "All apps in DB: $allApps")
+//
+//            val allNotificationList = mutableListOf<NotificationModel>()
+//            Log.d("loadAllApps", "list : $allApps")
+//            allApps.forEach { app->
+//               val notificationModel = convertEntityToModel(application,app)
+//                allNotificationList.add(notificationModel)
+//            }
+//            _apps.value = allNotificationList
+//
+//        }
+//    }
     fun getAllInstalledApps(context: Context) {
         Log.d("MyTAG", "MainViewModel.getAllInstalledApps() called")
         viewModelScope.launch {
@@ -149,6 +152,11 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         viewModelScope.launch {
             if (add) userPrefs.allowApp(packageName) else userPrefs.blockApp(packageName)
             // No manual refresh needed: allowedApps flow triggers recompute.
+        }
+    }
+    fun clearAllHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.deleteAllNotifications()
         }
     }
 }

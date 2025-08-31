@@ -6,6 +6,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.presentation.screens.about.AboutScreen
 import com.droidnova.notificationhistory.presentation.screens.applist.AppListScreen
 import com.droidnova.notificationhistory.presentation.screens.history.HistoryScreen
 
@@ -28,6 +29,8 @@ fun AppNavGraph(){
         composable(Screen.ManageNotifications.route) {
             ManageAppNotificationScreen(mainViewModel)
         }
-
+        composable(Screen.AboutScreen.route) {
+            AboutScreen(navController)
+        }
     }
 }

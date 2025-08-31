@@ -43,8 +43,8 @@
                 override fun onNotificationPosted(sbn: StatusBarNotification) {
                     val pkg = sbn.packageName ?: return
                     // Sirf allowed packages process karo
-                    if (allowedCache.isNotEmpty() && pkg !in allowedCache) {
-                        // Not an allowed app – skip
+                    if ( pkg !in allowedCache) {
+                        //pkg Not an allowed app – skip
                         return
                     }
                     serviceScope.launch {
@@ -62,7 +62,7 @@
                             message = text,
                             receivedAt = postedTime
                         )
-
+                        Log.e("NLSs", "onNotificationPosted: $appEntity")
                         dao.insertApp(appEntity)
                     }
                 }

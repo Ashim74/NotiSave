@@ -45,11 +45,9 @@ private const val MyTAG = "NotifHistory"
 @Composable
 fun HomeScreen(viewmodel: MainViewModel,navController: NavController) {
     Log.d(MyTAG, "HomeScreen compose. isSwitchOn=$")
-    var showMenu by remember { mutableStateOf(false) }
     val state by viewmodel.homeUiState.collectAsState()
     val context = LocalContext.current
 
-/////
 
     LaunchedEffect(Unit) {
         viewmodel.getAllInstalledApps(context)
@@ -90,15 +88,13 @@ fun HomeScreen(viewmodel: MainViewModel,navController: NavController) {
         topBar =
             {
                 TopBarApp(
-                    expanded = showMenu, onExpandedChange =
-                        { expand ->
-                            showMenu = expand
-                        },)
+                    navigate = {navController.navigate(Screen.AboutScreen.route)})
             })
     { padding ->
         Widgets(padding, state = state,  navController = navController, onSwitchChange = { checked ->
-            Log.d(MyTAG, "HomeScreen.onSwitchChange() called with checked=$checked")
+            Log.d("toggle", "HomeScreen.onSwitchChange() called with checked=$checked")
             if (checked) {
+                Log.e("toggle", "checked=$checked")
                 viewmodel.onEnableClick()
             } else {
                 viewmodel.setToggleTracking(false)
@@ -111,30 +107,34 @@ fun HomeScreen(viewmodel: MainViewModel,navController: NavController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopBarApp(expanded: Boolean, onExpandedChange: (Boolean) -> Unit) {
+fun TopBarApp(navigate: () -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
     Log.d("MyTAG", "TopBarApp: Show MEnu")
     TopAppBar(
         title = { Text("Notification History") },
         actions = {
-            IconButton(onClick = { onExpandedChange(true) }) {
+            IconButton(onClick = { showMenu = true }) {
                 Icon(Icons.Default.MoreVert, contentDescription = "menu")
             }
             DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { onExpandedChange(false) }
+                expanded = showMenu,
+                onDismissRequest ={ showMenu = false }
             ) {
                 DropdownMenuItem(
                     text = { Text("About") },
-                    onClick = {}
+                    onClick = {
+                        navigate()
+                        showMenu = false
+                    }
                 )
-                DropdownMenuItem(
-                    text = { Text("Remove Ads") },
-                    onClick = {}
-                )
-                DropdownMenuItem(
-                    text = { Text("Settings") },
-                    onClick = {}
-                )
+//                DropdownMenuItem(
+//                    text = { Text("Remove Ads") },
+//                    onClick = {}
+//                )
+//                DropdownMenuItem(
+//                    text = { Text("Settings") },
+//                    onClick = {}
+//                )
             }
         }
     )//
@@ -147,7 +147,7 @@ fun Widgets(
     onSwitchChange: (Boolean) -> Unit,
     navController: NavController
 ) {
-    Log.d(MyTAG, "Widgets compose. isSwitchOn=${state.userToggleTracking}")
+    Log.d("switchTag", "Widgets compose. isSwitchOn=${state.userToggleTracking}")
 
     Column(
         modifier = Modifier
@@ -161,6 +161,7 @@ fun Widgets(
             Switch(
                 checked = state.userToggleTracking,
                 onCheckedChange = { checked ->
+                    Log.e("switch", "Widgets.onSwitchChange() called with checked=$checked")
                     onSwitchChange(checked)
                 }
             )

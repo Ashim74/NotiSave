@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NotificationDao {
@@ -16,6 +17,13 @@ interface NotificationDao {
     @Query("SELECT * FROM apps ORDER BY receivedAt DESC")
     suspend fun getAllApps(): List<NotificationEntity>
 
-    
+    @Query("DELETE FROM apps")
+    suspend fun deleteAllNotifications()
+
+    // Observe all rows, newest first
+    @Query("SELECT * FROM apps ORDER BY receivedAt DESC")
+    fun observeAll(): Flow<List<NotificationEntity>>
+
+
 
 }
