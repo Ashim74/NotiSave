@@ -30,25 +30,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.droidnova.notificationhistory.MainViewModel
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
@@ -115,7 +111,6 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 viewmodel.setToggleTracking(false)
             }
             Log.d(MyTAG, "HomeScreen state updated. isSwitchOn=$state.userWantsTracking,")
-
         })
     }
 }
@@ -171,8 +166,10 @@ fun Widgets(
             .fillMaxSize()
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "Enable Notifications",
-                fontWeight = FontWeight.Bold,)
+            Text(
+                text = "Enable Notifications",
+                fontWeight = FontWeight.Bold,
+            )
             Spacer(modifier = Modifier.weight(1f))
             Switch(
                 checked = state.userToggleTracking,
@@ -184,54 +181,67 @@ fun Widgets(
         }//row
         Spacer(Modifier.height(24.dp))
 
-        Button(onClick = {
-            navController.navigate(Screen.History.route)
-        }, modifier = Modifier.fillMaxWidth(),
+        Button(
+            onClick = {
+                navController.navigate(Screen.History.route)
+            }, modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSurface,
             )
 
-            ) {
-            Text("View Notification History",
+        ) {
+            Text(
+                "View Notification History",
                 style = TextStyle(
-                   fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Bold,
                     fontSize = MaterialTheme.typography.titleMedium.fontSize
                 ),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(16.dp)
             )
         }
-                Spacer(Modifier.height(24.dp))
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.primaryContainer),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,      // background
-                        contentColor = MaterialTheme.colorScheme.onSurface       // text
-                    )
+        Spacer(Modifier.height(24.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(2.dp, MaterialTheme.colorScheme.primaryContainer),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,      // background
+                contentColor = MaterialTheme.colorScheme.onSurface       // text
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = { navController.navigate(Screen.ManageNotifications.route) },
+                    border = BorderStroke(2.dp, color = Color.Black)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedButton(
-                            onClick = { navController.navigate(Screen.ManageNotifications.route) },
-                            border = BorderStroke(2.dp, color = Color.Black)
-                        ) {
-                            Text(
-                                "Select Apps", fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Spacer(Modifier.weight(1f))
-                        Text(
-                            "0 Apps",
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }//row
+                    Text(
+                        "Select Apps", fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
-            }
+                Spacer(Modifier.weight(1f))
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "Selected Apps",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "${state.selectedAppsCount}",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }//col
+            }//row
         }
+    }
+}
+

@@ -69,6 +69,12 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
                 _homeUiState.update { it.copy(userToggleTracking = toggle) }
             }
         }
+        viewModelScope.launch {
+            userPrefs.allowedApps.collect { allowed ->
+                allowedPackagesSet = allowed
+                _homeUiState.update { it.copy(selectedAppsCount = allowed.size) }
+            }
+        }
         refreshListenerGranted()
     }
     /** Called when user taps "Enable". */
