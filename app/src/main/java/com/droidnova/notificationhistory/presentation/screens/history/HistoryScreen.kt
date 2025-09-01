@@ -1,6 +1,5 @@
 package com.droidnova.notificationhistory.presentation.screens.history
 
-import android.app.AlertDialog
 import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.compose.foundation.Image
@@ -16,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
@@ -38,6 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.collect
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -54,7 +55,7 @@ import androidx.compose.material3.AlertDialog
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(mainViewmodel: MainViewModel) {
-    val packages = mainViewmodel.apps.collectAsState()
+    val packages = mainViewmodel.history.collectAsState()
     Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
@@ -86,7 +87,11 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
             )
         }
     ) { innerPadding ->
-        HistoryScreenContent(modifier = Modifier.padding(innerPadding), packages = packages.value)
+        HistoryScreenContent(
+            modifier = Modifier.padding(innerPadding),
+            packages = packages.value,
+            onLoadMore = { mainViewmodel.loadMoreHistory() }
+        )
     }
 
     if (showConfirm) {
@@ -112,21 +117,28 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
 
 
 @Composable
-fun HistoryScreenContent(modifier: Modifier, packages: List<NotificationModel>) {
+fun HistoryScreenContent(
+    modifier: Modifier,
+    packages: List<NotificationModel>,
+    onLoadMore: () -> Unit
+) {
     Log.e("Maaanjha", "HistoryScreenContent:list ${packages}")
     val listState = rememberLazyListState()
-    var loadedCount by remember { mutableStateOf(100) }
 
     LaunchedEffect(packages, listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { index ->
-                if (index != null && index >= loadedCount - 1 && loadedCount < packages.size) {
-                    loadedCount += 100
+                if (index != null && index >= packages.size - 1) {
+                    onLoadMore()
                 }
             }
     }
 
-    val grouped = packages.take(loadedCount).groupBy { it.receivedAt.substringBefore(",") }
+    val grouped = packages.groupBy { it.receivedAt.substringBefore(",") }
+    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault())
+    val sortedGroups = grouped.toList().sortedByDescending { (date, _) ->
+        runCatching { LocalDate.parse(date, formatter) }.getOrNull()
+    }
 
     LazyColumn(modifier = modifier, state = listState) {
         if (packages.isEmpty()) {
@@ -139,7 +151,7 @@ fun HistoryScreenContent(modifier: Modifier, packages: List<NotificationModel>) 
                 )
             }
         } else {
-            grouped.forEach { (date, notifications) ->
+            sortedGroups.forEach { (date, notifications) ->
                 item {
                     Text(
                         text = date,
