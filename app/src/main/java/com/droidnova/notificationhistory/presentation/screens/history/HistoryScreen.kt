@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
@@ -34,6 +35,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -110,20 +114,44 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
 @Composable
 fun HistoryScreenContent(modifier: Modifier, packages: List<NotificationModel>) {
     Log.e("Maaanjha", "HistoryScreenContent:list ${packages}")
+    val listState = rememberLazyListState()
+    var loadedCount by remember { mutableStateOf(100) }
 
-    LazyColumn(modifier = modifier) {
+    LaunchedEffect(packages, listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { index ->
+                if (index != null && index >= loadedCount - 1 && loadedCount < packages.size) {
+                    loadedCount += 100
+                }
+            }
+    }
+
+    val grouped = packages.take(loadedCount).groupBy { it.receivedAt.substringBefore(",") }
+
+    LazyColumn(modifier = modifier, state = listState) {
         if (packages.isEmpty()) {
             item {
-                Text("No History Found",
+                Text(
+                    "No History Found",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.W800,
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
             }
         } else {
-            items(packages) { item ->
-                Log.e("Mantsha", "HistoryScreenContent: ${item}")
-                ItemHistoryCard(item)
+            grouped.forEach { (date, notifications) ->
+                item {
+                    Text(
+                        text = date,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.W800,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
+                }
+                items(notifications) { item ->
+                    Log.e("Mantsha", "HistoryScreenContent: ${item}")
+                    ItemHistoryCard(item)
+                }
             }
         }
     }
@@ -150,7 +178,7 @@ fun ItemHistoryCard(model: NotificationModel) {
                 Spacer(modifier = Modifier.weight(1f))
 
                 Text(
-                    text = model.receivedAt,
+                    text = model.receivedAt.substringAfter(", "),
                     style = MaterialTheme.typography.labelSmall
                 )
             }
