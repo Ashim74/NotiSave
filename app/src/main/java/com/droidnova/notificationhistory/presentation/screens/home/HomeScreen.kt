@@ -35,15 +35,31 @@ import com.droidnova.notificationhistory.MainViewModel
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import android.provider.Settings
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.presentation.navigation.Screen
 
 private const val MyTAG = "NotifHistory"
+
 @Composable
-fun HomeScreen(viewmodel: MainViewModel,navController: NavController) {
+fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     Log.d(MyTAG, "HomeScreen compose. isSwitchOn=$")
     val state by viewmodel.homeUiState.collectAsState()
     val context = LocalContext.current
@@ -64,14 +80,13 @@ fun HomeScreen(viewmodel: MainViewModel,navController: NavController) {
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     )
                 }
+
                 HomeUiEvent.DoWorkAfterEnabled -> {
-                    Log.d("Mantsha2", "DoWorkAfterEnabled called")
-                    // TODO: navigate to history or start your tracking work
-                    // e.g., navController.navigate("history")
+                    navController.navigate(Screen.ManageNotifications.route)
                 }
             }
         }
-    }//launchedEffect
+    }
 
     // Re-check when returning from Settings
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -88,10 +103,10 @@ fun HomeScreen(viewmodel: MainViewModel,navController: NavController) {
         topBar =
             {
                 TopBarApp(
-                    navigate = {navController.navigate(Screen.AboutScreen.route)})
+                    navigate = { navController.navigate(Screen.AboutScreen.route) })
             })
     { padding ->
-        Widgets(padding, state = state,  navController = navController, onSwitchChange = { checked ->
+        Widgets(padding, state = state, navController = navController, onSwitchChange = { checked ->
             Log.d("toggle", "HomeScreen.onSwitchChange() called with checked=$checked")
             if (checked) {
                 Log.e("toggle", "checked=$checked")
@@ -118,7 +133,7 @@ fun TopBarApp(navigate: () -> Unit) {
             }
             DropdownMenu(
                 expanded = showMenu,
-                onDismissRequest ={ showMenu = false }
+                onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
                     text = { Text("About") },
@@ -155,8 +170,9 @@ fun Widgets(
             .padding(24.dp)
             .fillMaxSize()
     ) {
-        Row {
-            Text(text = "Enable Notifications")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "Enable Notifications",
+                fontWeight = FontWeight.Bold,)
             Spacer(modifier = Modifier.weight(1f))
             Switch(
                 checked = state.userToggleTracking,
@@ -165,19 +181,57 @@ fun Widgets(
                     onSwitchChange(checked)
                 }
             )
+        }//row
+        Spacer(Modifier.height(24.dp))
+
+        Button(onClick = {
+            navController.navigate(Screen.History.route)
+        }, modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            )
+
+            ) {
+            Text("View Notification History",
+                style = TextStyle(
+                   fontWeight = FontWeight.Bold,
+                    fontSize = MaterialTheme.typography.titleMedium.fontSize
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(16.dp)
+            )
         }
-            Button(
-                onClick = { navController.navigate(Screen.History.route) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("View Notification History")
+                Spacer(Modifier.height(24.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.primaryContainer),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,      // background
+                        contentColor = MaterialTheme.colorScheme.onSurface       // text
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { navController.navigate(Screen.ManageNotifications.route) },
+                            border = BorderStroke(2.dp, color = Color.Black)
+                        ) {
+                            Text(
+                                "Select Apps", fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            "0 Apps",
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }//row
+                }
             }
-        Spacer(Modifier.height(12.dp))
-        Button(
-                onClick = { navController.navigate(Screen.ManageNotifications.route) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Allow Notification")
-            }
-    }
-}
+        }

@@ -70,7 +70,6 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
             }
         }
         refreshListenerGranted()
-       // loadAllApps()
     }
     /** Called when user taps "Enable". */
     fun onEnableClick() {
@@ -81,14 +80,15 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
             // Already granted: persist toggle + do work
             viewModelScope.launch {
                 userPrefs.setToggleTracking(true)
-                _events.emit(HomeUiEvent.DoWorkAfterEnabled)
             }
         } else {
             Log.d("MyTAG","MainViewModel.onEnableClick() not granted")
             // Not granted: ask user
             awaitingGrant = true
             Log.e("Mantsha","MainViewModel.onEnableClick() awaitingGrant=$awaitingGrant")
-            viewModelScope.launch { _events.emit(HomeUiEvent.OpenNotificationAccessSettings) }
+            viewModelScope.launch {
+                _events.emit(HomeUiEvent.OpenNotificationAccessSettings)
+            }
         }
     }
 
@@ -103,7 +103,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
                 viewModelScope.launch {
                     Log.e("switch", "MainViewModel.onResume() granted=true")
                     userPrefs.setToggleTracking(true)
-                    _events.emit(HomeUiEvent.DoWorkAfterEnabled)
+                  _events.emit(HomeUiEvent.DoWorkAfterEnabled)
                 }
             }
         } else {
@@ -120,22 +120,6 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     fun refreshListenerGranted() = onResume()
 
-//    fun loadAllApps() {
-//        viewModelScope.launch {
-//            //to check all apps
-//            val allApps = dao.getAllApps()
-//            Log.d("loadAllApps", "All apps in DB: $allApps")
-//
-//            val allNotificationList = mutableListOf<NotificationModel>()
-//            Log.d("loadAllApps", "list : $allApps")
-//            allApps.forEach { app->
-//               val notificationModel = convertEntityToModel(application,app)
-//                allNotificationList.add(notificationModel)
-//            }
-//            _apps.value = allNotificationList
-//
-//        }
-//    }
     fun getAllInstalledApps(context: Context) {
         Log.d("MyTAG", "MainViewModel.getAllInstalledApps() called")
         viewModelScope.launch {
