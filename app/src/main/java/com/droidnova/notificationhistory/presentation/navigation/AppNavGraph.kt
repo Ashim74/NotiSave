@@ -5,6 +5,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
@@ -31,26 +33,26 @@ fun AppNavGraph(){
         navController = navController,
         startDestination = Screens.Home.route,
         enterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.Left,
+            slideInHorizontally(
+                initialOffsetX = { it },
                 animationSpec = tween(300)
             )
         },
         exitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.Left,
+            slideOutHorizontally(
+                targetOffsetX = { -it },
                 animationSpec = tween(300)
             )
         },
         popEnterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.Right,
+            slideInHorizontally(
+                initialOffsetX = { -it },
                 animationSpec = tween(300)
             )
         },
         popExitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.Right,
+            slideOutHorizontally(
+                targetOffsetX = { it },
                 animationSpec = tween(300)
             )
         }
