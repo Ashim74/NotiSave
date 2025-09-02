@@ -53,6 +53,7 @@ import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 // Material 3 imports
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.SegmentedButtonDefaults
 
 
 
@@ -100,12 +101,14 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
                     .padding(16.dp)
             ) {
                 SegmentedButton(
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                     selected = viewType == HistoryViewType.Message,
                     onClick = { viewType = HistoryViewType.Message }
                 ) {
                     Text("Messages")
                 }
                 SegmentedButton(
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                     selected = viewType == HistoryViewType.Apps,
                     onClick = { viewType = HistoryViewType.Apps }
                 ) {
