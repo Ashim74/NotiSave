@@ -56,8 +56,8 @@ private const val MyTAG = "NotifHistory"
 
 @Composable
 fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
-    Log.d(MyTAG, "HomeScreen compose. isSwitchOn=$")
     val state by viewmodel.homeUiState.collectAsState()
+    Log.d(MyTAG, "HomeScreen compose. isSwitchOn=${state.userToggleTracking}")
     val context = LocalContext.current
 
 
@@ -110,7 +110,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
             } else {
                 viewmodel.setToggleTracking(false)
             }
-            Log.d(MyTAG, "HomeScreen state updated. isSwitchOn=$state.userWantsTracking,")
+            Log.d(MyTAG, "HomeScreen state updated. isSwitchOn=${state.userToggleTracking}")
         })
     }
 }
