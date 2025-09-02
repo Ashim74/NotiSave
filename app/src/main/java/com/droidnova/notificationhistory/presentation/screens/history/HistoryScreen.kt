@@ -3,9 +3,13 @@ package com.droidnova.notificationhistory.presentation.screens.history
 import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,6 +21,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.collect
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.Modifier
@@ -49,8 +56,13 @@ import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 // Material 3 imports
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
+import com.droidnova.notificationhistory.R
 
 
+enum class HistoryViewType { Message, Apps }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +71,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
     Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
+    var viewType by remember { mutableStateOf(HistoryViewType.Message) }
 
     Scaffold(
         topBar = {
@@ -85,13 +98,42 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
                     }
                 }
             )
+        },
+        bottomBar = {
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                SegmentedButton(
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    selected = viewType == HistoryViewType.Message,
+                    onClick = { viewType = HistoryViewType.Message }
+                ) {
+                    Text("Messages")
+                }
+                SegmentedButton(
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                    selected = viewType == HistoryViewType.Apps,
+                    onClick = { viewType = HistoryViewType.Apps }
+                ) {
+                    Text("Apps")
+                }
+            }
         }
     ) { innerPadding ->
-        HistoryScreenContent(
-            modifier = Modifier.padding(innerPadding),
-            packages = packages.value,
-            onLoadMore = { mainViewmodel.loadMoreHistory() }
-        )
+        val contentModifier = Modifier.padding(innerPadding)
+        when (viewType) {
+            HistoryViewType.Message -> HistoryScreenContent(
+                modifier = contentModifier,
+                packages = packages.value,
+                onLoadMore = { mainViewmodel.loadMoreHistory() }
+            )
+            HistoryViewType.Apps -> AppHistoryContent(
+                modifier = contentModifier,
+                packages = packages.value
+            )
+        }
     }
 
     if (showConfirm) {
@@ -143,12 +185,7 @@ fun HistoryScreenContent(
     LazyColumn(modifier = modifier, state = listState) {
         if (packages.isEmpty()) {
             item {
-                Text(
-                    "No History Found",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.W800,
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                )
+                EmptyValueCard(modifier)
             }
         } else {
             sortedGroups.forEach { (date, notifications) ->
@@ -163,6 +200,95 @@ fun HistoryScreenContent(
                 items(notifications) { item ->
                     Log.e("Mantsha", "HistoryScreenContent: ${item}")
                     ItemHistoryCard(item)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyValueCard(modifier: Modifier) {
+    Box {
+        Column(
+            modifier = modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_history),
+                contentDescription = "History",
+                modifier = Modifier
+                    .size(100.dp)
+                    .align(Alignment.CenterHorizontally)
+            )
+            Text(
+                "No History Found",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.W800,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+
+        }
+    }
+}
+
+@Composable
+fun AppHistoryContent(
+    modifier: Modifier,
+    packages: List<NotificationModel>
+) {
+    val grouped = packages.groupBy { it.packageName }
+    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault())
+    val sortedGroups = grouped.entries.sortedByDescending { entry ->
+        entry.value.maxOfOrNull {
+            runCatching { LocalDateTime.parse(it.receivedAt, formatter) }.getOrNull()
+                ?: LocalDateTime.MIN
+        } ?: LocalDateTime.MIN
+    }
+
+    LazyColumn(modifier = modifier) {
+        if (packages.isEmpty()) {
+            item {
+                EmptyValueCard(modifier)
+            }
+        } else {
+            items(sortedGroups) { (_, notifications) ->
+                var expanded by remember { mutableStateOf(false) }
+                val latest = notifications.maxByOrNull {
+                    runCatching { LocalDateTime.parse(it.receivedAt, formatter) }.getOrNull()
+                        ?: LocalDateTime.MIN
+                } ?: notifications.first()
+
+                Column {
+                    Card(
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .fillMaxWidth()
+                            .clickable { expanded = !expanded }
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp)) {
+                            AppIcon(drawable = latest.appIcon)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = latest.appName.ifBlank { latest.packageName },
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.W900
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = latest.receivedAt.substringAfter(", "),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                    if (expanded) {
+                        notifications.sortedByDescending {
+                            runCatching { LocalDateTime.parse(it.receivedAt, formatter) }
+                                .getOrNull() ?: LocalDateTime.MIN
+                        }.forEach { item ->
+                            ItemHistoryCard(item)
+                        }
+                    }
                 }
             }
         }

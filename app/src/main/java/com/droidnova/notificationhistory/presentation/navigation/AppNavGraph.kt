@@ -1,5 +1,12 @@
 package com.droidnova.notificationhistory.presentation.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
@@ -7,9 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.presentation.screens.about.AboutScreen
-import com.droidnova.notificationhistory.presentation.screens.applist.AppListScreen
 import com.droidnova.notificationhistory.presentation.screens.history.HistoryScreen
-
 import com.droidnova.notificationhistory.presentation.screens.home.HomeScreen
 import com.droidnova.notificationhistory.presentation.screens.manage_notification.ManageAppNotificationScreen
 
@@ -18,18 +23,50 @@ fun AppNavGraph(){
     val navController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
 
-    NavHost(navController = navController, startDestination = Screen.Home.route)
-    {
-        composable(Screen.Home.route) {
+    val enter = fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing))
+    val exit = fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+    val popEnter = fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing))
+    val popExit = fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+
+
+    NavHost(
+        navController = navController,
+        startDestination = Screens.Home.route,
+        enterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(300)
+            )
+        },
+        exitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { -it },
+                animationSpec = tween(300)
+            )
+        },
+        popEnterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { -it },
+                animationSpec = tween(300)
+            )
+        },
+        popExitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { it },
+                animationSpec = tween(300)
+            )
+        }
+    ) {
+        composable(Screens.Home.route) {
             HomeScreen(mainViewModel,navController)
         }
-        composable(Screen.History.route) {
+        composable(Screens.History.route) {
             HistoryScreen(mainViewModel)
         }
-        composable(Screen.ManageNotifications.route) {
+        composable(Screens.ManageNotifications.route) {
             ManageAppNotificationScreen(mainViewModel)
         }
-        composable(Screen.AboutScreen.route) {
+        composable(Screens.AboutScreen.route) {
             AboutScreen(navController)
         }
     }
