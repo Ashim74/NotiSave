@@ -18,18 +18,18 @@ fun AppNavGraph(){
     val navController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
 
-    NavHost(navController = navController, startDestination = Screen.Home.route)
+    NavHost(navController = navController, startDestination = Screens.Home.route)
     {
-        composable(Screen.Home.route) {
+        composable(Screens.Home.route) {
             HomeScreen(mainViewModel,navController)
         }
-        composable(Screen.History.route) {
+        composable(Screens.History.route) {
             HistoryScreen(mainViewModel)
         }
-        composable(Screen.ManageNotifications.route) {
+        composable(Screens.ManageNotifications.route) {
             ManageAppNotificationScreen(mainViewModel)
         }
-        composable(Screen.AboutScreen.route) {
+        composable(Screens.AboutScreen.route) {
             AboutScreen(navController)
         }
     }

@@ -28,6 +28,4 @@ interface NotificationDao {
     @Query("SELECT * FROM apps ORDER BY receivedAt DESC")
     fun observeAll(): Flow<List<NotificationEntity>>
 
-
-
 }

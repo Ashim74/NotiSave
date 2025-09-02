@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
+import com.droidnova.notificationhistory.data.db.NotificationEntity
 import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent

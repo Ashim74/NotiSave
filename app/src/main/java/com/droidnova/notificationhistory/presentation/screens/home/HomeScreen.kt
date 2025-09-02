@@ -35,7 +35,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
@@ -44,13 +43,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.BlendMode.Companion.Screen
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
-import com.droidnova.notificationhistory.presentation.navigation.Screen
+import com.droidnova.notificationhistory.presentation.navigation.Screens
 
 private const val MyTAG = "NotifHistory"
 
@@ -78,7 +78,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 }
 
                 HomeUiEvent.DoWorkAfterEnabled -> {
-                    navController.navigate(Screen.ManageNotifications.route)
+                    navController.navigate(Screens.ManageNotifications.route)
                 }
             }
         }
@@ -99,7 +99,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         topBar =
             {
                 TopBarApp(
-                    navigate = { navController.navigate(Screen.AboutScreen.route) })
+                    navigate = { navController.navigate(Screens.AboutScreen.route) })
             })
     { padding ->
         Widgets(padding, state = state, navController = navController, onSwitchChange = { checked ->
@@ -183,7 +183,7 @@ fun Widgets(
 
         Button(
             onClick = {
-                navController.navigate(Screen.History.route)
+                navController.navigate(Screens.History.route)
             }, modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
@@ -217,7 +217,7 @@ fun Widgets(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
-                    onClick = { navController.navigate(Screen.ManageNotifications.route) },
+                    onClick = { navController.navigate(Screens.ManageNotifications.route) },
                     border = BorderStroke(2.dp, color = Color.Black)
                 ) {
                     Text(
