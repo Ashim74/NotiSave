@@ -4,9 +4,12 @@ import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -54,7 +57,9 @@ import com.droidnova.notificationhistory.data.model.NotificationModel
 // Material 3 imports
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SegmentedButtonDefaults
-
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
+import com.droidnova.notificationhistory.R
 
 
 enum class HistoryViewType { Message, Apps }
@@ -180,12 +185,7 @@ fun HistoryScreenContent(
     LazyColumn(modifier = modifier, state = listState) {
         if (packages.isEmpty()) {
             item {
-                Text(
-                    "No History Found",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.W800,
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                )
+                EmptyValueCard(modifier)
             }
         } else {
             sortedGroups.forEach { (date, notifications) ->
@@ -207,6 +207,32 @@ fun HistoryScreenContent(
 }
 
 @Composable
+private fun EmptyValueCard(modifier: Modifier) {
+    Box {
+        Column(
+            modifier = modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_history),
+                contentDescription = "History",
+                modifier = Modifier
+                    .size(100.dp)
+                    .align(Alignment.CenterHorizontally)
+            )
+            Text(
+                "No History Found",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.W800,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+
+        }
+    }
+}
+
+@Composable
 fun AppHistoryContent(
     modifier: Modifier,
     packages: List<NotificationModel>
@@ -223,12 +249,7 @@ fun AppHistoryContent(
     LazyColumn(modifier = modifier) {
         if (packages.isEmpty()) {
             item {
-                Text(
-                    "No History Found",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.W800,
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                )
+                EmptyValueCard(modifier)
             }
         } else {
             items(sortedGroups) { (_, notifications) ->

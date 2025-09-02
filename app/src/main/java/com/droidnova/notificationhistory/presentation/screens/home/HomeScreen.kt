@@ -1,81 +1,74 @@
 package com.droidnova.notificationhistory.presentation.screens.home
 
 import android.content.Intent
-import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import com.droidnova.notificationhistory.MainViewModel
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.DisposableEffect
-import android.provider.Settings
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
+import android.provider.Settings
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.ui.res.painterResource
+import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.presentation.navigation.Screens
-
-private const val MyTAG = "NotifHistory"
 
 @Composable
 fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     val state by viewmodel.homeUiState.collectAsState()
-    Log.d(MyTAG, "HomeScreen compose. isSwitchOn=${state.userToggleTracking}")
     val context = LocalContext.current
 
-
+    // initial data
     LaunchedEffect(Unit) {
         viewmodel.getAllInstalledApps(context)
     }
-    // Collect one-shot events
+
+    // events
     LaunchedEffect(viewmodel.events) {
         viewmodel.events.collect { event ->
-            Log.d("Mantsha00", "called with event=$event")
             when (event) {
                 HomeUiEvent.OpenNotificationAccessSettings -> {
-                    Log.d("Mantsha1", "listenre setting called")
                     context.startActivity(
                         Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     )
                 }
-
                 HomeUiEvent.DoWorkAfterEnabled -> {
                     navController.navigate(Screens.ManageNotifications.route)
                 }
@@ -83,7 +76,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         }
     }
 
-    // Re-check when returning from Settings
+    // re-check on resume
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, ev ->
@@ -91,26 +84,23 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         }
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
-    }//Disposable effect
+    }
 
-///////UI
     Scaffold(
-        topBar =
-            {
-                TopBarApp(
-                    navigate = { navController.navigate(Screens.AboutScreen.route) })
-            })
-    { padding ->
-        Widgets(padding, state = state, navController = navController, onSwitchChange = { checked ->
-            Log.d("toggle", "HomeScreen.onSwitchChange() called with checked=$checked")
-            if (checked) {
-                Log.e("toggle", "checked=$checked")
-                viewmodel.onEnableClick()
-            } else {
-                viewmodel.setToggleTracking(false)
+        topBar = { TopBarApp(navigate = { navController.navigate(Screens.AboutScreen.route) }) }
+    ) { padding ->
+        Widgets(
+            padding = padding,
+            state = state,
+            navController = navController,
+            onSwitchChange = { checked ->
+                if (checked) {
+                    viewmodel.onEnableClick()
+                } else {
+                    viewmodel.setToggleTracking(false)
+                }
             }
-            Log.d(MyTAG, "HomeScreen state updated. isSwitchOn=${state.userToggleTracking}")
-        })
+        )
     }
 }
 
@@ -118,7 +108,6 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
 @Composable
 fun TopBarApp(navigate: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
-    Log.d("MyTAG", "TopBarApp: Show MEnu")
     TopAppBar(
         title = { Text("Notification History") },
         actions = {
@@ -146,7 +135,7 @@ fun TopBarApp(navigate: () -> Unit) {
 //                )
             }
         }
-    )//
+    )
 }
 
 @Composable
@@ -156,92 +145,105 @@ fun Widgets(
     onSwitchChange: (Boolean) -> Unit,
     navController: NavController
 ) {
-    Log.d("switchTag", "Widgets compose. isSwitchOn=${state.userToggleTracking}")
-
     Column(
         modifier = Modifier
             .padding(padding)
-            .padding(24.dp)
+            .padding(16.dp)
             .fillMaxSize()
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        EnableNotificationsCard(
+            checked = state.userToggleTracking,
+            onCheckedChange = onSwitchChange
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        SelectedAppsCard(
+            selectedCount = state.selectedAppsCount,
+            onSelectAppsClick = { navController.navigate(Screens.ManageNotifications.route) }
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        ViewHistoryCard(
+            onClick = { navController.navigate(Screens.History.route) }
+        )
+    }
+}
+
+@Composable
+private fun EnableNotificationsCard(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notification")
             Text(
-                text = "Enable Notifications",
+                modifier = Modifier.padding(start = 5.dp),
+                text = "Enable Tracking",
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.weight(1f))
             Switch(
-                checked = state.userToggleTracking,
-                onCheckedChange = { checked ->
-                    Log.e("switch", "Widgets.onSwitchChange() called with checked=$checked")
-                    onSwitchChange(checked)
+                checked = checked,
+                onCheckedChange = { value ->
+                    onCheckedChange(value)
                 }
             )
-        }//row
-        Spacer(Modifier.height(24.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(2.dp, MaterialTheme.colorScheme.primaryContainer),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,      // background
-                contentColor = MaterialTheme.colorScheme.onSurface       // text
-            )
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedButton(
-                    onClick = { navController.navigate(Screens.ManageNotifications.route) },
-                    border = BorderStroke(2.dp, color = Color.Black)
-                ) {
-                    Text(
-                        "Select Apps", fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "Selected Apps",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        "${state.selectedAppsCount}",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                }//col
-            }//row
         }
-        Spacer(Modifier.height(24.dp))
+    }
 
-        Button(
-            onClick = {
-                navController.navigate(Screens.History.route)
-            }, modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            )
+}
 
+@Composable
+private fun SelectedAppsCard(
+    selectedCount: Int,
+    onSelectAppsClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Button(
+                onClick = onSelectAppsClick
+            ) {
+                Text(
+                    "Select Apps",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(Modifier.weight(1f))
             Text(
-                "View Notification History",
-                style = TextStyle(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = MaterialTheme.typography.titleMedium.fontSize
-                ),
+                "$selectedCount Apps Selected",
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(end = 8.dp)
             )
         }
     }
 }
 
+@Composable
+private fun ViewHistoryCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.Start) {
+            Icon(painter = painterResource(R.drawable.ic_history), contentDescription = "History")
+            Text(
+                "View Notification History",
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 5.dp)
+            )
+        }
+    }
+}
