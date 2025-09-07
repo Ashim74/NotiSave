@@ -13,8 +13,8 @@ android {
         applicationId = "com.droidnova.notificationhistory"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.02"
+        versionCode = 4
+        versionName = "0.04"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.ui.text.google.fonts)
+    implementation(libs.androidx.animation)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -60,6 +61,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     val nav_version = "2.9.3"
+    //animation
+    implementation("androidx.compose.animation:animation")
 
     implementation("androidx.navigation:navigation-compose:$nav_version")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
@@ -67,4 +70,6 @@ dependencies {
     implementation ("com.google.code.gson:gson:2.13.1")
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.runtime)
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
+
 }

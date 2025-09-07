@@ -17,13 +17,15 @@ interface NotificationDao {
     @Query("SELECT * FROM apps ORDER BY receivedAt DESC")
     suspend fun getAllApps(): List<NotificationEntity>
 
+    // Fetch a page of notifications, newest first
+    @Query("SELECT * FROM apps ORDER BY receivedAt DESC LIMIT :limit OFFSET :offset")
+    suspend fun getNotifications(limit: Int, offset: Int): List<NotificationEntity>
+
     @Query("DELETE FROM apps")
     suspend fun deleteAllNotifications()
 
     // Observe all rows, newest first
     @Query("SELECT * FROM apps ORDER BY receivedAt DESC")
     fun observeAll(): Flow<List<NotificationEntity>>
-
-
 
 }

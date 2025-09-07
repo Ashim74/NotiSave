@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
+import com.droidnova.notificationhistory.data.db.NotificationEntity
 import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent
@@ -24,7 +25,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -40,11 +40,11 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     private val _events = MutableSharedFlow<HomeUiEvent>()
     val events: SharedFlow<HomeUiEvent> = _events.asSharedFlow()
 
-    // Live stream from Room → map to UI models → StateFlow for Compose
-    val apps: StateFlow<List<NotificationModel>> =
-        dao.observeAll()
-            .map { entities -> entities.map { convertEntityToModel(getApplication(), it) } }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _history = MutableStateFlow<List<NotificationModel>>(emptyList())
+    val history: StateFlow<List<NotificationModel>> = _history.asStateFlow()
+    private var currentOffset = 0
+    private val pageSize = 100
+    private var endReached = false
 
 
     private val _allInstalledApps = MutableStateFlow<List<AppInfo>>(emptyList())
@@ -76,6 +76,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
             }
         }
         refreshListenerGranted()
+        loadMoreHistory()
     }
     /** Called when user taps "Enable". */
     fun onEnableClick() {
@@ -144,9 +145,27 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
             // No manual refresh needed: allowedApps flow triggers recompute.
         }
     }
+    fun loadMoreHistory() {
+        if (endReached) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val entities = dao.getNotifications(pageSize, currentOffset)
+            val models = entities.map { convertEntityToModel(getApplication(), it) }
+            if (models.isNotEmpty()) {
+                currentOffset += models.size
+                _history.update { it + models }
+            }
+            if (models.size < pageSize) {
+                endReached = true
+            }
+        }
+    }
+
     fun clearAllHistory() {
         viewModelScope.launch(Dispatchers.IO) {
             dao.deleteAllNotifications()
+            currentOffset = 0
+            endReached = false
+            _history.value = emptyList()
         }
     }
 }
