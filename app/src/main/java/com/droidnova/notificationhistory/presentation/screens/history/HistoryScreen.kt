@@ -81,7 +81,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
                     IconButton(onClick = { showMenu = true }) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Back"
+                            contentDescription = "Menu"
                         )
                     }
                     DropdownMenu(

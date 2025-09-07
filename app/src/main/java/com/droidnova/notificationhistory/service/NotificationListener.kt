@@ -12,7 +12,7 @@
             import kotlinx.coroutines.flow.first
             import kotlinx.coroutines.launch
 
-            class  NotificationListener: NotificationListenerService() {
+       /*     class  NotificationListener: NotificationListenerService() {
                 // IO scope tied to service lifecycle
                 private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -67,3 +67,5 @@
                     }
                 }
             }
+
+        */

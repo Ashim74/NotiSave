@@ -13,8 +13,8 @@ android {
         applicationId = "com.droidnova.notificationhistory"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.03"
+        versionCode = 4
+        versionName = "0.04"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -64,11 +64,12 @@ dependencies {
     //animation
     implementation("androidx.compose.animation:animation")
 
-
     implementation("androidx.navigation:navigation-compose:$nav_version")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("androidx.room:room-runtime:2.7.1")
     implementation ("com.google.code.gson:gson:2.13.1")
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.runtime)
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
+
 }

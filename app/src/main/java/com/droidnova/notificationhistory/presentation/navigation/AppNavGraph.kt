@@ -7,7 +7,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
@@ -17,17 +21,28 @@ import com.droidnova.notificationhistory.presentation.screens.about.AboutScreen
 import com.droidnova.notificationhistory.presentation.screens.history.HistoryScreen
 import com.droidnova.notificationhistory.presentation.screens.home.HomeScreen
 import com.droidnova.notificationhistory.presentation.screens.manage_notification.ManageAppNotificationScreen
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
 @Composable
 fun AppNavGraph(){
     val navController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
 
-    val enter = fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing))
-    val exit = fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
-    val popEnter = fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing))
-    val popExit = fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+    val systemUiController = rememberSystemUiController()
+    val darkTheme = isSystemInDarkTheme()
 
+    val barColor = if (darkTheme) Color.Black else Color.White
+
+    SideEffect {
+        systemUiController.setStatusBarColor(
+            color = barColor,
+            darkIcons = !darkTheme
+        )
+        systemUiController.setNavigationBarColor(
+            color = barColor,
+            darkIcons = !darkTheme
+        )
+    }
 
     NavHost(
         navController = navController,
