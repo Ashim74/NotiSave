@@ -63,13 +63,15 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import com.droidnova.notificationhistory.R
+import androidx.navigation.NavController
+import com.droidnova.notificationhistory.presentation.navigation.Screens
 
 
 enum class HistoryViewType { Message, Apps }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(mainViewmodel: MainViewModel) {
+fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     val packages = mainViewmodel.history.collectAsState()
     Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
@@ -137,6 +139,9 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
             HistoryViewType.Apps -> AppHistoryContent(
                 modifier = contentModifier,
                 packages = packages.value,
+                onAppClick = { packageName ->
+                    navController.navigate(Screens.AppNotifications.createRoute(packageName))
+                }
             )
         }
     }
@@ -286,6 +291,7 @@ private fun EmptyValueCard(modifier: Modifier) {
 fun AppHistoryContent(
     modifier: Modifier,
     packages: List<NotificationModel>,
+    onAppClick: (String) -> Unit,
 ) {
     val grouped = packages.groupBy { it.packageName }
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault())
@@ -303,7 +309,6 @@ fun AppHistoryContent(
             }
         } else {
             items(sortedGroups) { (_, notifications) ->
-                var expanded by remember { mutableStateOf(false) }
                 val latest = notifications.maxByOrNull {
                     runCatching { LocalDateTime.parse(it.receivedAt, formatter) }.getOrNull()
                         ?: LocalDateTime.MIN
@@ -314,7 +319,7 @@ fun AppHistoryContent(
                         modifier = Modifier
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                             .fillMaxWidth()
-                            .clickable { expanded = !expanded }
+                            .clickable { onAppClick(latest.packageName) }
                     ) {
                         Row(modifier = Modifier.padding(12.dp)) {
                             AppIcon(drawable = latest.appIcon)
