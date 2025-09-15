@@ -59,6 +59,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import com.droidnova.notificationhistory.R
 
 
@@ -134,7 +137,6 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
             HistoryViewType.Apps -> AppHistoryContent(
                 modifier = contentModifier,
                 packages = packages.value,
-                onItemClick = { selectedNotification = it }
             )
         }
     }
@@ -161,24 +163,48 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
     selectedNotification?.let { notification ->
         AlertDialog(
             onDismissRequest = { selectedNotification = null },
-            title = { Text(notification.appName.ifBlank { notification.packageName }) },
-            text = {
-                Column {
-                    Text("Title: ${notification.title}")
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Message: ${notification.text}")
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Arrival: ${notification.receivedAt}")
-                }
+            title = {
+                Text(
+                    text = notification.appName.ifBlank { notification.packageName },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.W900
+                )
             },
+                text = {
+                Column {
+                    Text(
+                        text = notification.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.W900
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(fontWeight = FontWeight.W900)) { append("Message:  ") }
+                        append(notification.text)
+                    },
+                    style = MaterialTheme.typography.titleMedium,fontWeight = FontWeight.W700
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(fontWeight = FontWeight.W900)) { append("Time: ") }
+                        append(notification.receivedAt)
+                    },
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }//col
+            },//text
             confirmButton = {
                 TextButton(onClick = { selectedNotification = null }) {
-                    Text("Close")
+                    Text("Close", fontWeight = FontWeight.Bold)
                 }
             }
         )
     }
-}
+}//historyScreen
 
 
 
@@ -189,7 +215,6 @@ fun HistoryScreenContent(
     onLoadMore: () -> Unit,
     onItemClick: (NotificationModel) -> Unit
 ) {
-    Log.e("Maaanjha", "HistoryScreenContent:list ${packages}")
     val listState = rememberLazyListState()
 
     LaunchedEffect(packages, listState) {
@@ -261,7 +286,6 @@ private fun EmptyValueCard(modifier: Modifier) {
 fun AppHistoryContent(
     modifier: Modifier,
     packages: List<NotificationModel>,
-    onItemClick: (NotificationModel) -> Unit
 ) {
     val grouped = packages.groupBy { it.packageName }
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault())
@@ -305,14 +329,6 @@ fun AppHistoryContent(
                                 text = latest.receivedAt.substringAfter(", "),
                                 style = MaterialTheme.typography.labelSmall
                             )
-                        }
-                    }
-                    if (expanded) {
-                        notifications.sortedByDescending {
-                            runCatching { LocalDateTime.parse(it.receivedAt, formatter) }
-                                .getOrNull() ?: LocalDateTime.MIN
-                        }.forEach { item ->
-                            ItemHistoryCard(item, onItemClick)
                         }
                     }
                 }
