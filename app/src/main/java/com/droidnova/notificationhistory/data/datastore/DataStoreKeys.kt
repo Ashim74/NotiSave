@@ -1,7 +1,14 @@
 package com.droidnova.notificationhistory.data.datastore
 
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+
 object DataStoreKeys {
     const val PREF_NAME = "notification_prefs"
-    const val KEY_USER_WANTS_TRACKING = "user_wants_tracking"
+    val KEY_USER_WANTS_TRACKING = booleanPreferencesKey("user_wants_tracking")
     const val ALLOWED_APPS_KEY = "allowed_apps"
+    val LAUNCH_COUNT = intPreferencesKey("launch_count")
+    val SHOW_RATE_US_CARD = booleanPreferencesKey("show_us_rate_card")
+    val SNOOZE_UNTIL_LAUNCH = intPreferencesKey("snooze_until_launch")
+
 }

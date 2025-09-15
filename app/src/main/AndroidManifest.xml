@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <!-- 👇 Add this block here (child of <manifest>, before <application>) -->
     <queries>
         <!-- Query all launchable apps -->
         <intent>

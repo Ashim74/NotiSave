@@ -12,8 +12,8 @@ import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.db.NotificationEntity
 import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
+import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent
-import com.droidnova.notificationhistory.presentation.screens.home.HomeUiState
 import com.droidnova.notificationhistory.presentation.screens.manage_notification.AppInfo
 import com.droidnova.notificationhistory.utils.getInstalledApps
 import kotlinx.coroutines.Dispatchers
@@ -24,18 +24,21 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.compareTo
+import kotlin.rem
 
 class MainViewModel(application: Application): AndroidViewModel(application) {
     private val dao = AppDatabase.getInstance(application).notificationDao()
     private val userPrefs = UserPreferences(application)
 
-    private val _homeUiState = MutableStateFlow(HomeUiState())
-    val homeUiState: StateFlow<HomeUiState> = _homeUiState.asStateFlow()
+    private val _settingState = MutableStateFlow(SettingState())
+    val settingState: StateFlow<SettingState> = _settingState.asStateFlow()
 
     private val _events = MutableSharedFlow<HomeUiEvent>()
     val events: SharedFlow<HomeUiEvent> = _events.asSharedFlow()
@@ -60,19 +63,27 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     private var allowedPackagesSet = emptySet<String>()
     private var awaitingGrant = false
+    private var isInitialized = false
 
 
     init {
-        viewModelScope.launch {
-            userPrefs.userToggleTracking.collect { toggle ->
-                Log.d("toggle", "MainViewModel.init() userToggleTracking=$toggle")
-                _homeUiState.update { it.copy(userToggleTracking = toggle) }
-            }
-        }
+
         viewModelScope.launch {
             userPrefs.allowedApps.collect { allowed ->
                 allowedPackagesSet = allowed
-                _homeUiState.update { it.copy(selectedAppsCount = allowed.size) }
+                _settingState.update { it.copy(selectedAppsCount = allowed.size) }
+            }
+        }
+        viewModelScope.launch {
+            userPrefs.settingFlow.collectLatest {settingState->
+                _settingState.value = settingState
+                if (!isInitialized) {
+                    isInitialized = true
+                    userPrefs.updateLaunchCount(settingState.launchCount + 1)
+                    if (settingState.snoozeUntilLaunch < 2) {
+                        userPrefs.updateSnoozeUntilLaunch(2)
+                    }
+                }
             }
         }
         refreshListenerGranted()
@@ -166,6 +177,18 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
             currentOffset = 0
             endReached = false
             _history.value = emptyList()
+        }
+    }
+
+    fun hideRateUsCard() {
+        viewModelScope.launch {
+            userPrefs.hideRateUsCard()
+        }
+    }
+    fun snoozeRateUsCard() {
+        viewModelScope.launch {
+            val current = _settingState.value.launchCount
+            userPrefs.updateSnoozeUntilLaunch(current + 2)
         }
     }
 }

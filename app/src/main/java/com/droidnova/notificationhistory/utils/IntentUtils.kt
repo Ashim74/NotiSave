@@ -219,6 +219,4 @@ object IntentUtils {
             false
         }
     }
-
-
 }

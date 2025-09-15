@@ -59,7 +59,7 @@ class NotificationListener : NotificationListenerService() {
         val text  = sbn.notification.extras.getCharSequence("android.text")?.toString().orEmpty()
         val contentHash = (title + "|" + text).hashCode()
 
-        // 5)  Atomic check+reserve BEFORE launching coroutine
+        // 5)  Atomic check+update BEFORE launching coroutine
         val allowed = cache.allowAndReserve(key, contentHash)
         if (!allowed) {
             Log.d("Dedupe", "Duplicate skip (within window): key=$key")
@@ -68,7 +68,8 @@ class NotificationListener : NotificationListenerService() {
 
         // 6) DB insert (background)
         serviceScope.launch {
-            if (!prefs.userToggleTracking.first()) return@launch
+            val enabled = prefs.settingFlow.first().userToggleTracking
+            if (!enabled) return@launch
 
             val dao = AppDatabase.getInstance(applicationContext).notificationDao()
 

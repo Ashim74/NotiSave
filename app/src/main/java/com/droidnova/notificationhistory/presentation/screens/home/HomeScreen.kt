@@ -43,15 +43,20 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.ui.res.painterResource
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.component.RateUsCard
+import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.navigation.Screens
+import com.droidnova.notificationhistory.utils.IntentUtils
+import kotlin.text.compareTo
 
 @Composable
 fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
-    val state by viewmodel.homeUiState.collectAsState()
+    val state by viewmodel.settingState.collectAsState()
     val context = LocalContext.current
 
     // initial data
@@ -69,6 +74,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     )
                 }
+
                 HomeUiEvent.DoWorkAfterEnabled -> {
                     navController.navigate(Screens.ManageNotifications.route)
                 }
@@ -89,18 +95,42 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     Scaffold(
         topBar = { TopBarApp(navigate = { navController.navigate(Screens.AboutScreen.route) }) }
     ) { padding ->
-        Widgets(
-            padding = padding,
-            state = state,
-            navController = navController,
-            onSwitchChange = { checked ->
-                if (checked) {
-                    viewmodel.onEnableClick()
-                } else {
-                    viewmodel.setToggleTracking(false)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            Widgets(
+                padding = PaddingValues(16.dp),
+                state = state,
+                navController = navController,
+                onSwitchChange = {
+                    if (it) viewmodel.onEnableClick() else viewmodel.setToggleTracking(
+                        false
+                    )
                 }
-            }
-        )
+            )
+
+            if (state.launchCount >= state.snoozeUntilLaunch && state.showRateUsCard) {                RateUsCard(
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                onCancelClicked = { viewmodel.snoozeRateUsCard() },
+                    onOkClicked = {
+                        IntentUtils.rateUs(context)
+                        viewmodel.hideRateUsCard()
+                    },
+                    onRated = {
+                        if (it == 5) {
+                            IntentUtils.rateUs(context)
+                            viewmodel.hideRateUsCard()
+                        }
+                    },
+                    onFeedbackClicked = {
+                        IntentUtils.sendFeedback(context)
+                        viewmodel.snoozeRateUsCard()
+                    }
+                )
+            }// if
+        }
     }
 }
 
@@ -141,14 +171,13 @@ fun TopBarApp(navigate: () -> Unit) {
 @Composable
 fun Widgets(
     padding: PaddingValues,
-    state: HomeUiState,
+    state: SettingState,
     onSwitchChange: (Boolean) -> Unit,
     navController: NavController
 ) {
     Column(
         modifier = Modifier
             .padding(padding)
-            .padding(16.dp)
             .fillMaxSize()
     ) {
         EnableNotificationsCard(
