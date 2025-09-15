@@ -72,6 +72,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
     var showMenu by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
     var viewType by remember { mutableStateOf(HistoryViewType.Message) }
+    var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
 
     Scaffold(
         topBar = {
@@ -127,11 +128,13 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
             HistoryViewType.Message -> HistoryScreenContent(
                 modifier = contentModifier,
                 packages = packages.value,
-                onLoadMore = { mainViewmodel.loadMoreHistory() }
+                onLoadMore = { mainViewmodel.loadMoreHistory() },
+                onItemClick = { selectedNotification = it }
             )
             HistoryViewType.Apps -> AppHistoryContent(
                 modifier = contentModifier,
-                packages = packages.value
+                packages = packages.value,
+                onItemClick = { selectedNotification = it }
             )
         }
     }
@@ -154,6 +157,27 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
             }
         )
     }
+
+    selectedNotification?.let { notification ->
+        AlertDialog(
+            onDismissRequest = { selectedNotification = null },
+            title = { Text(notification.appName.ifBlank { notification.packageName }) },
+            text = {
+                Column {
+                    Text("Title: ${notification.title}")
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Message: ${notification.text}")
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Arrival: ${notification.receivedAt}")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedNotification = null }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
 }
 
 
@@ -162,7 +186,8 @@ fun HistoryScreen(mainViewmodel: MainViewModel) {
 fun HistoryScreenContent(
     modifier: Modifier,
     packages: List<NotificationModel>,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
+    onItemClick: (NotificationModel) -> Unit
 ) {
     Log.e("Maaanjha", "HistoryScreenContent:list ${packages}")
     val listState = rememberLazyListState()
@@ -199,7 +224,7 @@ fun HistoryScreenContent(
                 }
                 items(notifications) { item ->
                     Log.e("Mantsha", "HistoryScreenContent: ${item}")
-                    ItemHistoryCard(item)
+                    ItemHistoryCard(item, onItemClick)
                 }
             }
         }
@@ -235,7 +260,8 @@ private fun EmptyValueCard(modifier: Modifier) {
 @Composable
 fun AppHistoryContent(
     modifier: Modifier,
-    packages: List<NotificationModel>
+    packages: List<NotificationModel>,
+    onItemClick: (NotificationModel) -> Unit
 ) {
     val grouped = packages.groupBy { it.packageName }
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault())
@@ -286,7 +312,7 @@ fun AppHistoryContent(
                             runCatching { LocalDateTime.parse(it.receivedAt, formatter) }
                                 .getOrNull() ?: LocalDateTime.MIN
                         }.forEach { item ->
-                            ItemHistoryCard(item)
+                            ItemHistoryCard(item, onItemClick)
                         }
                     }
                 }
@@ -296,11 +322,12 @@ fun AppHistoryContent(
 }
 
 @Composable
-fun ItemHistoryCard(model: NotificationModel) {
+fun ItemHistoryCard(model: NotificationModel, onClick: (NotificationModel) -> Unit) {
     Card(
         modifier = Modifier
             .padding(horizontal = 12.dp, vertical = 6.dp)
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .clickable { onClick(model) },
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(modifier = Modifier.fillMaxWidth()) {
