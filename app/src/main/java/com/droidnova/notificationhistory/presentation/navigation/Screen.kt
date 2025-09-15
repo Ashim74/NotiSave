@@ -5,4 +5,7 @@ sealed class Screens(val route: String) {
    data object History : Screens("History")
    data object ManageNotifications : Screens("ManageNotifications")
    data object AboutScreen : Screens("AboutScreen")
+   data object AppNotifications : Screens("app_notifications/{packageName}") {
+      fun createRoute(packageName: String) = "app_notifications/$packageName"
+   }
 }

@@ -180,6 +180,13 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         }
     }
 
+    suspend fun getNotificationsForPackage(packageName: String): List<NotificationModel> {
+        return withContext(Dispatchers.IO) {
+            dao.getNotificationsByPackage(packageName)
+                .map { convertEntityToModel(getApplication(), it) }
+        }
+    }
+
     fun hideRateUsCard() {
         viewModelScope.launch {
             userPrefs.hideRateUsCard()

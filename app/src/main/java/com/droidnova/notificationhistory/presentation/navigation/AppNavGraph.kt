@@ -16,7 +16,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.presentation.screens.applist.AppListScreen
 import com.droidnova.notificationhistory.presentation.screens.about.AboutScreen
 import com.droidnova.notificationhistory.presentation.screens.history.HistoryScreen
 import com.droidnova.notificationhistory.presentation.screens.home.HomeScreen
@@ -76,13 +79,20 @@ fun AppNavGraph(){
             HomeScreen(mainViewModel,navController)
         }
         composable(Screens.History.route) {
-            HistoryScreen(mainViewModel)
+            HistoryScreen(mainViewModel, navController)
         }
         composable(Screens.ManageNotifications.route) {
             ManageAppNotificationScreen(mainViewModel)
         }
         composable(Screens.AboutScreen.route) {
             AboutScreen(navController)
+        }
+        composable(
+            route = Screens.AppNotifications.route,
+            arguments = listOf(navArgument("packageName") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val packageName = backStackEntry.arguments?.getString("packageName") ?: return@composable
+            AppListScreen(mainViewModel, packageName, navController)
         }
     }
 }
