@@ -205,11 +205,7 @@ private fun EnableNotificationsCard(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth() .border(
-            width = 0.5.dp,
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.primary
-        ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp)
 
     ) {
@@ -238,11 +234,7 @@ private fun SelectedAppsCard(
     onSelectAppsClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth() .border(
-            width = 0.5.dp,
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.primary
-        ),
+        modifier = Modifier.fillMaxWidth() ,
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
@@ -272,11 +264,8 @@ private fun SelectedAppsCard(
 private fun ViewHistoryCard(onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth() .border(
-            width = 0.5.dp,
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.primary
-        )
+        modifier = Modifier.fillMaxWidth()
+
     ) {
         Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.Start) {
             Icon(painter = painterResource(R.drawable.ic_history), contentDescription = "History")
