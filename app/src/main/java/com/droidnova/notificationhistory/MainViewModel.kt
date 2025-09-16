@@ -2,14 +2,11 @@ package com.droidnova.notificationhistory
 
 import android.app.Application
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.application
 import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
-import com.droidnova.notificationhistory.data.db.NotificationEntity
 import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data_shared.SettingState
@@ -30,8 +27,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.compareTo
-import kotlin.rem
+import java.util.concurrent.TimeUnit
+import kotlin.jvm.Volatile
 
 class MainViewModel(application: Application): AndroidViewModel(application) {
     private val dao = AppDatabase.getInstance(application).notificationDao()
@@ -48,6 +45,11 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     private var currentOffset = 0
     private val pageSize = 100
     private var endReached = false
+    private var hasLoadedInitialHistory = false
+    private var lastRetentionDays = SettingState.DEFAULT_HISTORY_RETENTION_DAYS
+    private var historyLoadGeneration = 0
+    @Volatile
+    private var activeHistoryLoadGeneration: Int? = null
 
 
     private val _allInstalledApps = MutableStateFlow<List<AppInfo>>(emptyList())
@@ -74,7 +76,9 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
             }
         }
         viewModelScope.launch {
-            userPrefs.settingFlow.collectLatest {settingState->
+            userPrefs.settingFlow.collectLatest { settingState ->
+                val retentionChanged = settingState.historyRetentionDays != lastRetentionDays
+                lastRetentionDays = settingState.historyRetentionDays
                 _settingState.value = settingState
                 if (!isInitialized) {
                     isInitialized = true
@@ -83,10 +87,15 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
                         userPrefs.updateSnoozeUntilLaunch(2)
                     }
                 }
+                if (!hasLoadedInitialHistory) {
+                    hasLoadedInitialHistory = true
+                    refreshHistory(settingState.historyRetentionDays)
+                } else if (retentionChanged) {
+                    refreshHistory(settingState.historyRetentionDays)
+                }
             }
         }
         refreshListenerGranted()
-        loadMoreHistory()
     }
     /** Called when user taps "Enable". */
     fun onEnableClick() {
@@ -144,17 +153,48 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
             // No manual refresh needed: allowedApps flow triggers recompute.
         }
     }
+
+    private fun refreshHistory(retentionDays: Int) {
+        val sanitizedDays = retentionDays.coerceAtLeast(0)
+        viewModelScope.launch(Dispatchers.IO) {
+            if (sanitizedDays > 0) {
+                val threshold = System.currentTimeMillis() -
+                    TimeUnit.DAYS.toMillis(sanitizedDays.toLong())
+                dao.deleteNotificationsOlderThan(threshold)
+            }
+            withContext(Dispatchers.Main) {
+                historyLoadGeneration++
+                activeHistoryLoadGeneration = null
+                currentOffset = 0
+                endReached = false
+                _history.value = emptyList()
+                loadMoreHistory()
+            }
+        }
+    }
     fun loadMoreHistory() {
         if (endReached) return
+        val generation = historyLoadGeneration
+        if (activeHistoryLoadGeneration == generation) return
+        activeHistoryLoadGeneration = generation
         viewModelScope.launch(Dispatchers.IO) {
-            val entities = dao.getNotifications(pageSize, currentOffset)
-            val models = entities.map { convertEntityToModel(getApplication(), it) }
-            if (models.isNotEmpty()) {
-                currentOffset += models.size
-                _history.update { it + models }
-            }
-            if (models.size < pageSize) {
-                endReached = true
+            try {
+                val entities = dao.getNotifications(pageSize, currentOffset)
+                val models = entities.map { convertEntityToModel(getApplication(), it) }
+                if (generation != historyLoadGeneration) {
+                    return@launch
+                }
+                if (models.isNotEmpty()) {
+                    currentOffset += models.size
+                    _history.update { it + models }
+                }
+                if (models.size < pageSize) {
+                    endReached = true
+                }
+            } finally {
+                if (activeHistoryLoadGeneration == generation) {
+                    activeHistoryLoadGeneration = null
+                }
             }
         }
     }
@@ -162,9 +202,21 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     fun clearAllHistory() {
         viewModelScope.launch(Dispatchers.IO) {
             dao.deleteAllNotifications()
-            currentOffset = 0
-            endReached = false
-            _history.value = emptyList()
+            withContext(Dispatchers.Main) {
+                historyLoadGeneration++
+                activeHistoryLoadGeneration = null
+                currentOffset = 0
+                endReached = false
+                _history.value = emptyList()
+            }
+        }
+    }
+
+    fun updateHistoryRetentionDays(days: Int) {
+        val sanitizedDays = days.coerceAtLeast(0)
+        if (sanitizedDays == lastRetentionDays) return
+        viewModelScope.launch {
+            userPrefs.updateHistoryRetentionDays(sanitizedDays)
         }
     }
 

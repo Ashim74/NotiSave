@@ -9,6 +9,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.ALLOWED_APPS_KEY
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.KEY_USER_WANTS_TRACKING
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LAUNCH_COUNT
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HISTORY_RETENTION_DAYS
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SNOOZE_UNTIL_LAUNCH
 import com.droidnova.notificationhistory.data_shared.SettingState
@@ -30,6 +31,8 @@ class UserPreferences(private val context: Context) {
             userToggleTracking = preferences[KEY_USER_WANTS_TRACKING] ?: false,
             snoozeUntilLaunch = preferences[SNOOZE_UNTIL_LAUNCH] ?: 2,
             selectedAppsCount = allowed.size,
+            historyRetentionDays = preferences[HISTORY_RETENTION_DAYS]
+                ?: SettingState.DEFAULT_HISTORY_RETENTION_DAYS,
            // allowedApps = allowed,
         )
     }
@@ -76,6 +79,12 @@ class UserPreferences(private val context: Context) {
     suspend fun updateSnoozeUntilLaunch(value: Int) {
         context.dataStore.edit { preference ->
             preference[SNOOZE_UNTIL_LAUNCH] = value
+        }
+    }
+
+    suspend fun updateHistoryRetentionDays(days: Int) {
+        context.dataStore.edit { preference ->
+            preference[HISTORY_RETENTION_DAYS] = days
         }
     }
 }

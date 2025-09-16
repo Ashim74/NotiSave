@@ -15,8 +15,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -24,9 +24,6 @@ import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.screens.history.ItemHistoryCard
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,14 +33,10 @@ fun AppsNotificationListScreen(
     navController: NavController
 ) {
     var notifications by remember { mutableStateOf<List<NotificationModel>>(emptyList()) }
-    val formatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault()) }
 
     LaunchedEffect(packageName) {
         notifications = mainViewModel.getNotificationsForPackage(packageName)
-            .sortedByDescending {
-                runCatching { LocalDateTime.parse(it.receivedAt, formatter) }.getOrNull()
-                    ?: LocalDateTime.MIN
-            }
+            .sortedByDescending { it.receivedAtEpoch }
     }
 
     val title = notifications.firstOrNull()?.appName?.ifBlank { packageName } ?: packageName
