@@ -71,7 +71,6 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         viewModelScope.launch {
             userPrefs.allowedApps.collect { allowed ->
                 allowedPackagesSet = allowed
-                _settingState.update { it.copy(selectedAppsCount = allowed.size) }
             }
         }
         viewModelScope.launch {
@@ -91,19 +90,15 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     }
     /** Called when user taps "Enable". */
     fun onEnableClick() {
-        Log.d("MyTAG", "MainViewModel.onEnableClick() called")
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
-        Log.d("MyTAG", "MainViewModel.onEnableClick() granted=$granted")
         if (granted) {
             // Already granted: persist toggle + do work
             viewModelScope.launch {
                 userPrefs.setToggleTracking(true)
             }
         } else {
-            Log.d("MyTAG","MainViewModel.onEnableClick() not granted")
             // Not granted: ask user
             awaitingGrant = true
-            Log.e("Mantsha","MainViewModel.onEnableClick() awaitingGrant=$awaitingGrant")
             viewModelScope.launch {
                 _events.emit(HomeUiEvent.OpenNotificationAccessSettings)
             }
@@ -112,25 +107,20 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     /** Call from UI when screen resumes (user could have granted in Settings). */
     fun onResume() {
-        Log.e("switch", "onresumefunction called ")
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
-        Log.e("MyTAG", "MainViewModel.onResume() granted=$granted")
         if (granted) {
             if (awaitingGrant) {
                 awaitingGrant = false
                 viewModelScope.launch {
-                    Log.e("switch", "MainViewModel.onResume() granted=true")
                     userPrefs.setToggleTracking(true)
                   _events.emit(HomeUiEvent.DoWorkAfterEnabled)
                 }
             }
         } else {
-            Log.e("switch", "MainViewModel.onResume() granted=false")
         }
     }
 
     fun setToggleTracking(isSwitchOn: Boolean) {
-        Log.d("MyTAG", "MainViewModel.onUserWantsTrackingChange() called with isSwitchOn=$isSwitchOn")
         viewModelScope.launch {
             userPrefs.setToggleTracking(isSwitchOn)
         }
@@ -139,7 +129,6 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     fun refreshListenerGranted() = onResume()
 
     fun getAllInstalledApps(context: Context) {
-        Log.d("MyTAG", "MainViewModel.getAllInstalledApps() called")
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val allApps = getInstalledApps(context,allowedPackagesSet)
@@ -150,7 +139,6 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     /** Call when user toggles an app in the UI */
     fun addToAllowedApps(packageName: String, add: Boolean) {
-        Log.e("Mantsh2232"," viewmodel functionaddToAllowedAppsCalled()  packgename $packageName,checked${Boolean}")
         viewModelScope.launch {
             if (add) userPrefs.allowApp(packageName) else userPrefs.blockApp(packageName)
             // No manual refresh needed: allowedApps flow triggers recompute.

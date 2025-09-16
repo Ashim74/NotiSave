@@ -3,6 +3,7 @@ package com.droidnova.notificationhistory.presentation.screens.history
 import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
@@ -41,7 +43,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.collect
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -57,6 +58,7 @@ import com.droidnova.notificationhistory.data.model.NotificationModel
 // Material 3 imports
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -76,7 +78,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
-    var viewType by remember { mutableStateOf(HistoryViewType.Message) }
+    var viewType by rememberSaveable { mutableStateOf(HistoryViewType.Message) }
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
 
     Scaffold(
@@ -140,7 +142,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                 modifier = contentModifier,
                 packages = packages.value,
                 onAppClick = { packageName ->
-                    navController.navigate(Screens.AppNotifications.createRoute(packageName))
+                    navController.navigate(Screens.AppsNotificationListScreen.createRoute(packageName))
                 }
             )
         }
@@ -346,7 +348,11 @@ fun AppHistoryContent(
 fun ItemHistoryCard(model: NotificationModel, onClick: (NotificationModel) -> Unit) {
     Card(
         modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp).border(
+                width = 0.5.dp,
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary
+            )
             .fillMaxWidth()
             .clickable { onClick(model) },
     ) {

@@ -42,6 +42,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import android.provider.Settings
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.filled.Notifications
@@ -98,10 +99,10 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(padding).padding(horizontal = 12.dp)
         ) {
-            Widgets(
-                padding = PaddingValues(16.dp),
+            HomeScreenContent(
+                modifier = Modifier.fillMaxSize(),
                 state = state,
                 navController = navController,
                 onSwitchChange = {
@@ -169,16 +170,14 @@ fun TopBarApp(navigate: () -> Unit) {
 }
 
 @Composable
-fun Widgets(
-    padding: PaddingValues,
+fun HomeScreenContent(
+    modifier: Modifier,
     state: SettingState,
     onSwitchChange: (Boolean) -> Unit,
     navController: NavController
 ) {
     Column(
-        modifier = Modifier
-            .padding(padding)
-            .fillMaxSize()
+        modifier = modifier.padding(8.dp)
     ) {
         EnableNotificationsCard(
             checked = state.userToggleTracking,
@@ -206,8 +205,13 @@ private fun EnableNotificationsCard(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth() .border(
+            width = 0.5.dp,
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.primary
+        ),
         shape = RoundedCornerShape(16.dp)
+
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notification")
@@ -234,7 +238,11 @@ private fun SelectedAppsCard(
     onSelectAppsClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth() .border(
+            width = 0.5.dp,
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.primary
+        ),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
@@ -264,7 +272,11 @@ private fun SelectedAppsCard(
 private fun ViewHistoryCard(onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth() .border(
+            width = 0.5.dp,
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.primary
+        )
     ) {
         Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.Start) {
             Icon(painter = painterResource(R.drawable.ic_history), contentDescription = "History")

@@ -13,8 +13,8 @@ android {
         applicationId = "com.droidnova.notificationhistory"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.07"
+        versionCode = 9
+        versionName = "0.09"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

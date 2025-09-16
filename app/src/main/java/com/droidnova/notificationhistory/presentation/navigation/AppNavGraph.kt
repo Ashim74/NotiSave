@@ -1,14 +1,9 @@
 package com.droidnova.notificationhistory.presentation.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
@@ -19,7 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.droidnova.notificationhistory.MainViewModel
-import com.droidnova.notificationhistory.presentation.screens.applist.AppListScreen
+import com.droidnova.notificationhistory.presentation.screens.applist.AppsNotificationListScreen
 import com.droidnova.notificationhistory.presentation.screens.about.AboutScreen
 import com.droidnova.notificationhistory.presentation.screens.history.HistoryScreen
 import com.droidnova.notificationhistory.presentation.screens.home.HomeScreen
@@ -88,11 +83,11 @@ fun AppNavGraph(){
             AboutScreen(navController)
         }
         composable(
-            route = Screens.AppNotifications.route,
+            route = Screens.AppsNotificationListScreen.route,
             arguments = listOf(navArgument("packageName") { type = NavType.StringType })
         ) { backStackEntry ->
             val packageName = backStackEntry.arguments?.getString("packageName") ?: return@composable
-            AppListScreen(mainViewModel, packageName, navController)
+            AppsNotificationListScreen(mainViewModel, packageName, navController)
         }
     }
 }

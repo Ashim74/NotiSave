@@ -20,16 +20,19 @@ private val Context.dataStore by preferencesDataStore(name = DataStoreKeys.PREF_
 
 class UserPreferences(private val context: Context) {
 
+    private val allowedAppsKey = stringSetPreferencesKey(ALLOWED_APPS_KEY)
+
     val settingFlow: Flow<SettingState> = context.dataStore.data.map { preferences->
+        val allowed = preferences[allowedAppsKey] ?: emptySet()
         SettingState(
             launchCount = preferences[LAUNCH_COUNT] ?: 0,
             showRateUsCard = preferences[SHOW_RATE_US_CARD]?: true,
             userToggleTracking = preferences[KEY_USER_WANTS_TRACKING] ?: false,
             snoozeUntilLaunch = preferences[SNOOZE_UNTIL_LAUNCH] ?: 2,
+            selectedAppsCount = allowed.size,
+           // allowedApps = allowed,
         )
     }
-
-    private val allowedAppsKey = stringSetPreferencesKey(ALLOWED_APPS_KEY)
 
 
     suspend fun setToggleTracking(enabled: Boolean) {

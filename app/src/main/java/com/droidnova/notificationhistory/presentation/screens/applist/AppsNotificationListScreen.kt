@@ -30,7 +30,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppListScreen(
+fun AppsNotificationListScreen(
     mainViewModel: MainViewModel,
     packageName: String,
     navController: NavController
@@ -63,10 +63,12 @@ fun AppListScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(innerPadding
+                )
         ) {
             items(notifications) { item ->
-                ItemHistoryCard(item, onClick = {})
+                ItemHistoryCard(item, onClick = {}
+                )
             }
         }
     }
