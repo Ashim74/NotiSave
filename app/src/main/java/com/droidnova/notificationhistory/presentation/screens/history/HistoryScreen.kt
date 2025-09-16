@@ -35,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.RadioButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -75,9 +76,11 @@ enum class HistoryViewType { Message, Apps }
 @Composable
 fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     val packages = mainViewmodel.history.collectAsState()
+    val settingsState by mainViewmodel.settingState.collectAsState()
     Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
+    var showRetentionPicker by remember { mutableStateOf(false) }
     var viewType by rememberSaveable { mutableStateOf(HistoryViewType.Message) }
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
 
@@ -101,6 +104,15 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                             onClick = {
                                 showMenu = false
                                 showConfirm = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text("Auto delete (" + formatRetentionDays(settingsState.historyRetentionDays) + ")")
+                            },
+                            onClick = {
+                                showMenu = false
+                                showRetentionPicker = true
                             }
                         )
                     }
@@ -163,6 +175,17 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                 TextButton(onClick = { showConfirm = false }) {
                     Text(text = "Cancel")
                 }
+            }
+        )
+    }
+
+    if (showRetentionPicker) {
+        RetentionPickerDialog(
+            currentRetentionDays = settingsState.historyRetentionDays,
+            onDismiss = { showRetentionPicker = false },
+            onSelectionConfirmed = { days ->
+                showRetentionPicker = false
+                mainViewmodel.updateHistoryRetentionDays(days)
             }
         )
     }
@@ -260,6 +283,84 @@ fun HistoryScreenContent(
                 }
             }
         }
+    }
+}
+
+private val RETENTION_DAYS_OPTIONS = listOf(0, 1, 3, 7, 14, 30)
+
+@Composable
+private fun RetentionPickerDialog(
+    currentRetentionDays: Int,
+    onDismiss: () -> Unit,
+    onSelectionConfirmed: (Int) -> Unit,
+) {
+    var selectedOption by remember(currentRetentionDays) { mutableStateOf(currentRetentionDays) }
+    val options = remember(currentRetentionDays) {
+        (RETENTION_DAYS_OPTIONS + currentRetentionDays).distinct().sorted()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Auto delete history") },
+        text = {
+            Column {
+                Text(
+                    text = "Choose how long to keep your notifications.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                options.forEach { days ->
+                    RetentionOptionRow(
+                        label = formatRetentionDays(days),
+                        selected = selectedOption == days,
+                        onClick = { selectedOption = days }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSelectionConfirmed(selectedOption) }) {
+                Text("Save", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun RetentionOptionRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+}
+
+private fun formatRetentionDays(days: Int): String {
+    return when {
+        days <= 0 -> "Never"
+        days == 1 -> "1 day"
+        else -> "$days days"
     }
 }
 
