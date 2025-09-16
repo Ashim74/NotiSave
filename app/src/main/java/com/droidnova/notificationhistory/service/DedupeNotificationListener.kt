@@ -6,9 +6,12 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
+import com.droidnova.notificationhistory.data.db.NotificationDao
 import com.droidnova.notificationhistory.data.db.NotificationEntity
+import com.droidnova.notificationhistory.data_shared.SettingState
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
+import java.util.concurrent.TimeUnit
 
 class NotificationListener : NotificationListenerService() {
 
@@ -22,6 +25,8 @@ class NotificationListener : NotificationListenerService() {
 
     // Fast reads
     @Volatile private var allowedCache: Set<String> = emptySet()
+    @Volatile private var trackingEnabled: Boolean = false
+    @Volatile private var historyRetentionDays: Int = SettingState.DEFAULT_HISTORY_RETENTION_DAYS
 
     override fun onCreate() {
         super.onCreate()
@@ -32,6 +37,13 @@ class NotificationListener : NotificationListenerService() {
             prefs.allowedApps.collect { set ->
                 allowedCache = set
                 Log.d("NLS", "allowed packages = $set")
+            }
+        }
+
+        serviceScope.launch {
+            prefs.settingFlow.collect { state ->
+                trackingEnabled = state.userToggleTracking
+                historyRetentionDays = state.historyRetentionDays.coerceAtLeast(0)
             }
         }
 
@@ -68,8 +80,7 @@ class NotificationListener : NotificationListenerService() {
 
         // 6) DB insert (background)
         serviceScope.launch {
-            val enabled = prefs.settingFlow.first().userToggleTracking
-            if (!enabled) return@launch
+            if (!trackingEnabled) return@launch
 
             val dao = AppDatabase.getInstance(applicationContext).notificationDao()
 
@@ -82,6 +93,7 @@ class NotificationListener : NotificationListenerService() {
 
             Log.e("NLSs", "onNotificationPosted: $entity")
             dao.insertApp(entity)  // Room 2.6+ ho to @Upsert best hai
+            enforceRetention(dao)
         }
     }
 
@@ -93,5 +105,12 @@ class NotificationListener : NotificationListenerService() {
         val isFgService = (n.flags and Notification.FLAG_FOREGROUND_SERVICE) != 0
         // Agar progress/ongoing bhi log karne hain to isOngoing/isFgService hata do
         return isGroupSummary || isOngoing || isFgService
+    }
+
+    private suspend fun enforceRetention(dao: NotificationDao) {
+        val retention = historyRetentionDays
+        if (retention <= 0) return
+        val threshold = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(retention.toLong())
+        dao.deleteNotificationsOlderThan(threshold)
     }
 }
