@@ -10,5 +10,6 @@ object DataStoreKeys {
     val LAUNCH_COUNT = intPreferencesKey("launch_count")
     val SHOW_RATE_US_CARD = booleanPreferencesKey("show_us_rate_card")
     val SNOOZE_UNTIL_LAUNCH = intPreferencesKey("snooze_until_launch")
+    val HISTORY_RETENTION_DAYS = intPreferencesKey("history_retention_days")
 
 }

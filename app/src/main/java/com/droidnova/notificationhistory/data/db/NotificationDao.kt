@@ -28,6 +28,9 @@ interface NotificationDao {
     @Query("DELETE FROM apps")
     suspend fun deleteAllNotifications()
 
+    @Query("DELETE FROM apps WHERE receivedAt < :threshold")
+    suspend fun deleteNotificationsOlderThan(threshold: Long): Int
+
     // Observe all rows, newest first
     @Query("SELECT * FROM apps ORDER BY receivedAt DESC")
     fun observeAll(): Flow<List<NotificationEntity>>

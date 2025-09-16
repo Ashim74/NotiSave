@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -31,6 +32,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,12 +46,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
@@ -75,11 +77,16 @@ enum class HistoryViewType { Message, Apps }
 @Composable
 fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     val packages = mainViewmodel.history.collectAsState()
+    val settingState by mainViewmodel.settingState.collectAsState()
     Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
     var viewType by rememberSaveable { mutableStateOf(HistoryViewType.Message) }
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
+    var showRetentionDialog by remember { mutableStateOf(false) }
+    val retentionDays = settingState.historyRetentionDays
+    val retentionOptions = remember { listOf(0, 1, 3, 7, 14, 30) }
+    val retentionLabel = historyRetentionLabel(retentionDays)
 
     Scaffold(
         topBar = {
@@ -96,6 +103,13 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("Auto delete after: $retentionLabel") },
+                            onClick = {
+                                showMenu = false
+                                showRetentionDialog = true
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text("Clear all History") },
                             onClick = {
@@ -146,6 +160,49 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                 }
             )
         }
+    }
+
+    if (showRetentionDialog) {
+        AlertDialog(
+            onDismissRequest = { showRetentionDialog = false },
+            title = { Text("Auto delete history") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    retentionOptions.forEach { days ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = days == retentionDays,
+                                    onClick = {
+                                        if (days != retentionDays) {
+                                            mainViewmodel.updateHistoryRetentionDays(days)
+                                        }
+                                        showRetentionDialog = false
+                                    },
+                                    role = Role.RadioButton
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = days == retentionDays,
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = historyRetentionLabel(days),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showRetentionDialog = false }) {
+                    Text("Close", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 
     if (showConfirm) {
@@ -296,12 +353,8 @@ fun AppHistoryContent(
     onAppClick: (String) -> Unit,
 ) {
     val grouped = packages.groupBy { it.packageName }
-    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault())
     val sortedGroups = grouped.entries.sortedByDescending { entry ->
-        entry.value.maxOfOrNull {
-            runCatching { LocalDateTime.parse(it.receivedAt, formatter) }.getOrNull()
-                ?: LocalDateTime.MIN
-        } ?: LocalDateTime.MIN
+        entry.value.maxOfOrNull { it.receivedAtEpoch } ?: Long.MIN_VALUE
     }
 
     LazyColumn(modifier = modifier) {
@@ -311,10 +364,7 @@ fun AppHistoryContent(
             }
         } else {
             items(sortedGroups) { (_, notifications) ->
-                val latest = notifications.maxByOrNull {
-                    runCatching { LocalDateTime.parse(it.receivedAt, formatter) }.getOrNull()
-                        ?: LocalDateTime.MIN
-                } ?: notifications.first()
+                val latest = notifications.maxByOrNull { it.receivedAtEpoch } ?: notifications.first()
 
                 Column {
                     Card(
@@ -404,4 +454,10 @@ fun AppIcon(drawable: Drawable?) {
             contentDescription = null
         )
     }
+}
+
+private fun historyRetentionLabel(days: Int): String = when {
+    days <= 0 -> "Never"
+    days == 1 -> "1 day"
+    else -> "$days days"
 }
