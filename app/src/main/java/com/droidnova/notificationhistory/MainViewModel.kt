@@ -2,6 +2,7 @@ package com.droidnova.notificationhistory
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
@@ -99,6 +100,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     }
     /** Called when user taps "Enable". */
     fun onEnableClick() {
+        Log.e("yourTag", "enable")
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
         if (granted) {
             // Already granted: persist toggle + do work
@@ -116,6 +118,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     /** Call from UI when screen resumes (user could have granted in Settings). */
     fun onResume() {
+        Log.e("yourTag", "onResume")
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
         if (granted) {
             if (awaitingGrant) {
@@ -130,6 +133,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     }
 
     fun setToggleTracking(isSwitchOn: Boolean) {
+        Log.e("yourTag", "setToggleTracking")
         viewModelScope.launch {
             userPrefs.setToggleTracking(isSwitchOn)
         }
@@ -146,7 +150,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         }
     }
 
-    /** Call when user toggles an app in the UI */
+    /** Call when user toggles an app in the allow_notify_screen  UI */
     fun addToAllowedApps(packageName: String, add: Boolean) {
         viewModelScope.launch {
             if (add) userPrefs.allowApp(packageName) else userPrefs.blockApp(packageName)

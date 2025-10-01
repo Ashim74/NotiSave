@@ -63,7 +63,7 @@ fun ManageAppNotificationScreen(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
-            }
+            }//item
 
             // Loading / empty
             if (allInstalledApps.isEmpty()) {
@@ -79,7 +79,6 @@ fun ManageAppNotificationScreen(
                     }
                 }
             } else {
-
                 items(
                     allInstalledApps,
                     key = { it.packageName }
@@ -93,8 +92,8 @@ fun ManageAppNotificationScreen(
                     )
                 }
             }
-        }
-    }
+        }//lazy
+    }//sc
 }
 
 @Composable
