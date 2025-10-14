@@ -8,5 +8,7 @@ data class NotificationModel(
     val appName: String,
     val title: String,
     val text: String,
-    val receivedAt: String
+    val receivedAt: String,
+    val receivedAtEpoch: Long,
+    //val days:String
 )

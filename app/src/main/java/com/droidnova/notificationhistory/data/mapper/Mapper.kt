@@ -20,7 +20,8 @@ fun convertEntityToModel(context: Context, notificationEntity: NotificationEntit
         appName = appName,
         title = notificationEntity.title,
         text = notificationEntity.message,
-        receivedAt = notificationEntity.receivedAt.toReadableTime()
+        receivedAt = notificationEntity.receivedAt.toReadableTime(),
+        receivedAtEpoch = notificationEntity.receivedAt
     )
     return notificationModel
 }

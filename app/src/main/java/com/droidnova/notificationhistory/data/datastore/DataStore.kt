@@ -7,6 +7,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.ALLOWED_APPS_KEY
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.KEY_USER_WANTS_TRACKING
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LAUNCH_COUNT
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HISTORY_RETENTION_DAYS
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SNOOZE_UNTIL_LAUNCH
+import com.droidnova.notificationhistory.data_shared.SettingState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -14,21 +20,31 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore by preferencesDataStore(name = DataStoreKeys.PREF_NAME)
 
 class UserPreferences(private val context: Context) {
-    private val wantsKey = booleanPreferencesKey(DataStoreKeys.KEY_USER_WANTS_TRACKING)
+
     private val allowedAppsKey = stringSetPreferencesKey(ALLOWED_APPS_KEY)
 
-
-    val userToggleTracking: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[wantsKey] ?: false
+    val settingFlow: Flow<SettingState> = context.dataStore.data.map { preferences->
+        val allowed = preferences[allowedAppsKey] ?: emptySet()
+        SettingState(
+            launchCount = preferences[LAUNCH_COUNT] ?: 0,
+            showRateUsCard = preferences[SHOW_RATE_US_CARD]?: true,
+            userToggleTracking = preferences[KEY_USER_WANTS_TRACKING] ?: false,
+            snoozeUntilLaunch = preferences[SNOOZE_UNTIL_LAUNCH] ?: 2,
+            selectedAppsCount = allowed.size,
+            historyRetentionDays = preferences[HISTORY_RETENTION_DAYS]
+                ?: SettingState.DEFAULT_HISTORY_RETENTION_DAYS,
+           // allowedApps = allowed,
+        )
     }
+
 
     suspend fun setToggleTracking(enabled: Boolean) {
         context.dataStore.edit { prefs ->
-            prefs[wantsKey] = enabled
+            prefs[KEY_USER_WANTS_TRACKING] = enabled
         }
     }
 
-    // New: allowed apps list
+    // New: Flow allowed apps list
     val allowedApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
         prefs[allowedAppsKey] ?: emptySet()
     }
@@ -46,6 +62,29 @@ class UserPreferences(private val context: Context) {
         context.dataStore.edit { prefs ->
             val currentAppsPackage = prefs[allowedAppsKey] ?: emptySet()
             prefs[allowedAppsKey] = currentAppsPackage - packageAppName
+        }
+    }
+
+    suspend fun updateLaunchCount(value:Int){
+        context.dataStore.edit { preference->
+            preference[LAUNCH_COUNT] = value
+        }
+    }
+
+    suspend fun hideRateUsCard(){
+        context.dataStore.edit {
+            it[SHOW_RATE_US_CARD] = false
+        }
+    }
+    suspend fun updateSnoozeUntilLaunch(value: Int) {
+        context.dataStore.edit { preference ->
+            preference[SNOOZE_UNTIL_LAUNCH] = value
+        }
+    }
+
+    suspend fun updateHistoryRetentionDays(days: Int) {
+        context.dataStore.edit { preference ->
+            preference[HISTORY_RETENTION_DAYS] = days
         }
     }
 }

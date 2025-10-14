@@ -4,15 +4,14 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.application
 import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
+import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent
-import com.droidnova.notificationhistory.presentation.screens.home.HomeUiState
 import com.droidnova.notificationhistory.presentation.screens.manage_notification.AppInfo
 import com.droidnova.notificationhistory.utils.getInstalledApps
 import kotlinx.coroutines.Dispatchers
@@ -23,28 +22,35 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
+import kotlin.jvm.Volatile
 
 class MainViewModel(application: Application): AndroidViewModel(application) {
     private val dao = AppDatabase.getInstance(application).notificationDao()
     private val userPrefs = UserPreferences(application)
 
-    private val _homeUiState = MutableStateFlow(HomeUiState())
-    val homeUiState: StateFlow<HomeUiState> = _homeUiState.asStateFlow()
+    private val _settingState = MutableStateFlow(SettingState())
+    val settingState: StateFlow<SettingState> = _settingState.asStateFlow()
 
     private val _events = MutableSharedFlow<HomeUiEvent>()
     val events: SharedFlow<HomeUiEvent> = _events.asSharedFlow()
 
-    // Live stream from Room → map to UI models → StateFlow for Compose
-    val apps: StateFlow<List<NotificationModel>> =
-        dao.observeAll()
-            .map { entities -> entities.map { convertEntityToModel(getApplication(), it) } }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _history = MutableStateFlow<List<NotificationModel>>(emptyList())
+    val history: StateFlow<List<NotificationModel>> = _history.asStateFlow()
+    private var currentOffset = 0
+    private val pageSize = 100
+    private var endReached = false
+    private var hasLoadedInitialHistory = false
+    private var lastRetentionDays = SettingState.DEFAULT_HISTORY_RETENTION_DAYS
+    private var historyLoadGeneration = 0
+    @Volatile
+    private var activeHistoryLoadGeneration: Int? = null
 
 
     private val _allInstalledApps = MutableStateFlow<List<AppInfo>>(emptyList())
@@ -60,38 +66,50 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     private var allowedPackagesSet = emptySet<String>()
     private var awaitingGrant = false
+    private var isInitialized = false
 
 
     init {
-        viewModelScope.launch {
-            userPrefs.userToggleTracking.collect { toggle ->
-                Log.d("toggle", "MainViewModel.init() userToggleTracking=$toggle")
-                _homeUiState.update { it.copy(userToggleTracking = toggle) }
-            }
-        }
+
         viewModelScope.launch {
             userPrefs.allowedApps.collect { allowed ->
                 allowedPackagesSet = allowed
-                _homeUiState.update { it.copy(selectedAppsCount = allowed.size) }
+            }
+        }
+        viewModelScope.launch {
+            userPrefs.settingFlow.collectLatest { settingState ->
+                val retentionChanged = settingState.historyRetentionDays != lastRetentionDays
+                lastRetentionDays = settingState.historyRetentionDays
+                _settingState.value = settingState
+                if (!isInitialized) {
+                    isInitialized = true
+                    userPrefs.updateLaunchCount(settingState.launchCount + 1)
+                    if (settingState.snoozeUntilLaunch < 2) {
+                        userPrefs.updateSnoozeUntilLaunch(2)
+                    }
+                }
+                if (!hasLoadedInitialHistory) {
+                    hasLoadedInitialHistory = true
+                    refreshHistory(settingState.historyRetentionDays)
+                } else if (retentionChanged) {
+                    refreshHistory(settingState.historyRetentionDays)
+                }
             }
         }
         refreshListenerGranted()
     }
     /** Called when user taps "Enable". */
     fun onEnableClick() {
-        Log.d("MyTAG", "MainViewModel.onEnableClick() called")
+        Log.e("yourTag", "enable")
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
-        Log.d("MyTAG", "MainViewModel.onEnableClick() granted=$granted")
         if (granted) {
             // Already granted: persist toggle + do work
             viewModelScope.launch {
                 userPrefs.setToggleTracking(true)
             }
         } else {
-            Log.d("MyTAG","MainViewModel.onEnableClick() not granted")
             // Not granted: ask user
             awaitingGrant = true
-            Log.e("Mantsha","MainViewModel.onEnableClick() awaitingGrant=$awaitingGrant")
             viewModelScope.launch {
                 _events.emit(HomeUiEvent.OpenNotificationAccessSettings)
             }
@@ -100,25 +118,22 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     /** Call from UI when screen resumes (user could have granted in Settings). */
     fun onResume() {
-        Log.e("switch", "onresumefunction called ")
+        Log.e("yourTag", "onResume")
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
-        Log.e("MyTAG", "MainViewModel.onResume() granted=$granted")
         if (granted) {
             if (awaitingGrant) {
                 awaitingGrant = false
                 viewModelScope.launch {
-                    Log.e("switch", "MainViewModel.onResume() granted=true")
                     userPrefs.setToggleTracking(true)
                   _events.emit(HomeUiEvent.DoWorkAfterEnabled)
                 }
             }
         } else {
-            Log.e("switch", "MainViewModel.onResume() granted=false")
         }
     }
 
     fun setToggleTracking(isSwitchOn: Boolean) {
-        Log.d("MyTAG", "MainViewModel.onUserWantsTrackingChange() called with isSwitchOn=$isSwitchOn")
+        Log.e("yourTag", "setToggleTracking")
         viewModelScope.launch {
             userPrefs.setToggleTracking(isSwitchOn)
         }
@@ -127,7 +142,6 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     fun refreshListenerGranted() = onResume()
 
     fun getAllInstalledApps(context: Context) {
-        Log.d("MyTAG", "MainViewModel.getAllInstalledApps() called")
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val allApps = getInstalledApps(context,allowedPackagesSet)
@@ -136,17 +150,96 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         }
     }
 
-    /** Call when user toggles an app in the UI */
+    /** Call when user toggles an app in the allow_notify_screen  UI */
     fun addToAllowedApps(packageName: String, add: Boolean) {
-        Log.e("Mantsh2232"," viewmodel functionaddToAllowedAppsCalled()  packgename $packageName,checked${Boolean}")
         viewModelScope.launch {
             if (add) userPrefs.allowApp(packageName) else userPrefs.blockApp(packageName)
             // No manual refresh needed: allowedApps flow triggers recompute.
         }
     }
+
+    private fun refreshHistory(retentionDays: Int) {
+        val sanitizedDays = retentionDays.coerceAtLeast(0)
+        viewModelScope.launch(Dispatchers.IO) {
+            if (sanitizedDays > 0) {
+                val threshold = System.currentTimeMillis() -
+                    TimeUnit.DAYS.toMillis(sanitizedDays.toLong())
+                dao.deleteNotificationsOlderThan(threshold)
+            }
+            withContext(Dispatchers.Main) {
+                historyLoadGeneration++
+                activeHistoryLoadGeneration = null
+                currentOffset = 0
+                endReached = false
+                _history.value = emptyList()
+                loadMoreHistory()
+            }
+        }
+    }
+    fun loadMoreHistory() {
+        if (endReached) return
+        val generation = historyLoadGeneration
+        if (activeHistoryLoadGeneration == generation) return
+        activeHistoryLoadGeneration = generation
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val entities = dao.getNotifications(pageSize, currentOffset)
+                val models = entities.map { convertEntityToModel(getApplication(), it) }
+                if (generation != historyLoadGeneration) {
+                    return@launch
+                }
+                if (models.isNotEmpty()) {
+                    currentOffset += models.size
+                    _history.update { it + models }
+                }
+                if (models.size < pageSize) {
+                    endReached = true
+                }
+            } finally {
+                if (activeHistoryLoadGeneration == generation) {
+                    activeHistoryLoadGeneration = null
+                }
+            }
+        }
+    }
+
     fun clearAllHistory() {
         viewModelScope.launch(Dispatchers.IO) {
             dao.deleteAllNotifications()
+            withContext(Dispatchers.Main) {
+                historyLoadGeneration++
+                activeHistoryLoadGeneration = null
+                currentOffset = 0
+                endReached = false
+                _history.value = emptyList()
+            }
+        }
+    }
+
+    fun updateHistoryRetentionDays(days: Int) {
+        val sanitizedDays = days.coerceAtLeast(0)
+        if (sanitizedDays == lastRetentionDays) return
+        viewModelScope.launch {
+            userPrefs.updateHistoryRetentionDays(sanitizedDays)
+        }
+    }
+
+    suspend fun getNotificationsForPackage(packageName: String): List<NotificationModel> {
+        return withContext(Dispatchers.IO) {
+            dao.getNotificationsByPackage(packageName)
+                .map { convertEntityToModel(getApplication(), it) }
+        }
+    }
+
+    fun hideRateUsCard() {
+        viewModelScope.launch {
+            userPrefs.hideRateUsCard()
+        }
+    }
+    fun snoozeRateUsCard() {
+        viewModelScope.launch {
+            val current = _settingState.value.launchCount
+            userPrefs.updateSnoozeUntilLaunch(current + 2)
         }
     }
 }

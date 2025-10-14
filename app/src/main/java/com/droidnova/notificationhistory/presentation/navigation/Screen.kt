@@ -1,8 +1,11 @@
 package com.droidnova.notificationhistory.presentation.navigation
 
-sealed class Screen(val route: String) {
-   data object Home : Screen("home")
-   data object History : Screen("History")
-   data object ManageNotifications : Screen("ManageNotifications")
-   data object AboutScreen : Screen("AboutScreen")
+sealed class Screens(val route: String) {
+   data object Home : Screens("home")
+   data object History : Screens("History")
+   data object ManageNotifications : Screens("ManageNotifications")
+   data object AboutScreen : Screens("AboutScreen")
+   data object AppsNotificationListScreen : Screens("app_notifications/{packageName}") {
+      fun createRoute(packageName: String) = "app_notifications/$packageName"
+   }
 }
