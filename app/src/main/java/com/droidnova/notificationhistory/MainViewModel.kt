@@ -57,10 +57,11 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     val allInstalledApps: StateFlow<List<AppInfo>> =
         combine(_allInstalledApps, userPrefs.allowedApps) { apps, allowed ->
             apps.map { it.copy(isAllowed = it.packageName in allowed) }
-                .sortedWith(
-                    compareByDescending<AppInfo> { it.isAllowed }
-                        .thenBy { it.appName.lowercase() }
-                )
+//                .sortedWith(
+//                    compareByDescending<AppInfo> { it.isAllowed }
+//                        .thenBy { it.appName.lowercase() }
+//                )
+              //  .sortedBy { it.appName.lowercase() }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
 
