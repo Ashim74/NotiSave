@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">NotificationHistory</string>
+    <string name="warning_only_matching_titles">Only notifications matching added titles will be saved</string>
+    <string name="label_add_title_filter">Add title filter</string>
+    <string name="btn_add">Add</string>
+    <string name="btn_clear_all_filters">Clear All Filters</string>
+    <string name="label_current_filters">Current Filters</string>
+    <string name="label_no_filters">No filters added yet</string>
+    <string name="btn_save">Save</string>
+    <string name="btn_apply">Apply</string>
 </resources>

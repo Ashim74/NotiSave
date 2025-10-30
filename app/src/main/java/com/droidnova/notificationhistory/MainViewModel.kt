@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import kotlin.jvm.Volatile
 
-class MainViewModel(application: Application): AndroidViewModel(application) {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val dao = AppDatabase.getInstance(application).notificationDao()
     private val userPrefs = UserPreferences(application)
 
@@ -43,12 +43,17 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
     private val _history = MutableStateFlow<List<NotificationModel>>(emptyList())
     val history: StateFlow<List<NotificationModel>> = _history.asStateFlow()
+
+    private val _titleFilters = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
+    val titleFilters: StateFlow<Map<String, Set<String>>> = _titleFilters.asStateFlow()
+
     private var currentOffset = 0
     private val pageSize = 100
     private var endReached = false
     private var hasLoadedInitialHistory = false
     private var lastRetentionDays = SettingState.DEFAULT_HISTORY_RETENTION_DAYS
     private var historyLoadGeneration = 0
+
     @Volatile
     private var activeHistoryLoadGeneration: Int? = null
 
@@ -57,11 +62,6 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     val allInstalledApps: StateFlow<List<AppInfo>> =
         combine(_allInstalledApps, userPrefs.allowedApps) { apps, allowed ->
             apps.map { it.copy(isAllowed = it.packageName in allowed) }
-//                .sortedWith(
-//                    compareByDescending<AppInfo> { it.isAllowed }
-//                        .thenBy { it.appName.lowercase() }
-//                )
-              //  .sortedBy { it.appName.lowercase() }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
 
@@ -71,6 +71,11 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
 
 
     init {
+        viewModelScope.launch {
+            userPrefs.allTitleFilters.collect { map ->
+                _titleFilters.value = map
+            }
+        }
 
         viewModelScope.launch {
             userPrefs.allowedApps.collect { allowed ->
@@ -99,6 +104,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         }
         refreshListenerGranted()
     }
+
     /** Called when user taps "Enable". */
     fun onEnableClick() {
         Log.e("yourTag", "enable")
@@ -126,7 +132,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
                 awaitingGrant = false
                 viewModelScope.launch {
                     userPrefs.setToggleTracking(true)
-                  _events.emit(HomeUiEvent.DoWorkAfterEnabled)
+                    _events.emit(HomeUiEvent.DoWorkAfterEnabled)
                 }
             }
         } else {
@@ -145,7 +151,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
     fun getAllInstalledApps(context: Context) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                val allApps = getInstalledApps(context,allowedPackagesSet)
+                val allApps = getInstalledApps(context, allowedPackagesSet)
                 _allInstalledApps.value = allApps
             }
         }
@@ -159,12 +165,36 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
         }
     }
 
+    fun addTitleFilter(packageName: String, title: String) {
+        // Update cache immediately
+        _titleFilters.update { current ->
+            val updated = current[packageName].orEmpty().plus(title)
+            current.toMutableMap().apply { put(packageName, updated) }
+        }
+        // Persist in DataStore
+        viewModelScope.launch {
+            userPrefs.addTitleFilter(packageName, title)
+        }
+    }
+
+    fun removeTitleFilter(packageName: String, title: String) {
+        viewModelScope.launch {
+            userPrefs.removeTitleFilter(packageName, title)
+        }
+    }
+
+    fun clearTitleFilters(packageName: String) {
+        viewModelScope.launch {
+            userPrefs.clearTitleFilters(packageName)
+        }
+    }
+
     private fun refreshHistory(retentionDays: Int) {
         val sanitizedDays = retentionDays.coerceAtLeast(0)
         viewModelScope.launch(Dispatchers.IO) {
             if (sanitizedDays > 0) {
                 val threshold = System.currentTimeMillis() -
-                    TimeUnit.DAYS.toMillis(sanitizedDays.toLong())
+                        TimeUnit.DAYS.toMillis(sanitizedDays.toLong())
                 dao.deleteNotificationsOlderThan(threshold)
             }
             withContext(Dispatchers.Main) {
@@ -177,6 +207,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
             }
         }
     }
+
     fun loadMoreHistory() {
         if (endReached) return
         val generation = historyLoadGeneration
@@ -237,6 +268,7 @@ class MainViewModel(application: Application): AndroidViewModel(application) {
             userPrefs.hideRateUsCard()
         }
     }
+
     fun snoozeRateUsCard() {
         viewModelScope.launch {
             val current = _settingState.value.launchCount

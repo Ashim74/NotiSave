@@ -102,7 +102,8 @@ fun AppNavGraph() {
             val pkgName = backStackEntry.arguments?.getString("packageName").orEmpty()
             SettingScreen(
                 navController = navController,
-                packageName = pkgName
+                packageName = pkgName,
+                mainViewModel = mainViewModel
             )
         }
     }
