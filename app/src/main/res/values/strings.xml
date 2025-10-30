@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NotificationHistory</string>
     <string name="warning_only_matching_titles">Only notifications matching added titles will be saved</string>
@@ -8,4 +9,7 @@
     <string name="label_no_filters">No filters added yet</string>
     <string name="btn_save">Save</string>
     <string name="btn_apply">Apply</string>
+    <string name="remove">Remove</string>
+    <string name="back">Back</string>
+
 </resources>

@@ -45,6 +45,7 @@ import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.MainViewModel
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.font.FontWeight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,12 +67,11 @@ fun SettingScreen(navController: NavHostController, packageName: String, mainVie
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(id = R.string.back)
                         )
                     }
                 }
             )
-            Log.e("MyTag","packagename  ${packageName}  ")
         }
 
     ) {innerPadding->
@@ -102,13 +102,18 @@ fun SettingScreenContent(innerPaddingValues: PaddingValues, packageName: String,
             value = input,
             onValueChange = { input = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text(text = stringResource(id = R.string.label_add_title_filter)) }
+            label = { Text(text = stringResource(id = R.string.label_add_title_filter),
+                fontWeight = FontWeight.Bold
+            ) }
         )
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = {
-                mainViewModel.addTitleFilter(packageName, input)
-                input = ""
-            }) { Text(stringResource(id = R.string.btn_add)) }
+                if (input.isNotBlank()) {
+                    mainViewModel.addTitleFilter(packageName, input)
+                    input = ""
+                }
+            })
+            { Text(stringResource(id = R.string.btn_add)) }
             Spacer(modifier = Modifier.weight(1f))
             OutlinedButton(onClick = { mainViewModel.clearTitleFilters(packageName) }) {
                 Icon(imageVector = Icons.Filled.Delete, contentDescription = null)
@@ -121,7 +126,8 @@ fun SettingScreenContent(innerPaddingValues: PaddingValues, packageName: String,
 
         Text(
             text = stringResource(id = R.string.label_current_filters),
-            style = MaterialTheme.typography.titleMedium
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.W900
         )
         Box(
             modifier = Modifier
@@ -139,7 +145,7 @@ fun SettingScreenContent(innerPaddingValues: PaddingValues, packageName: String,
                                 .padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = title, modifier = Modifier.weight(1f))
+                            Text(text = title, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                             IconButton(onClick = {
                                 mainViewModel.removeTitleFilter(
                                     packageName,
@@ -148,7 +154,7 @@ fun SettingScreenContent(innerPaddingValues: PaddingValues, packageName: String,
                             }) {
                                 Icon(
                                     imageVector = Icons.Filled.Delete,
-                                    contentDescription = "Remove"
+                                    contentDescription = stringResource(id = R.string.remove)
                                 )
                             }
                         }
