@@ -27,6 +27,7 @@ class NotificationListener : NotificationListenerService() {
     @Volatile private var allowedCache: Set<String> = emptySet()
     @Volatile private var trackingEnabled: Boolean = false
     @Volatile private var historyRetentionDays: Int = SettingState.DEFAULT_HISTORY_RETENTION_DAYS
+    @Volatile private var titleFilters: Map<String, Set<String>> = emptyMap()
 
     override fun onCreate() {
         super.onCreate()
@@ -44,6 +45,13 @@ class NotificationListener : NotificationListenerService() {
             prefs.settingFlow.collect { state ->
                 trackingEnabled = state.userToggleTracking
                 historyRetentionDays = state.historyRetentionDays.coerceAtLeast(0)
+            }
+        }
+
+        serviceScope.launch {
+            prefs.allTitleFilters.collect { map ->
+                titleFilters = map
+                Log.d("NLS", "title filters updated: ${map.mapValues { it.value.size }}")
             }
         }
 
@@ -91,7 +99,24 @@ class NotificationListener : NotificationListenerService() {
                 receivedAt = sbn.postTime
             )
 
-            Log.e("NLSs", "onNotificationPosted: $entity")
+            val filters = titleFilters[pkg] ?: emptySet() // Get filters user set for this app
+            val titleLower = title.lowercase().replace("\\s".toRegex(), "") // Lowercase and remove all whitespace from title
+
+            val shouldSave = if (filters.isEmpty()) {
+                // No filters: save ALL notifications for this app
+                true
+            } else {
+                // Filters exist: save ONLY if the title matches at least one filter
+                filters.any { filter ->
+                    titleLower.contains(filter.lowercase().replace("\\s".toRegex(), ""))
+                }
+            }
+
+            if (!shouldSave) {
+                // If 'shouldSave' is false: skip saving
+                return@launch
+            }
+            Log.e("NLSs", "onNotificationPosted (matched): $entity")
             dao.insertApp(entity)  // Room 2.6+ ho to @Upsert best hai
             enforceRetention(dao)
         }
