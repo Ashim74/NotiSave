@@ -104,8 +104,8 @@ object IntentUtils {
         }
     }
 
-    fun openSecretCalculatorAppOnPlayStore(context: Context) {
-        val packageName = "com.droidnova.secretcalculator"
+    fun openClipboardHistoryAppOnPlayStore(context: Context) {
+        val packageName = "com.droidnova.clipboardhistory"
         try {
             val intent = Intent(Intent.ACTION_VIEW, "market://details?id=$packageName".toUri())
             intent.setPackage("com.android.vending")

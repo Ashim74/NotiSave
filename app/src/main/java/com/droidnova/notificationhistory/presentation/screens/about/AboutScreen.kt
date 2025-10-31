@@ -37,7 +37,7 @@ import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.utils.Constants
 import com.droidnova.notificationhistory.utils.IntentUtils
 import com.droidnova.notificationhistory.utils.IntentUtils.openBVRAppOnPlayStore
-import com.droidnova.notificationhistory.utils.IntentUtils.openSecretCalculatorAppOnPlayStore
+import com.droidnova.notificationhistory.utils.IntentUtils.openClipboardHistoryAppOnPlayStore
 import com.droidnova.notificationhistory.utils.IntentUtils.reportBugs
 
 
@@ -136,7 +136,13 @@ fun AboutScreen(navController: NavController) {
                 )
             )
             SpacerHeight(8.dp)
-
+            AppCard(
+                onClick = { openClipboardHistoryAppOnPlayStore(context) },
+                title = Constants.CLIPBOARD_HISTORY_APP_TITLE,
+                description = Constants.CLIPBOARD_HISTORY_APP_DESCRIPTION,
+                icon = R.drawable.clipboard_history_icon
+            )
+            SpacerHeight(8.dp)
 
             AppCard(
                 onClick = { openBVRAppOnPlayStore(context) },
@@ -146,13 +152,7 @@ fun AboutScreen(navController: NavController) {
             )
             SpacerHeight(8.dp)
 
-            AppCard(
-                onClick = { openSecretCalculatorAppOnPlayStore(context) },
-                title = Constants.SECRET_CALCULATOR_APP_TITLE,
-                description = Constants.SECRET_CALCULATOR_APP_DESCRIPTION,
-                icon = R.drawable.ic_calculator
-            )
-            SpacerHeight(8.dp)
+
             AppCard(
                 onClick = { IntentUtils.openDeveloperDashboardOnPlayStore(context) },
                 title = "Check more apps on PlayStore",
