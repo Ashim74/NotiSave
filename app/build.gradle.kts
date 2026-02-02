@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -13,8 +15,8 @@ android {
         applicationId = "com.droidnova.notificationhistory"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.12"
+        versionCode = 13
+        versionName = "0.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -72,4 +74,8 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
 
+    implementation("com.google.android.gms:play-services-ads:24.9.0")
+    implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-crashlytics")
 }

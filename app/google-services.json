@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "151877994569",
+    "project_id": "notification-history-beeea",
+    "storage_bucket": "notification-history-beeea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:151877994569:android:2b2e760b012d931aa49798",
+        "android_client_info": {
+          "package_name": "com.droidnova.notificationhistory"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKp7RtOlH4OOZxKUxIZYko2Z7xY8bz8Sw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
