@@ -48,6 +48,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _titleFilters = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
     val titleFilters: StateFlow<Map<String, Set<String>>> = _titleFilters.asStateFlow()
 
+    private val _isHistoryRefreshing = MutableStateFlow(false)
+    val isHistoryRefreshing: StateFlow<Boolean> = _isHistoryRefreshing.asStateFlow()
+
     val isPremium: StateFlow<Boolean> =
         userPrefs.isPremium.stateIn(
             viewModelScope,
@@ -65,6 +68,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     @Volatile
     private var activeHistoryLoadGeneration: Int? = null
+    private var refreshGeneration: Int? = null
 
 
     private val _allInstalledApps = MutableStateFlow<List<AppInfo>>(emptyList())
@@ -218,8 +222,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun refreshHistory() {
+        refreshHistory(lastRetentionDays)
+    }
+
     private fun refreshHistory(retentionDays: Int) {
         val sanitizedDays = retentionDays.coerceAtLeast(0)
+        _isHistoryRefreshing.value = true
         viewModelScope.launch(Dispatchers.IO) {
             if (sanitizedDays > 0) {
                 val threshold = System.currentTimeMillis() -
@@ -228,6 +237,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             withContext(Dispatchers.Main) {
                 historyLoadGeneration++
+                refreshGeneration = historyLoadGeneration
                 activeHistoryLoadGeneration = null
                 currentOffset = 0
                 endReached = false
@@ -259,6 +269,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } finally {
                 if (activeHistoryLoadGeneration == generation) {
                     activeHistoryLoadGeneration = null
+                    if (refreshGeneration == generation) {
+                        refreshGeneration = null
+                        _isHistoryRefreshing.value = false
+                    }
                 }
             }
         }
