@@ -3,7 +3,6 @@ package com.droidnova.notificationhistory.presentation.screens.history
 import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
@@ -52,6 +50,7 @@ import java.util.Locale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
@@ -63,12 +62,12 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import com.droidnova.notificationhistory.R
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.presentation.navigation.Screens
+import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
+import com.droidnova.notificationhistory.utils.IntentUtils
+import com.droidnova.notificationhistory.utils.toReadableShareText
 
 
 enum class HistoryViewType { Message, Apps }
@@ -76,7 +75,9 @@ enum class HistoryViewType { Message, Apps }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
+    val context = LocalContext.current
     val packages = mainViewmodel.history.collectAsState()
+    val appSummaries = mainViewmodel.observeLatestNotificationsByApp().collectAsState(initial = emptyList())
     val settingsState by mainViewmodel.settingState.collectAsState()
     Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
@@ -158,7 +159,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
             )
             HistoryViewType.Apps -> AppHistoryContent(
                 modifier = contentModifier,
-                packages = packages.value,
+                packages = appSummaries.value,
                 onAppClick = { packageName ->
                     navController.navigate(Screens.AppsNotificationListScreen.createRoute(packageName))
                 }
@@ -197,47 +198,33 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     }
 
     selectedNotification?.let { notification ->
-        AlertDialog(
-            onDismissRequest = { selectedNotification = null },
-            title = {
-                Text(
-                    text = notification.appName.ifBlank { notification.packageName },
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.W900
-                )
+        NotificationActionSheet(
+            notification = notification,
+            onOpen = {
+                IntentUtils.openApp(context, notification.packageName)
+                selectedNotification = null
             },
-                text = {
-                Column {
-                    Text(
-                        text = notification.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.W900
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = buildAnnotatedString {
-                        withStyle(SpanStyle(fontWeight = FontWeight.W900)) { append("Message:  ") }
-                        append(notification.text)
-                    },
-                    style = MaterialTheme.typography.titleMedium,fontWeight = FontWeight.W700
+            onCopy = {
+                IntentUtils.copyToClipboard(
+                    context,
+                    "Notification",
+                    notification.toReadableShareText()
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = buildAnnotatedString {
-                        withStyle(SpanStyle(fontWeight = FontWeight.W900)) { append("Time: ") }
-                        append(notification.receivedAt)
-                    },
-                    style = MaterialTheme.typography.bodyLarge
+                selectedNotification = null
+            },
+            onShare = {
+                IntentUtils.shareText(
+                    context,
+                    "Share notification",
+                    notification.toReadableShareText()
                 )
-            }//col
-            },//text
-            confirmButton = {
-                TextButton(onClick = { selectedNotification = null }) {
-                    Text("Close", fontWeight = FontWeight.Bold)
-                }
-            }
+                selectedNotification = null
+            },
+            onDelete = {
+                mainViewmodel.deleteNotification(notification)
+                selectedNotification = null
+            },
+            onDismiss = { selectedNotification = null }
         )
     }
 }//historyScreen
