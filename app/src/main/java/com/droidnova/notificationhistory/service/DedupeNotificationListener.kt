@@ -11,6 +11,7 @@ import com.droidnova.notificationhistory.data.db.NotificationEntity
 import com.droidnova.notificationhistory.data_shared.SettingState
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
 class NotificationListener : NotificationListenerService() {
@@ -32,6 +33,14 @@ class NotificationListener : NotificationListenerService() {
     override fun onCreate() {
         super.onCreate()
         prefs = UserPreferences(applicationContext)
+
+        runBlocking {
+            allowedCache = prefs.allowedApps.first()
+            val state = prefs.settingFlow.first()
+            trackingEnabled = state.userToggleTracking
+            historyRetentionDays = state.historyRetentionDays.coerceAtLeast(0)
+            titleFilters = prefs.allTitleFilters.first()
+        }
 
         serviceScope.launch {
             // Allowed apps list ko observe karo
@@ -66,7 +75,7 @@ class NotificationListener : NotificationListenerService() {
         val pkg = sbn.packageName ?: return
 
         // 1) Allowed app filter
-        if (pkg !in allowedCache) return
+        if (allowedCache.isNotEmpty() && pkg !in allowedCache) return
 
         // 2) (Optional) noisy notifications ko skip karo
         if (shouldSkip(sbn)) return
@@ -75,8 +84,8 @@ class NotificationListener : NotificationListenerService() {
         val key = sbn.key ?: "${pkg}:${sbn.id}:${sbn.tag ?: ""}"
 
         // 4) Content fingerprint (model ka “essence”): title + text
-        val title = sbn.notification.extras.getCharSequence("android.title")?.toString().orEmpty()
-        val text  = sbn.notification.extras.getCharSequence("android.text")?.toString().orEmpty()
+        val title = extractTitle(sbn.notification)
+        val text = extractText(sbn.notification)
         val contentHash = (title + "|" + text).hashCode()
 
         // 5)  Atomic check+update BEFORE launching coroutine
@@ -128,8 +137,30 @@ class NotificationListener : NotificationListenerService() {
         val isGroupSummary = (n.flags and Notification.FLAG_GROUP_SUMMARY) != 0
         val isOngoing = (n.flags and Notification.FLAG_ONGOING_EVENT) != 0
         val isFgService = (n.flags and Notification.FLAG_FOREGROUND_SERVICE) != 0
-        // Agar progress/ongoing bhi log karne hain to isOngoing/isFgService hata do
-        return isGroupSummary || isOngoing || isFgService
+        val hasMeaningfulContent = extractTitle(n).isNotBlank() || extractText(n).isNotBlank()
+        return (isGroupSummary && !hasMeaningfulContent) || isOngoing || isFgService
+    }
+
+    private fun extractTitle(notification: Notification): String {
+        val extras = notification.extras
+        return extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+            ?: extras.getCharSequence(Notification.EXTRA_TITLE_BIG)?.toString()
+            ?: ""
+    }
+
+    private fun extractText(notification: Notification): String {
+        val extras = notification.extras
+        val textLines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
+        return when {
+            !extras.getCharSequence(Notification.EXTRA_TEXT).isNullOrBlank() ->
+                extras.getCharSequence(Notification.EXTRA_TEXT).toString()
+            !textLines.isNullOrEmpty() -> textLines.joinToString("\n")
+            !extras.getCharSequence(Notification.EXTRA_BIG_TEXT).isNullOrBlank() ->
+                extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
+            !extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT).isNullOrBlank() ->
+                extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT).toString()
+            else -> ""
+        }
     }
 
     private suspend fun enforceRetention(dao: NotificationDao) {
