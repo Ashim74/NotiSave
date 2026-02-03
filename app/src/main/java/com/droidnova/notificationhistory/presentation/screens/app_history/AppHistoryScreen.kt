@@ -1,18 +1,14 @@
-package com.droidnova.notificationhistory.presentation.screens.applist
+package com.droidnova.notificationhistory.presentation.screens.app_history
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Card
@@ -35,15 +31,13 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
-import com.droidnova.notificationhistory.presentation.screens.history.AppIcon
-import com.droidnova.notificationhistory.presentation.screens.history.ItemHistoryCard
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppsNotificationListScreen(
+fun AppHistoryScreen(
     mainViewModel: MainViewModel,
     packageName: String,
     navController: NavController

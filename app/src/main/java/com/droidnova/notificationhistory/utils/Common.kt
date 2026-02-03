@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.pm.LauncherApps
 import android.os.UserManager
 import android.util.Log
-import com.droidnova.notificationhistory.presentation.screens.manage_notification.AppInfo
+import com.droidnova.notificationhistory.presentation.screens.select_app.AppInfo
 
 
 fun getInstalledApps(context: Context, allowedList: Set<String>): List<AppInfo> {

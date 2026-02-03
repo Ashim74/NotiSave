@@ -17,11 +17,11 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.ads.CollapsibleAdBanner
-import com.droidnova.notificationhistory.presentation.screens.applist.AppsNotificationListScreen
+import com.droidnova.notificationhistory.presentation.screens.app_history.AppHistoryScreen
 import com.droidnova.notificationhistory.presentation.screens.about.AboutScreen
 import com.droidnova.notificationhistory.presentation.screens.history.HistoryScreen
 import com.droidnova.notificationhistory.presentation.screens.home.HomeScreen
-import com.droidnova.notificationhistory.presentation.screens.manage_notification.ManageAppNotificationScreen
+import com.droidnova.notificationhistory.presentation.screens.select_app.SelectAppScreen
 import com.droidnova.notificationhistory.presentation.screens.setting.SettingScreen
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
@@ -83,7 +83,7 @@ fun AppNavGraph() {
                 HistoryScreen(mainViewModel, navController)
             }
             composable(Screens.ManageNotifications.route) {
-                ManageAppNotificationScreen(mainViewModel, navController)
+                SelectAppScreen(mainViewModel, navController)
             }
             composable(Screens.AboutScreen.route) {
                 AboutScreen(navController)
@@ -95,7 +95,7 @@ fun AppNavGraph() {
             ) { backStackEntry ->
                 val packageName =
                     backStackEntry.arguments?.getString("packageName") ?: return@composable
-                AppsNotificationListScreen(mainViewModel, packageName, navController)
+                AppHistoryScreen(mainViewModel, packageName, navController)
             }
 
             composable(

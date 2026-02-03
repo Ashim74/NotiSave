@@ -1,4 +1,4 @@
-package com.droidnova.notificationhistory.presentation.screens.manage_notification
+package com.droidnova.notificationhistory.presentation.screens.select_app
 
 import android.util.Log
 import androidx.compose.foundation.Image
@@ -45,7 +45,7 @@ import com.droidnova.notificationhistory.presentation.navigation.Screens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ManageAppNotificationScreen(
+fun SelectAppScreen(
     mainViewModel: MainViewModel,
     navController: NavController
 ) {

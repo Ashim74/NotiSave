@@ -12,7 +12,7 @@ import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent
-import com.droidnova.notificationhistory.presentation.screens.manage_notification.AppInfo
+import com.droidnova.notificationhistory.presentation.screens.select_app.AppInfo
 import com.droidnova.notificationhistory.utils.getInstalledApps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
