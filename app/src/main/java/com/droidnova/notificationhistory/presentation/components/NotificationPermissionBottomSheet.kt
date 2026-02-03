@@ -27,10 +27,11 @@ import com.droidnova.notificationhistory.R
 @Composable
 fun NotificationPermissionBottomSheet(
     sheetState: SheetState,
+    onDismissRequest: () -> Unit,
     onGoToSettings: () -> Unit
 ) {
     ModalBottomSheet(
-        onDismissRequest = {},
+        onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         dragHandle = null,
     ) {
