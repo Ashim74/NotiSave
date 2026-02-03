@@ -198,6 +198,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun setAllowedAppsForPackages(packageNames: List<String>, add: Boolean) {
+        withContext(Dispatchers.IO) {
+            packageNames.forEach { packageName ->
+                if (add) {
+                    userPrefs.allowApp(packageName)
+                } else {
+                    userPrefs.blockApp(packageName)
+                }
+            }
+        }
+    }
+
     fun addTitleFilter(packageName: String, title: String) {
         // Update cache immediately
         _titleFilters.update { current ->

@@ -28,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -43,6 +45,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.presentation.navigation.Screens
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +58,8 @@ fun SelectAppScreen(
     Log.e("MyTag", "ManageAppNotificationScreen: $allInstalledApps")
     var uiList by    remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
+    var isSelectingAll by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     // Access latest list inside lifecycle callbacks
     val latestApps by rememberUpdatedState(allInstalledApps)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -147,10 +152,18 @@ fun SelectAppScreen(
                     )
                     Switch(
                         checked = areAllSelected,
+                        enabled = !isSelectingAll,
                         onCheckedChange = { checked ->
-                            filteredApps.forEach { app ->
-                                if (app.isAllowed != checked) {
-                                    mainViewModel.addToAllowedApps(app.packageName, checked)
+                            if (filteredApps.isNotEmpty()) {
+                                coroutineScope.launch {
+                                    isSelectingAll = true
+                                    val packageNames = filteredApps
+                                        .filter { it.isAllowed != checked }
+                                        .map { it.packageName }
+                                    if (packageNames.isNotEmpty()) {
+                                        mainViewModel.setAllowedAppsForPackages(packageNames, checked)
+                                    }
+                                    isSelectingAll = false
                                 }
                             }
                         }
@@ -198,6 +211,29 @@ fun SelectAppScreen(
             }
         }//lazy
     }//sc
+
+    if (isSelectingAll) {
+        Dialog(onDismissRequest = {}) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Selecting apps...",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
