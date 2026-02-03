@@ -105,10 +105,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         viewmodel.events.collect { event ->
             when (event) {
                 HomeUiEvent.OpenNotificationAccessSettings -> {
-                    context.startActivity(
-                        Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    )
+                    showPermissionSheet = true
                 }
 
                 HomeUiEvent.DoWorkAfterEnabled -> {
@@ -128,10 +125,8 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         val obs = LifecycleEventObserver { _, ev ->
             if (ev == Lifecycle.Event.ON_RESUME) {
                 val hasPermission = NotificationAccessChecker.hasNotificationAccessPermission(context)
-                showPermissionSheet = !hasPermission
-                if (hasPermission) {
-                    viewmodel.onResume()
-                }
+                showPermissionSheet = !hasPermission && showPermissionSheet
+                viewmodel.onResume()
             }
         }
         lifecycleOwner.lifecycle.addObserver(obs)
@@ -204,8 +199,13 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     if (showPermissionSheet) {
         NotificationPermissionBottomSheet(
             sheetState = permissionSheetState,
+            onDismissRequest = { showPermissionSheet = false },
             onGoToSettings = {
-                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                showPermissionSheet = false
+                context.startActivity(
+                    Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
             }
         )
     }
