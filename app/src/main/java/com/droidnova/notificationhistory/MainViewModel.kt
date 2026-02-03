@@ -146,6 +146,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // Already granted: persist toggle + do work
             viewModelScope.launch {
                 userPrefs.setToggleTracking(true)
+                if (allowedPackagesSet.isEmpty()) {
+                    _events.emit(HomeUiEvent.NavigateToSelectApps)
+                }
             }
         } else {
             // Not granted: ask user
@@ -165,10 +168,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 awaitingGrant = false
                 viewModelScope.launch {
                     userPrefs.setToggleTracking(true)
-                    _events.emit(HomeUiEvent.DoWorkAfterEnabled)
+                    if (allowedPackagesSet.isEmpty()) {
+                        _events.emit(HomeUiEvent.NavigateToSelectApps)
+                    }
                 }
             }
         } else {
+            viewModelScope.launch {
+                userPrefs.setToggleTracking(false)
+            }
         }
     }
 

@@ -2,6 +2,9 @@ package com.droidnova.notificationhistory.presentation.screens.home
 
 import android.app.Activity
 import android.content.Intent
+import android.provider.Settings
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
@@ -26,6 +30,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -38,27 +43,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
-import android.provider.Settings
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.ui.res.painterResource
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.component.RateUsCard
+import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.presentation.components.NotificationPermissionBottomSheet
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDialog
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     val state by viewmodel.settingState.collectAsState()
@@ -74,6 +79,8 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     var showPremiumDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    var showPermissionSheet by remember { mutableStateOf(false) }
+    val permissionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // initial data
     LaunchedEffect(Unit) {
@@ -107,15 +114,25 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 HomeUiEvent.DoWorkAfterEnabled -> {
                     navController.navigate(Screens.ManageNotifications.route)
                 }
+
+                HomeUiEvent.NavigateToSelectApps -> {
+                    navController.navigate(Screens.ManageNotifications.route)
+                }
             }
         }
     }
 
     // re-check on resume
-    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, ev ->
-            if (ev == Lifecycle.Event.ON_RESUME) viewmodel.onResume()
+            if (ev == Lifecycle.Event.ON_RESUME) {
+                val hasPermission = NotificationAccessChecker.hasNotificationAccessPermission(context)
+                showPermissionSheet = !hasPermission
+                if (hasPermission) {
+                    viewmodel.onResume()
+                }
+            }
         }
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
@@ -161,9 +178,10 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 }
             )
 
-            if (state.launchCount >= state.snoozeUntilLaunch && state.showRateUsCard) {                RateUsCard(
+            if (state.launchCount >= state.snoozeUntilLaunch && state.showRateUsCard) {
+                RateUsCard(
                     modifier = Modifier.align(Alignment.BottomCenter),
-                onCancelClicked = { viewmodel.snoozeRateUsCard() },
+                    onCancelClicked = { viewmodel.snoozeRateUsCard() },
                     onOkClicked = {
                         IntentUtil.openRateUs(context)
                         viewmodel.hideRateUsCard()
@@ -181,6 +199,15 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 )
             }// if
         }
+    }
+
+    if (showPermissionSheet) {
+        NotificationPermissionBottomSheet(
+            sheetState = permissionSheetState,
+            onGoToSettings = {
+                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            }
+        )
     }
 
     if (showPurchaseSheet) {
@@ -313,7 +340,7 @@ private fun SelectedAppsCard(
     onSelectAppsClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth() ,
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
