@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -36,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -65,20 +67,22 @@ fun AppHistoryScreen(
     navController: NavController
 ) {
     val context = LocalContext.current
-    val notifications by mainViewModel
-        .observeNotificationsForPackage(packageName)
-        .collectAsState(initial = emptyList())
-    val isRefreshing by mainViewModel.isHistoryRefreshing.collectAsState()
+    val appHistoryState by mainViewModel.appHistoryState(packageName).collectAsState()
+    val notifications = appHistoryState.notifications
+    val isRefreshing = appHistoryState.isRefreshing
+    val isLoadingMore = appHistoryState.isLoadingMore
+    val canLoadMore = !appHistoryState.endReached
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    val listState = rememberLazyListState()
 
     val title = notifications.firstOrNull()?.appName?.ifBlank { packageName } ?: packageName
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
-        onRefresh = { mainViewModel.refreshHistory() }
+        onRefresh = { mainViewModel.refreshAppHistory(packageName) }
     )
 
     val filteredNotifications = notifications.filter {
@@ -86,6 +90,19 @@ fun AppHistoryScreen(
             searchQuery,
             ignoreCase = true
         )
+    }
+
+    LaunchedEffect(packageName) {
+        mainViewModel.ensureAppHistoryLoaded(packageName)
+    }
+
+    LaunchedEffect(filteredNotifications, listState, canLoadMore, isLoadingMore) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { index ->
+                if (index != null && index >= filteredNotifications.size - 1 && canLoadMore && !isLoadingMore) {
+                    mainViewModel.loadMoreAppHistory(packageName)
+                }
+            }
     }
 
     Scaffold(
@@ -161,9 +178,41 @@ fun AppHistoryScreen(
                     .fillMaxWidth()
                     .pullRefresh(pullRefreshState)
             ) {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(filteredNotifications) { item ->
-                        HistoryCard(item, searchQuery = searchQuery, onClick = { selectedNotification = it })
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    state = listState
+                ) {
+                    if (filteredNotifications.isEmpty()) {
+                        item {
+                            if (isRefreshing) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                }
+                            } else {
+                                EmptyAppHistoryState()
+                            }
+                        }
+                    } else {
+                        items(filteredNotifications, key = { it.id }) { item ->
+                            HistoryCard(item, searchQuery = searchQuery, onClick = { selectedNotification = it })
+                        }
+                        if (isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                }
+                            }
+                        }
                     }
                 }
                 if (isRefreshing) {
@@ -254,6 +303,22 @@ fun HistoryCard(model: NotificationModel, searchQuery: String, onClick: (Notific
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+}
+
+@Composable
+private fun EmptyAppHistoryState() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "No notifications found.",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.W700
+        )
     }
 }
 

@@ -97,6 +97,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     val appSummaries = mainViewmodel.observeLatestNotificationsByApp().collectAsState(initial = emptyList())
     val settingsState by mainViewmodel.settingState.collectAsState()
     val isRefreshing by mainViewmodel.isHistoryRefreshing.collectAsState()
+    val historyLoadState by mainViewmodel.historyLoadState.collectAsState()
     Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
@@ -234,6 +235,8 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
             HistoryViewType.Message -> HistoryScreenContent(
                 modifier = contentModifier,
                 isRefreshing = isRefreshing,
+                isLoadingMore = historyLoadState.isLoadingMore,
+                canLoadMore = !historyLoadState.endReached,
                 packages = packages.value,
                 searchQuery = searchQuery,
                 onLoadMore = { mainViewmodel.loadMoreHistory() },
@@ -348,6 +351,8 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
 fun HistoryScreenContent(
     modifier: Modifier,
     isRefreshing: Boolean,
+    isLoadingMore: Boolean,
+    canLoadMore: Boolean,
     packages: List<NotificationModel>,
     searchQuery: String,
     onLoadMore: () -> Unit,
@@ -359,6 +364,7 @@ fun HistoryScreenContent(
         refreshing = isRefreshing,
         onRefresh = onRefresh
     )
+    val isInitialLoading = isRefreshing && packages.isEmpty()
 
     val filteredPackages = packages.filter {
         it.title.contains(searchQuery, ignoreCase = true) || it.text.contains(
@@ -367,10 +373,10 @@ fun HistoryScreenContent(
         )
     }
 
-    LaunchedEffect(packages, listState) {
+    LaunchedEffect(packages, listState, canLoadMore, isLoadingMore) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { index ->
-                if (index != null && index >= packages.size - 1) {
+                if (index != null && index >= packages.size - 1 && canLoadMore && !isLoadingMore) {
                     onLoadMore()
                 }
             }
@@ -386,7 +392,18 @@ fun HistoryScreenContent(
         LazyColumn(state = listState) {
             if (filteredPackages.isEmpty()) {
                 item {
-                    EmptyValueCard(modifier)
+                    if (isInitialLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
+                    } else {
+                        EmptyValueCard(modifier)
+                    }
                 }
             } else {
                 sortedGroups.forEach { (date, notifications) ->
@@ -398,9 +415,21 @@ fun HistoryScreenContent(
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                         )
                     }
-                    items(notifications) { item ->
+                    items(notifications, key = { it.id }) { item ->
                         Log.e("Mantsha", "HistoryScreenContent: ${item}")
                         ItemHistoryCard(item, searchQuery, onItemClick)
+                    }
+                }
+                if (isLoadingMore) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
                     }
                 }
             }
