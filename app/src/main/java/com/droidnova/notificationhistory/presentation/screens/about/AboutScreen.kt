@@ -6,10 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -70,18 +68,15 @@ fun AboutScreen(
                             contentDescription = stringResource(R.string.content_description_back)
                         )
                     }
-                },
-                windowInsets = WindowInsets(0)
+                }
             )
-        },
-        contentWindowInsets = WindowInsets(0)
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
         ) {
             AppHeader()
             SpacerHeight(16.dp)

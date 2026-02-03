@@ -147,7 +147,8 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding).padding(horizontal = 12.dp)
+                .padding(padding)
+                .padding(horizontal = 16.dp)
         ) {
             HomeScreenContent(
                 modifier = Modifier.fillMaxSize(),
@@ -255,7 +256,7 @@ fun HomeScreenContent(
     navController: NavController
 ) {
     Column(
-        modifier = modifier.padding(8.dp)
+        modifier = modifier
     ) {
         EnableNotificationsCard(
             checked = state.userToggleTracking,

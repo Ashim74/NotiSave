@@ -188,7 +188,7 @@ fun SelectAppScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = 16.dp)
         ) {
             item {
                 Text(
