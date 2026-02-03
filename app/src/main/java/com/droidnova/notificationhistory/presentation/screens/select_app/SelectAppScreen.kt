@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -53,6 +54,7 @@ fun SelectAppScreen(
     val allInstalledApps by mainViewModel.allInstalledApps.collectAsState()
     Log.e("MyTag", "ManageAppNotificationScreen: $allInstalledApps")
     var uiList by    remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    var searchQuery by remember { mutableStateOf("") }
     // Access latest list inside lifecycle callbacks
     val latestApps by rememberUpdatedState(allInstalledApps)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -84,6 +86,15 @@ fun SelectAppScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    val filteredApps = remember(uiList, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            uiList
+        } else {
+            uiList.filter { it.appName.contains(query, ignoreCase = true) }
+        }
+    }
+    val areAllSelected = filteredApps.isNotEmpty() && filteredApps.all { it.isAllowed }
 
     Scaffold(
         topBar = {
@@ -115,6 +126,38 @@ fun SelectAppScreen(
                 )
             }
             item {
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search apps") },
+                    singleLine = true
+                )
+            }
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Select All",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = areAllSelected,
+                        onCheckedChange = { checked ->
+                            filteredApps.forEach { app ->
+                                if (app.isAllowed != checked) {
+                                    mainViewModel.addToAllowedApps(app.packageName, checked)
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+            item {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "All Apps",
@@ -138,7 +181,7 @@ fun SelectAppScreen(
                 }
             } else {
                 items(
-                    uiList,
+                    filteredApps,
                     key = { it.packageName }
                 ) { app ->
                     AppCard(
@@ -229,4 +272,3 @@ private fun AppIcon1(packageName: String) {
         Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.size(24.dp))
     }
 }
-
