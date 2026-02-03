@@ -47,6 +47,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _titleFilters = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
     val titleFilters: StateFlow<Map<String, Set<String>>> = _titleFilters.asStateFlow()
 
+    val isPremium: StateFlow<Boolean> =
+        userPrefs.isPremium.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            false
+        )
+
     private var currentOffset = 0
     private val pageSize = 100
     private var endReached = false
@@ -273,6 +280,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val current = _settingState.value.launchCount
             userPrefs.updateSnoozeUntilLaunch(current + 2)
+        }
+    }
+
+    fun setPremiumPurchased(isPremium: Boolean) {
+        viewModelScope.launch {
+            userPrefs.setPremium(isPremium)
         }
     }
 }

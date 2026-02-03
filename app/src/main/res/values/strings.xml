@@ -11,5 +11,21 @@
     <string name="btn_apply">Apply</string>
     <string name="remove">Remove</string>
     <string name="back">Back</string>
+    <string name="premium_sheet_title">Go Premium</string>
+    <string name="premium_sheet_subtitle">Remove ads and support future improvements.</string>
+    <string name="premium_sheet_benefit_no_ads">Ad-free experience</string>
+    <string name="premium_sheet_benefit_updates">Support ongoing updates</string>
+    <string name="premium_sheet_benefit_support">Priority support</string>
+    <string name="premium_sheet_button_with_price">Unlock for %1$s</string>
+    <string name="premium_sheet_button_loading">Loading price…</string>
+    <string name="premium_sheet_secure_note">Secure purchase handled by Google Play.</string>
+    <string name="premium_welcome_title">Premium unlocked</string>
+    <string name="premium_welcome_message">Thanks for supporting the app! Please restart the app to apply your premium perks.</string>
+    <string name="premium_welcome_restart_button">Restart now</string>
+    <string name="premium_welcome_later_button">Later</string>
+    <string name="premium_menu_remove_ads">Remove Ads</string>
+    <string name="premium_menu_already_unlocked">Premium unlocked</string>
+    <string name="premium_menu_unlocked_subtitle">Thanks for supporting us!</string>
+    <string name="premium_menu_remove_ads_subtitle">Enjoy the app without ads and support development.</string>
 
 </resources>
