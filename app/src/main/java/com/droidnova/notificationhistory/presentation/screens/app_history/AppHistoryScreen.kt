@@ -3,6 +3,7 @@ package com.droidnova.notificationhistory.presentation.screens.app_history
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -11,10 +12,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -25,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -47,9 +53,14 @@ fun AppHistoryScreen(
     val notifications by mainViewModel
         .observeNotificationsForPackage(packageName)
         .collectAsState(initial = emptyList())
+    val isRefreshing by mainViewModel.isHistoryRefreshing.collectAsState()
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
 
     val title = notifications.firstOrNull()?.appName?.ifBlank { packageName } ?: packageName
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = { mainViewModel.refreshHistory() }
+    )
 
     Scaffold(
         topBar = {
@@ -63,15 +74,29 @@ fun AppHistoryScreen(
             )
         }
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding
-                )
+                .padding(innerPadding)
+                .pullRefresh(pullRefreshState)
         ) {
-            items(notifications) { item ->
-                HistoryCard(item, onClick = { selectedNotification = it })
+            LazyColumn {
+                items(notifications) { item ->
+                    HistoryCard(item, onClick = { selectedNotification = it })
+                }
             }
+            if (isRefreshing) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                )
+            }
+            PullRefreshIndicator(
+                refreshing = isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 

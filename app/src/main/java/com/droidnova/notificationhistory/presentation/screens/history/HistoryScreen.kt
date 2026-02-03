@@ -34,6 +34,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.RadioButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -68,6 +71,7 @@ import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.utils.IntentUtils
 import com.droidnova.notificationhistory.utils.toReadableShareText
+import androidx.compose.material3.LinearProgressIndicator
 
 
 enum class HistoryViewType { Message, Apps }
@@ -79,6 +83,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     val packages = mainViewmodel.history.collectAsState()
     val appSummaries = mainViewmodel.observeLatestNotificationsByApp().collectAsState(initial = emptyList())
     val settingsState by mainViewmodel.settingState.collectAsState()
+    val isRefreshing by mainViewmodel.isHistoryRefreshing.collectAsState()
     Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
@@ -153,16 +158,20 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
         when (viewType) {
             HistoryViewType.Message -> HistoryScreenContent(
                 modifier = contentModifier,
+                isRefreshing = isRefreshing,
                 packages = packages.value,
                 onLoadMore = { mainViewmodel.loadMoreHistory() },
-                onItemClick = { selectedNotification = it }
+                onItemClick = { selectedNotification = it },
+                onRefresh = { mainViewmodel.refreshHistory() }
             )
             HistoryViewType.Apps -> AppHistoryContent(
                 modifier = contentModifier,
+                isRefreshing = isRefreshing,
                 packages = appSummaries.value,
                 onAppClick = { packageName ->
                     navController.navigate(Screens.AppsNotificationListScreen.createRoute(packageName))
-                }
+                },
+                onRefresh = { mainViewmodel.refreshHistory() }
             )
         }
     }
@@ -234,11 +243,17 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
 @Composable
 fun HistoryScreenContent(
     modifier: Modifier,
+    isRefreshing: Boolean,
     packages: List<NotificationModel>,
     onLoadMore: () -> Unit,
-    onItemClick: (NotificationModel) -> Unit
+    onItemClick: (NotificationModel) -> Unit,
+    onRefresh: () -> Unit
 ) {
     val listState = rememberLazyListState()
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = onRefresh
+    )
 
     LaunchedEffect(packages, listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
@@ -255,27 +270,41 @@ fun HistoryScreenContent(
         runCatching { LocalDate.parse(date, formatter) }.getOrNull()
     }
 
-    LazyColumn(modifier = modifier, state = listState) {
-        if (packages.isEmpty()) {
-            item {
-                EmptyValueCard(modifier)
-            }
-        } else {
-            sortedGroups.forEach { (date, notifications) ->
+    Box(modifier = modifier.pullRefresh(pullRefreshState)) {
+        LazyColumn(state = listState) {
+            if (packages.isEmpty()) {
                 item {
-                    Text(
-                        text = date,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.W800,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-                    )
+                    EmptyValueCard(modifier)
                 }
-                items(notifications) { item ->
-                    Log.e("Mantsha", "HistoryScreenContent: ${item}")
-                    ItemHistoryCard(item, onItemClick)
+            } else {
+                sortedGroups.forEach { (date, notifications) ->
+                    item {
+                        Text(
+                            text = date,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.W800,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                        )
+                    }
+                    items(notifications) { item ->
+                        Log.e("Mantsha", "HistoryScreenContent: ${item}")
+                        ItemHistoryCard(item, onItemClick)
+                    }
                 }
             }
         }
+        if (isRefreshing) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+            )
+        }
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 
@@ -386,8 +415,10 @@ private fun EmptyValueCard(modifier: Modifier) {
 @Composable
 fun AppHistoryContent(
     modifier: Modifier,
+    isRefreshing: Boolean,
     packages: List<NotificationModel>,
     onAppClick: (String) -> Unit,
+    onRefresh: () -> Unit,
 ) {
     val grouped = packages.groupBy { it.packageName }
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault())
@@ -397,44 +428,62 @@ fun AppHistoryContent(
                 ?: LocalDateTime.MIN
         } ?: LocalDateTime.MIN
     }
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = onRefresh
+    )
 
-    LazyColumn(modifier = modifier) {
-        if (packages.isEmpty()) {
-            item {
-                EmptyValueCard(modifier)
-            }
-        } else {
-            items(sortedGroups) { (_, notifications) ->
-                val latest = notifications.maxByOrNull {
-                    runCatching { LocalDateTime.parse(it.receivedAt, formatter) }.getOrNull()
-                        ?: LocalDateTime.MIN
-                } ?: notifications.first()
+    Box(modifier = modifier.pullRefresh(pullRefreshState)) {
+        LazyColumn {
+            if (packages.isEmpty()) {
+                item {
+                    EmptyValueCard(modifier)
+                }
+            } else {
+                items(sortedGroups) { (_, notifications) ->
+                    val latest = notifications.maxByOrNull {
+                        runCatching { LocalDateTime.parse(it.receivedAt, formatter) }.getOrNull()
+                            ?: LocalDateTime.MIN
+                    } ?: notifications.first()
 
-                Column {
-                    Card(
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                            .fillMaxWidth()
-                            .clickable { onAppClick(latest.packageName) }
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp)) {
-                            AppIcon(drawable = latest.appIcon)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = latest.appName.ifBlank { latest.packageName },
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.W900
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = latest.receivedAt.substringAfter(", "),
-                                style = MaterialTheme.typography.labelSmall
-                            )
+                    Column {
+                        Card(
+                            modifier = Modifier
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .fillMaxWidth()
+                                .clickable { onAppClick(latest.packageName) }
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp)) {
+                                AppIcon(drawable = latest.appIcon)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = latest.appName.ifBlank { latest.packageName },
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.W900
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text(
+                                    text = latest.receivedAt.substringAfter(", "),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+        if (isRefreshing) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+            )
+        }
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 
