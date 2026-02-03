@@ -31,7 +31,7 @@ class UserPreferences(private val context: Context) {
         SettingState(
             launchCount = preferences[LAUNCH_COUNT] ?: 0,
             showRateUsCard = preferences[SHOW_RATE_US_CARD]?: true,
-            userToggleTracking = preferences[KEY_USER_WANTS_TRACKING] ?: false,
+            userToggleTracking = preferences[KEY_USER_WANTS_TRACKING] ?: true,
             snoozeUntilLaunch = preferences[SNOOZE_UNTIL_LAUNCH] ?: 2,
             selectedAppsCount = allowed.size,
             historyRetentionDays = preferences[HISTORY_RETENTION_DAYS]
