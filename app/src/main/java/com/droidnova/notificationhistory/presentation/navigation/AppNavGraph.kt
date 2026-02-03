@@ -5,6 +5,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -35,16 +36,12 @@ fun AppNavGraph() {
     val systemUiController = rememberSystemUiController()
     val darkTheme = isSystemInDarkTheme()
     val isPremium by mainViewModel.isPremium.collectAsState()
+    val navColor = MaterialTheme.colorScheme.background
 
-    val barColor = if (darkTheme) Color.Black else Color.White
 
     SideEffect {
-        systemUiController.setStatusBarColor(
-            color = barColor,
-            darkIcons = !darkTheme
-        )
         systemUiController.setNavigationBarColor(
-            color = barColor,
+            color = navColor,
             darkIcons = !darkTheme
         )
     }

@@ -56,7 +56,7 @@ import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDialog
 import com.droidnova.notificationhistory.presentation.navigation.Screens
-import com.droidnova.notificationhistory.utils.IntentUtils
+import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import kotlinx.coroutines.launch
 
 @Composable
@@ -164,17 +164,17 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                     modifier = Modifier.align(Alignment.BottomCenter),
                 onCancelClicked = { viewmodel.snoozeRateUsCard() },
                     onOkClicked = {
-                        IntentUtils.rateUs(context)
+                        IntentUtil.openRateUs(context)
                         viewmodel.hideRateUsCard()
                     },
                     onRated = {
                         if (it == 5) {
-                            IntentUtils.rateUs(context)
+                            IntentUtil.openRateUs(context)
                             viewmodel.hideRateUsCard()
                         }
                     },
                     onFeedbackClicked = {
-                        IntentUtils.sendFeedback(context)
+                        IntentUtil.sendSupportMail(context, isBug = false)
                         viewmodel.snoozeRateUsCard()
                     }
                 )

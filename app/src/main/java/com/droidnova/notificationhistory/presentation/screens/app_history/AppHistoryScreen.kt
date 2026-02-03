@@ -54,7 +54,7 @@ import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
-import com.droidnova.notificationhistory.utils.IntentUtils
+import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.toReadableShareText
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
@@ -196,11 +196,11 @@ fun AppHistoryScreen(
                 selectedNotification = null
             },
             onOpenApp = {
-                IntentUtils.openApp(context, notification.packageName)
+                IntentUtil.openApp(context, notification.packageName)
                 selectedNotification = null
             },
             onCopy = {
-                IntentUtils.copyToClipboard(
+                IntentUtil.copyToClipboard(
                     context,
                     "Notification",
                     notification.toReadableShareText()
@@ -208,7 +208,7 @@ fun AppHistoryScreen(
                 selectedNotification = null
             },
             onShare = {
-                IntentUtils.shareText(
+                IntentUtil.shareText(
                     context,
                     "Share notification",
                     notification.toReadableShareText()

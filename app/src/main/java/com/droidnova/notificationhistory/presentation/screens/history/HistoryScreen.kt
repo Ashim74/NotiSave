@@ -79,7 +79,7 @@ import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
 import com.droidnova.notificationhistory.presentation.navigation.Screens
-import com.droidnova.notificationhistory.utils.IntentUtils
+import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.toReadableShareText
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -108,6 +108,13 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(viewType) {
+        if (viewType == HistoryViewType.Apps) {
+            isSearchActive = false
+            searchQuery = ""
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -163,35 +170,37 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                         }
                     },
                     actions = {
-                        IconButton(onClick = { isSearchActive = true }) {
-                            Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
-                        }
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Menu"
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Clear all History") },
-                                onClick = {
-                                    showMenu = false
-                                    showConfirm = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = {
-                                    Text("Auto delete (" + formatRetentionDays(settingsState.historyRetentionDays) + ")")
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    showRetentionPicker = true
-                                }
-                            )
+                        if (viewType == HistoryViewType.Message) {
+                            IconButton(onClick = { isSearchActive = true }) {
+                                Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
+                            }
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "Menu"
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Clear all History") },
+                                    onClick = {
+                                        showMenu = false
+                                        showConfirm = true
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Text("Auto delete (" + formatRetentionDays(settingsState.historyRetentionDays) + ")")
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        showRetentionPicker = true
+                                    }
+                                )
+                            }
                         }
                     }
                 )
@@ -304,11 +313,11 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                 selectedNotification = null
             },
             onOpenApp = {
-                IntentUtils.openApp(context, notification.packageName)
+                IntentUtil.openApp(context, notification.packageName)
                 selectedNotification = null
             },
             onCopy = {
-                IntentUtils.copyToClipboard(
+                IntentUtil.copyToClipboard(
                     context,
                     "Notification",
                     notification.toReadableShareText()
@@ -316,7 +325,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                 selectedNotification = null
             },
             onShare = {
-                IntentUtils.shareText(
+                IntentUtil.shareText(
                     context,
                     "Share notification",
                     notification.toReadableShareText()
