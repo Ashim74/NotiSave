@@ -7,6 +7,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -32,6 +34,7 @@ fun AppNavGraph() {
 
     val systemUiController = rememberSystemUiController()
     val darkTheme = isSystemInDarkTheme()
+    val isPremium by mainViewModel.isPremium.collectAsState()
 
     val barColor = if (darkTheme) Color.Black else Color.White
 
@@ -112,6 +115,8 @@ fun AppNavGraph() {
                 )
             }
         }
-        CollapsibleAdBanner()
+        if (!isPremium) {
+            CollapsibleAdBanner()
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.droidnova.notificationhistory.presentation.screens.about
 
+import android.app.Activity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -20,31 +21,72 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color.Companion.Gray
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
+import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
+import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDialog
 import com.droidnova.notificationhistory.utils.Constants
 import com.droidnova.notificationhistory.utils.IntentUtils
 import com.droidnova.notificationhistory.utils.IntentUtils.openBVRAppOnPlayStore
 import com.droidnova.notificationhistory.utils.IntentUtils.openClipboardHistoryAppOnPlayStore
 import com.droidnova.notificationhistory.utils.IntentUtils.reportBugs
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(navController: NavController) {
     val context = LocalContext.current
+    val activity = context as? Activity
+    val mainViewModel: MainViewModel = viewModel()
+    val billingManager = LocalPremiumBillingManager.current
+    val isPremium by mainViewModel.isPremium.collectAsState()
+    val productDetails = billingManager?.productDetails?.collectAsState()?.value
+    val isFetchingPrice = billingManager?.isFetchingProductDetails?.collectAsState()?.value ?: false
+    val isPurchaseInProgress = billingManager?.isPurchaseInProgress?.collectAsState()?.value ?: false
+    val priceLabel = productDetails?.oneTimePurchaseOfferDetails?.formattedPrice
+    var showPurchaseSheet by remember { mutableStateOf(false) }
+    var showPremiumDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(billingManager) {
+        billingManager?.errors?.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(isPremium) {
+        if (isPremium) {
+            showPurchaseSheet = false
+            showPremiumDialog = true
+        }
+    }
 
     Scaffold(topBar =
         {
@@ -61,7 +103,9 @@ fun AboutScreen(navController: NavController) {
                     }
                 }
             )
-        }) { innerPadding ->
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { innerPadding ->
 
 
         Column(
@@ -70,6 +114,30 @@ fun AboutScreen(navController: NavController) {
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState()).padding(12.dp)
         ) {
+            Items(
+                icon = painterResource(R.drawable.ic_star_filled),
+                headingText = if (isPremium) {
+                    stringResource(R.string.premium_menu_already_unlocked)
+                } else {
+                    stringResource(R.string.premium_menu_remove_ads)
+                },
+                labelText = if (isPremium) {
+                    stringResource(R.string.premium_menu_unlocked_subtitle)
+                } else {
+                    stringResource(R.string.premium_menu_remove_ads_subtitle)
+                },
+                onClick = {
+                    if (!isPremium && billingManager != null) {
+                        showPurchaseSheet = true
+                        billingManager?.queryProductDetails()
+                    } else if (!isPremium) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Billing is not available right now.")
+                        }
+                    }
+                }
+            )
+            SpacerHeight(8.dp)
 
             Items(
                 icon = painterResource(R.drawable.ic_rate_us),
@@ -161,6 +229,33 @@ fun AboutScreen(navController: NavController) {
             )
 
         }
+    }
+
+    if (showPurchaseSheet) {
+        PremiumPurchaseBottomSheet(
+            priceLabel = priceLabel,
+            isLoading = isFetchingPrice || isPurchaseInProgress,
+            onPurchaseClick = {
+                if (activity != null) {
+                    billingManager?.launchPurchaseFlow(activity)
+                } else {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Unable to start purchase from this screen.")
+                    }
+                }
+            },
+            onDismiss = { showPurchaseSheet = false }
+        )
+    }
+
+    if (showPremiumDialog) {
+        PremiumWelcomeDialog(
+            onDismiss = { showPremiumDialog = false },
+            onRestart = {
+                showPremiumDialog = false
+                activity?.recreate()
+            }
+        )
     }
 }
 
@@ -256,5 +351,3 @@ fun SpacerHeight(height: Dp) {
 fun SpacerWidth(width: Int) {
     Spacer(modifier = Modifier.width(width.dp))
 }
-
-
