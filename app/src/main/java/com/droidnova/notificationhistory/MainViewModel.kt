@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -60,6 +61,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var hasLoadedInitialHistory = false
     private var lastRetentionDays = SettingState.DEFAULT_HISTORY_RETENTION_DAYS
     private var historyLoadGeneration = 0
+    private var latestHistoryTimestamp: Long? = null
 
     @Volatile
     private var activeHistoryLoadGeneration: Int? = null
@@ -106,6 +108,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     refreshHistory(settingState.historyRetentionDays)
                 } else if (retentionChanged) {
                     refreshHistory(settingState.historyRetentionDays)
+                }
+            }
+        }
+        viewModelScope.launch {
+            dao.observeLatestReceivedAt().collectLatest { latest ->
+                if (latest == null) {
+                    if (_history.value.isNotEmpty()) {
+                        refreshHistory(lastRetentionDays)
+                    }
+                    latestHistoryTimestamp = null
+                    return@collectLatest
+                }
+
+                val previous = latestHistoryTimestamp
+                latestHistoryTimestamp = latest
+
+                if (previous != null && latest > previous) {
+                    refreshHistory(lastRetentionDays)
+                } else if (previous == null && hasLoadedInitialHistory && _history.value.isEmpty()) {
+                    refreshHistory(lastRetentionDays)
                 }
             }
         }
@@ -263,10 +285,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    suspend fun getNotificationsForPackage(packageName: String): List<NotificationModel> {
-        return withContext(Dispatchers.IO) {
-            dao.getNotificationsByPackage(packageName)
-                .map { convertEntityToModel(getApplication(), it) }
+    fun observeNotificationsForPackage(packageName: String) =
+        dao.observeNotificationsByPackage(packageName).map { entities ->
+            entities.map { convertEntityToModel(getApplication(), it) }
+        }
+
+    fun observeLatestNotificationsByApp() =
+        dao.observeLatestNotificationsByApp().map { entities ->
+            entities.map { convertEntityToModel(getApplication(), it) }
+        }
+
+    fun deleteNotification(notification: NotificationModel) {
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.deleteNotificationById(notification.id)
+            withContext(Dispatchers.Main) {
+                _history.update { current ->
+                    current.filterNot { it.id == notification.id }
+                }
+            }
         }
     }
 

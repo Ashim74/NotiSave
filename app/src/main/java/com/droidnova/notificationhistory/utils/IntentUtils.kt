@@ -10,6 +10,8 @@ import android.util.Log
 import android.widget.Toast
 import java.util.Locale
 import androidx.core.net.toUri
+import android.content.ClipData
+import android.content.ClipboardManager
 
 object IntentUtils {
     //RateUs
@@ -45,6 +47,30 @@ object IntentUtils {
             type = "text/plain"
         }
         context.startActivity(Intent.createChooser(shareIntent, "Share app via"))
+    }
+
+    fun shareText(context: Context, chooserTitle: String, text: String) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            putExtra(Intent.EXTRA_TEXT, text)
+            type = "text/plain"
+        }
+        context.startActivity(Intent.createChooser(shareIntent, chooserTitle))
+    }
+
+    fun copyToClipboard(context: Context, label: String, text: String) {
+        val clipboardManager =
+            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboardManager.setPrimaryClip(ClipData.newPlainText(label, text))
+        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+    }
+
+    fun openApp(context: Context, packageName: String) {
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+        if (launchIntent != null) {
+            context.startActivity(launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } else {
+            Toast.makeText(context, "Unable to open this app", Toast.LENGTH_SHORT).show()
+        }
     }
 
 

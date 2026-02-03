@@ -15,6 +15,7 @@ fun convertEntityToModel(context: Context, notificationEntity: NotificationEntit
     val appIcon = fetchAppIcon(pm,notificationEntity.packageName)
     val appName = fetchAppName(pm,notificationEntity.packageName)
     val notificationModel =NotificationModel(
+        id = notificationEntity.id,
         packageName = notificationEntity.packageName,
         appIcon = appIcon,
         appName = appName,

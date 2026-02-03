@@ -20,20 +20,21 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
+import com.droidnova.notificationhistory.utils.IntentUtils
+import com.droidnova.notificationhistory.utils.toReadableShareText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,16 +43,11 @@ fun AppHistoryScreen(
     packageName: String,
     navController: NavController
 ) {
-    var notifications by remember { mutableStateOf<List<NotificationModel>>(emptyList()) }
-    val formatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault()) }
-
-    LaunchedEffect(packageName) {
-        notifications = mainViewModel.getNotificationsForPackage(packageName)
-            .sortedByDescending {
-                runCatching { LocalDateTime.parse(it.receivedAt, formatter) }.getOrNull()
-                    ?: LocalDateTime.MIN
-            }
-    }
+    val context = LocalContext.current
+    val notifications by mainViewModel
+        .observeNotificationsForPackage(packageName)
+        .collectAsState(initial = emptyList())
+    var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
 
     val title = notifications.firstOrNull()?.appName?.ifBlank { packageName } ?: packageName
 
@@ -74,10 +70,40 @@ fun AppHistoryScreen(
                 )
         ) {
             items(notifications) { item ->
-                HistoryCard(item, onClick = {}
-                )
+                HistoryCard(item, onClick = { selectedNotification = it })
             }
         }
+    }
+
+    selectedNotification?.let { notification ->
+        NotificationActionSheet(
+            notification = notification,
+            onOpen = {
+                IntentUtils.openApp(context, notification.packageName)
+                selectedNotification = null
+            },
+            onCopy = {
+                IntentUtils.copyToClipboard(
+                    context,
+                    "Notification",
+                    notification.toReadableShareText()
+                )
+                selectedNotification = null
+            },
+            onShare = {
+                IntentUtils.shareText(
+                    context,
+                    "Share notification",
+                    notification.toReadableShareText()
+                )
+                selectedNotification = null
+            },
+            onDelete = {
+                mainViewModel.deleteNotification(notification)
+                selectedNotification = null
+            },
+            onDismiss = { selectedNotification = null }
+        )
     }
 }
 
@@ -113,5 +139,3 @@ fun HistoryCard(model: NotificationModel, onClick: (NotificationModel) -> Unit) 
         }
     }
 }
-
-

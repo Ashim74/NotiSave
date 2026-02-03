@@ -1,8 +1,8 @@
 package com.droidnova.notificationhistory.presentation.screens.home
 
+import android.app.Activity
 import android.content.Intent
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,6 +21,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -32,6 +33,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,27 +44,53 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import android.provider.Settings
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.ui.res.painterResource
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.component.RateUsCard
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
+import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDialog
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.utils.IntentUtils
-import kotlin.text.compareTo
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     val state by viewmodel.settingState.collectAsState()
     val context = LocalContext.current
+    val activity = context as? Activity
+    val billingManager = LocalPremiumBillingManager.current
+    val isPremium by viewmodel.isPremium.collectAsState()
+    val productDetails = billingManager?.productDetails?.collectAsState()?.value
+    val isFetchingPrice = billingManager?.isFetchingProductDetails?.collectAsState()?.value ?: false
+    val isPurchaseInProgress = billingManager?.isPurchaseInProgress?.collectAsState()?.value ?: false
+    val priceLabel = productDetails?.oneTimePurchaseOfferDetails?.formattedPrice
+    var showPurchaseSheet by remember { mutableStateOf(false) }
+    var showPremiumDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     // initial data
     LaunchedEffect(Unit) {
         viewmodel.getAllInstalledApps(context)
+    }
+
+    LaunchedEffect(billingManager) {
+        billingManager?.errors?.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(isPremium) {
+        if (isPremium) {
+            showPurchaseSheet = false
+            showPremiumDialog = true
+        }
     }
 
     // events
@@ -94,7 +122,27 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     }
 
     Scaffold(
-        topBar = { TopBarApp(navigate = { navController.navigate(Screens.AboutScreen.route) }) }
+        topBar = {
+            TopBarApp(
+                isPremium = isPremium,
+                navigate = { navController.navigate(Screens.AboutScreen.route) },
+                onRemoveAds = {
+                    if (isPremium) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("You already have premium access.")
+                        }
+                    } else if (billingManager != null) {
+                        showPurchaseSheet = true
+                        billingManager.queryProductDetails()
+                    } else {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Billing is not available right now.")
+                        }
+                    }
+                }
+            )
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Box(
             modifier = Modifier
@@ -133,11 +181,42 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
             }// if
         }
     }
+
+    if (showPurchaseSheet) {
+        PremiumPurchaseBottomSheet(
+            priceLabel = priceLabel,
+            isLoading = isFetchingPrice || isPurchaseInProgress,
+            onPurchaseClick = {
+                if (activity != null) {
+                    billingManager?.launchPurchaseFlow(activity)
+                } else {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Unable to start purchase from this screen.")
+                    }
+                }
+            },
+            onDismiss = { showPurchaseSheet = false }
+        )
+    }
+
+    if (showPremiumDialog) {
+        PremiumWelcomeDialog(
+            onDismiss = { showPremiumDialog = false },
+            onRestart = {
+                showPremiumDialog = false
+                activity?.recreate()
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopBarApp(navigate: () -> Unit) {
+fun TopBarApp(
+    isPremium: Boolean,
+    navigate: () -> Unit,
+    onRemoveAds: () -> Unit
+) {
     var showMenu by remember { mutableStateOf(false) }
     TopAppBar(
         title = { Text("Notification History") },
@@ -150,20 +229,19 @@ fun TopBarApp(navigate: () -> Unit) {
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
+                    text = { Text(if (isPremium) "Ads removed" else "Remove Ads") },
+                    onClick = {
+                        showMenu = false
+                        onRemoveAds()
+                    }
+                )
+                DropdownMenuItem(
                     text = { Text("About") },
                     onClick = {
                         navigate()
                         showMenu = false
                     }
                 )
-//                DropdownMenuItem(
-//                    text = { Text("Remove Ads") },
-//                    onClick = {}
-//                )
-//                DropdownMenuItem(
-//                    text = { Text("Settings") },
-//                    onClick = {}
-//                )
             }
         }
     )
