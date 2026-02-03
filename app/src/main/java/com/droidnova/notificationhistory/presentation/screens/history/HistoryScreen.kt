@@ -18,60 +18,73 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material3.RadioButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
+import androidx.navigation.NavController
+import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.data.model.NotificationModel
+import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
+import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
+import com.droidnova.notificationhistory.presentation.navigation.Screens
+import com.droidnova.notificationhistory.utils.IntentUtils
+import com.droidnova.notificationhistory.utils.toReadableShareText
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
-import com.droidnova.notificationhistory.MainViewModel
-import com.droidnova.notificationhistory.data.model.NotificationModel
-// Material 3 imports
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.res.painterResource
-import com.droidnova.notificationhistory.R
-import androidx.navigation.NavController
-import com.droidnova.notificationhistory.presentation.navigation.Screens
-import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
-import com.droidnova.notificationhistory.utils.IntentUtils
-import com.droidnova.notificationhistory.utils.toReadableShareText
-import androidx.compose.material3.LinearProgressIndicator
 
 
 enum class HistoryViewType { Message, Apps }
@@ -87,49 +100,102 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf<NotificationModel?>(null) }
     var showRetentionPicker by remember { mutableStateOf(false) }
     var viewType by rememberSaveable { mutableStateOf(HistoryViewType.Message) }
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
+    var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Notification History") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Menu"
+            if (isSearchActive) {
+                TopAppBar(
+                    title = {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Search notifications") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                disabledIndicatorColor = Color.Transparent,
+                            )
                         )
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Clear all History") },
-                            onClick = {
-                                showMenu = false
-                                showConfirm = true
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            isSearchActive = false
+                            searchQuery = ""
+                        }) {
+                            Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Close search")
+                        }
+                    },
+                    actions = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear search"
+                                )
                             }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Text("Auto delete (" + formatRetentionDays(settingsState.historyRetentionDays) + ")")
-                            },
-                            onClick = {
-                                showMenu = false
-                                showRetentionPicker = true
-                            }
-                        )
+                        }
                     }
+                )
+                LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
                 }
-            )
+            } else {
+                TopAppBar(
+                    title = { Text("Notification History") },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { isSearchActive = true }) {
+                            Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
+                        }
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Menu"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Clear all History") },
+                                onClick = {
+                                    showMenu = false
+                                    showConfirm = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text("Auto delete (" + formatRetentionDays(settingsState.historyRetentionDays) + ")")
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showRetentionPicker = true
+                                }
+                            )
+                        }
+                    }
+                )
+            }
         },
         bottomBar = {
             SingleChoiceSegmentedButtonRow(
@@ -160,6 +226,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                 modifier = contentModifier,
                 isRefreshing = isRefreshing,
                 packages = packages.value,
+                searchQuery = searchQuery,
                 onLoadMore = { mainViewmodel.loadMoreHistory() },
                 onItemClick = { selectedNotification = it },
                 onRefresh = { mainViewmodel.refreshHistory() }
@@ -206,10 +273,37 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
         )
     }
 
+    showDetailsDialog?.let { notification ->
+        NotificationDetailsDialog(
+            notification = notification,
+            onDismiss = { showDetailsDialog = null }
+        )
+    }
+
+    showDeleteConfirm?.let { notification ->
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = null },
+            title = { Text("Delete Notification") },
+            text = { Text("Are you sure you want to delete this notification?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    mainViewmodel.deleteNotification(notification)
+                    showDeleteConfirm = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     selectedNotification?.let { notification ->
         NotificationActionSheet(
-            notification = notification,
-            onOpen = {
+            onViewDetails = {
+                showDetailsDialog = notification
+                selectedNotification = null
+            },
+            onOpenApp = {
                 IntentUtils.openApp(context, notification.packageName)
                 selectedNotification = null
             },
@@ -230,7 +324,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                 selectedNotification = null
             },
             onDelete = {
-                mainViewmodel.deleteNotification(notification)
+                showDeleteConfirm = notification
                 selectedNotification = null
             },
             onDismiss = { selectedNotification = null }
@@ -240,11 +334,13 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
 
 
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun HistoryScreenContent(
     modifier: Modifier,
     isRefreshing: Boolean,
     packages: List<NotificationModel>,
+    searchQuery: String,
     onLoadMore: () -> Unit,
     onItemClick: (NotificationModel) -> Unit,
     onRefresh: () -> Unit
@@ -255,6 +351,13 @@ fun HistoryScreenContent(
         onRefresh = onRefresh
     )
 
+    val filteredPackages = packages.filter {
+        it.title.contains(searchQuery, ignoreCase = true) || it.text.contains(
+            searchQuery,
+            ignoreCase = true
+        )
+    }
+
     LaunchedEffect(packages, listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { index ->
@@ -264,7 +367,7 @@ fun HistoryScreenContent(
             }
     }
 
-    val grouped = packages.groupBy { it.receivedAt.substringBefore(",") }
+    val grouped = filteredPackages.groupBy { it.receivedAt.substringBefore(",") }
     val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault())
     val sortedGroups = grouped.toList().sortedByDescending { (date, _) ->
         runCatching { LocalDate.parse(date, formatter) }.getOrNull()
@@ -272,7 +375,7 @@ fun HistoryScreenContent(
 
     Box(modifier = modifier.pullRefresh(pullRefreshState)) {
         LazyColumn(state = listState) {
-            if (packages.isEmpty()) {
+            if (filteredPackages.isEmpty()) {
                 item {
                     EmptyValueCard(modifier)
                 }
@@ -288,7 +391,7 @@ fun HistoryScreenContent(
                     }
                     items(notifications) { item ->
                         Log.e("Mantsha", "HistoryScreenContent: ${item}")
-                        ItemHistoryCard(item, onItemClick)
+                        ItemHistoryCard(item, searchQuery, onItemClick)
                     }
                 }
             }
@@ -412,6 +515,7 @@ private fun EmptyValueCard(modifier: Modifier) {
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun AppHistoryContent(
     modifier: Modifier,
@@ -488,7 +592,7 @@ fun AppHistoryContent(
 }
 
 @Composable
-fun ItemHistoryCard(model: NotificationModel, onClick: (NotificationModel) -> Unit) {
+fun ItemHistoryCard(model: NotificationModel, searchQuery: String, onClick: (NotificationModel) -> Unit) {
     Card(
         modifier = Modifier
             .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -517,18 +621,40 @@ fun ItemHistoryCard(model: NotificationModel, onClick: (NotificationModel) -> Un
 
 
             Text(
-                text = model.title,
+                text = buildHighlightedText(model.title, searchQuery),
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.W800
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = model.text,
+                text = buildHighlightedText(model.text, searchQuery),
                 style = MaterialTheme.typography.bodyMedium,
                 softWrap = true,
-                maxLines = Int.MAX_VALUE
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+private fun buildHighlightedText(text: String, query: String): AnnotatedString {
+    if (query.isBlank()) {
+        return buildAnnotatedString { append(text) }
+    }
+    return buildAnnotatedString {
+        var startIndex = 0
+        while (startIndex < text.length) {
+            val index = text.indexOf(query, startIndex, ignoreCase = true)
+            if (index == -1) {
+                append(text.substring(startIndex))
+                break
+            }
+            append(text.substring(startIndex, index))
+            withStyle(style = SpanStyle(color = Color.Black, background = Color(0xFFFFF9C4))) {
+                append(text.substring(index, index + query.length))
+            }
+            startIndex = index + query.length
         }
     }
 }

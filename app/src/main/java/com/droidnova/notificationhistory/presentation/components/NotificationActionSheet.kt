@@ -2,31 +2,29 @@ package com.droidnova.notificationhistory.presentation.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.droidnova.notificationhistory.data.model.NotificationModel
+import com.droidnova.notificationhistory.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationActionSheet(
-    notification: NotificationModel,
-    onOpen: () -> Unit,
+    onViewDetails: () -> Unit,
+    onOpenApp: () -> Unit,
     onCopy: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
@@ -34,37 +32,29 @@ fun NotificationActionSheet(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(bottom = 12.dp)) {
-            Text(
-                text = notification.appName.ifBlank { notification.packageName },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-            )
-            Text(
-                text = notification.title.ifBlank { "Notification" },
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-
             NotificationActionRow(
-                label = "Open",
-                icon = Icons.Default.OpenInNew,
-                onClick = onOpen
+                label = "View Details",
+                icon = { Icon(imageVector = Icons.Default.Info, contentDescription = null) },
+                onClick = onViewDetails
+            )
+            NotificationActionRow(
+                label = "Open App",
+                icon = { Icon(painter = painterResource(id = R.drawable.ic_open_in_new), contentDescription = null) },
+                onClick = onOpenApp
             )
             NotificationActionRow(
                 label = "Copy",
-                icon = Icons.Default.ContentCopy,
+                icon = { Icon(painter = painterResource(id = R.drawable.ic_content_copy), contentDescription = null) },
                 onClick = onCopy
             )
             NotificationActionRow(
                 label = "Share",
-                icon = Icons.Default.Share,
+                icon = { Icon(imageVector = Icons.Default.Share, contentDescription = null) },
                 onClick = onShare
             )
             NotificationActionRow(
                 label = "Delete",
-                icon = Icons.Default.Delete,
+                icon = { Icon(imageVector = Icons.Default.Delete, contentDescription = null) },
                 onClick = onDelete
             )
         }
@@ -74,12 +64,13 @@ fun NotificationActionSheet(
 @Composable
 private fun NotificationActionRow(
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: @Composable () -> Unit,
     onClick: () -> Unit,
 ) {
     ListItem(
         headlineContent = { Text(text = label) },
-        leadingContent = { Icon(imageVector = icon, contentDescription = null) },
-        modifier = Modifier.clickable(onClick = onClick)
+        leadingContent = icon,
+        modifier = Modifier.clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
     )
 }

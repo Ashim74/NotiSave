@@ -2,12 +2,23 @@ package com.droidnova.notificationhistory.presentation.screens.select_app
 
 import android.util.Log
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -20,6 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,9 +45,15 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.graphics.drawable.toBitmap
@@ -53,18 +71,16 @@ fun SelectAppScreen(
     mainViewModel: MainViewModel,
     navController: NavController
 ) {
-    // Collect your list from VM (UI only)
     val allInstalledApps by mainViewModel.allInstalledApps.collectAsState()
-    Log.e("MyTag", "ManageAppNotificationScreen: $allInstalledApps")
-    var uiList by    remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    var uiList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
     var isSelectingAll by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    // Access latest list inside lifecycle callbacks
     val latestApps by rememberUpdatedState(allInstalledApps)
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // NEW: Merge incoming data WITHOUT changing current UI order
     LaunchedEffect(allInstalledApps) {
         if (uiList.isEmpty()) {
             uiList = allInstalledApps
@@ -77,7 +93,6 @@ fun SelectAppScreen(
         }
     }
 
-    // NEW: Sort ONLY when screen is resumed (allowed apps jump to top then)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -103,16 +118,69 @@ fun SelectAppScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Choose App", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = {
-                    IconButton(onClick =  {navController.popBackStack()}) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+            if (isSearchActive) {
+                TopAppBar(
+                    title = {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Search apps") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                disabledIndicatorColor = Color.Transparent,
+                            )
                         )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            isSearchActive = false
+                            searchQuery = ""
+                        }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Close search"
+                            )
+                        }
+                    },
+                    actions = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear search"
+                                )
+                            }
+                        }
                     }
+                )
+                LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
                 }
-            )
+            } else {
+                TopAppBar(title = { Text("Choose App", style = MaterialTheme.typography.titleLarge) },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { isSearchActive = true }) {
+                            Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
+                        }
+                    }
+                )
+            }
         },
     ) { innerPadding ->
 
@@ -122,21 +190,11 @@ fun SelectAppScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 12.dp)
         ) {
-            // Header text
             item {
                 Text(
                     text = "Select the apps for which you want to track notification",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray
-                )
-            }
-            item {
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search apps") },
-                    singleLine = true
                 )
             }
             item {
@@ -179,7 +237,6 @@ fun SelectAppScreen(
                 )
             }//item
 
-            // Loading / empty
             if (uiList.isEmpty()) {
                 item {
                     Column {
@@ -199,12 +256,12 @@ fun SelectAppScreen(
                 ) { app ->
                     AppCard(
                         apps = app,
-                       // modifier = Modifier.animateItem(),
+                        searchQuery = searchQuery,
                         onToggle = { checked ->
                             mainViewModel.addToAllowedApps(app.packageName, checked)
                         },
                         onSettingClick = {
-                            navController.navigate(Screens.SettingScreen.createRoute(packageName = app.packageName ))
+                            navController.navigate(Screens.SettingScreen.createRoute(packageName = app.packageName))
                         }
                     )
                 }
@@ -239,6 +296,7 @@ fun SelectAppScreen(
 @Composable
 fun AppCard(
     apps: AppInfo,
+    searchQuery: String,
     onToggle: (Boolean) -> Unit,
     onSettingClick: () -> Unit
 ) {
@@ -258,17 +316,16 @@ fun AppCard(
             Spacer(modifier = Modifier.width(16.dp))
 
             Text(
-                text = apps.appName,
+                text = buildHighlightedText(text = apps.appName, query = searchQuery),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f)
             )
 
-            // UI-only switch (no logic)
             Switch(
                 checked = apps.isAllowed,
                 onCheckedChange = { checked ->
-                    Log.e("Mantsh2232"," ManageAppNotificationScreen isallowed ${apps.isAllowed}")
-                    Log.e("Mantsh2232","ManageAppNotificationScreen checked $checked")
+                    Log.e("Mantsh2232", " ManageAppNotificationScreen isallowed ${apps.isAllowed}")
+                    Log.e("Mantsh2232", "ManageAppNotificationScreen checked $checked")
                     onToggle(checked)
                 }
             )
@@ -293,6 +350,27 @@ fun AppCard(
                 }
             }
         }//if
+    }
+}
+
+private fun buildHighlightedText(text: String, query: String): AnnotatedString {
+    if (query.isBlank()) {
+        return buildAnnotatedString { append(text) }
+    }
+    return buildAnnotatedString {
+        var startIndex = 0
+        while (startIndex < text.length) {
+            val index = text.indexOf(query, startIndex, ignoreCase = true)
+            if (index == -1) {
+                append(text.substring(startIndex))
+                break
+            }
+            append(text.substring(startIndex, index))
+            withStyle(style = SpanStyle(color = Color.Black, background = Color(0xFFFFF9C4))) {
+                append(text.substring(index, index + query.length))
+            }
+            startIndex = index + query.length
+        }
     }
 }
 

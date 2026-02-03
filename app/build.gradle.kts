@@ -18,7 +18,7 @@ android {
         versionCode = 13
         versionName = "0.13"
 
-        buildConfigField("String", "PLAY_STORE_LICENSE_KEY", "\"\"")
+        buildConfigField("String", "PLAY_STORE_LICENSE_KEY", "\"${project.findProperty("PLAY_STORE_LICENSE_KEY")}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -41,6 +41,7 @@ android {
         jvmTarget = "11"
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }
