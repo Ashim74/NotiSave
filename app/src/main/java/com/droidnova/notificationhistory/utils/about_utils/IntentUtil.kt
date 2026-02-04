@@ -1,5 +1,6 @@
 package com.droidnova.notificationhistory.utils.about_utils
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -146,5 +147,15 @@ object IntentUtil {
             type = "text/plain"
         }
         context.startActivity(Intent.createChooser(shareIntent, chooserTitle))
+    }
+
+    fun restartApp(context: Context) {
+        val launchIntent =
+            context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        context.startActivity(launchIntent)
+        if (context is Activity) {
+            context.finish()
+        }
     }
 }

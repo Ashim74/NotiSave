@@ -269,7 +269,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
             },
             onRestart = {
                 viewmodel.dismissPremiumWelcome()
-                activity?.recreate()
+                IntentUtil.restartApp(context)
             },
             onOpenInstagram = {
                 IntentUtil.openInstagram(context)

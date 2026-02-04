@@ -450,9 +450,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun enableTrackingAndRouteIfNeeded() {
         userPrefs.setToggleTracking(true)
         if (allowedPackagesSet.isEmpty()) {
-            val installedApps = if (_allInstalledApps.value.isNotEmpty()) {
-                _allInstalledApps.value
-            } else {
+            val installedApps = _allInstalledApps.value.ifEmpty {
                 getInstalledApps(getApplication(), allowedPackagesSet)
             }
             val packageNames = installedApps
