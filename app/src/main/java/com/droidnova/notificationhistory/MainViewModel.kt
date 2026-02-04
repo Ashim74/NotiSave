@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -94,7 +95,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var allowedPackagesSet = emptySet<String>()
     private var awaitingGrant = false
     private var autoSelectAllAfterPermissionGrant = false
-    private var isInitialized = false
 
     data class AppHistoryUiState(
         val notifications: List<NotificationModel> = emptyList(),
@@ -126,13 +126,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val retentionChanged = settingState.historyRetentionDays != lastRetentionDays
                 lastRetentionDays = settingState.historyRetentionDays
                 _settingState.value = settingState
-                if (!isInitialized) {
-                    isInitialized = true
-                    userPrefs.updateLaunchCount(settingState.launchCount + 1)
-                    if (settingState.snoozeUntilLaunch < 2) {
-                        userPrefs.updateSnoozeUntilLaunch(2)
-                    }
-                }
                 if (!hasLoadedInitialHistory) {
                     hasLoadedInitialHistory = true
                     refreshHistory(settingState.historyRetentionDays)
@@ -212,6 +205,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshListenerGranted() = onResume()
+
+    fun incrementLaunchCount() {
+        viewModelScope.launch {
+            val setting = userPrefs.settingFlow.first()
+            userPrefs.updateLaunchCount(setting.launchCount + 1)
+            if (setting.snoozeUntilLaunch < 2) {
+                userPrefs.updateSnoozeUntilLaunch(2)
+            }
+        }
+    }
 
     fun getAllInstalledApps(context: Context) {
         viewModelScope.launch {

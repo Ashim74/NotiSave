@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
             onPremiumStatusChanged = { isPremium -> viewModel.setPremiumPurchased(isPremium) },
             onError = { message -> Log.w("Billing", message) }
         )
+        viewModel.incrementLaunchCount()
         billingManager.queryActivePurchases()
         billingManager.queryProductDetails()
         setContent {
