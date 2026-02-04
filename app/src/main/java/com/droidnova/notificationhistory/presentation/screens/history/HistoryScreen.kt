@@ -76,6 +76,7 @@ import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.NotificationModel
+import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
 import com.droidnova.notificationhistory.presentation.navigation.Screens
@@ -105,6 +106,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     var viewType by rememberSaveable { mutableStateOf(HistoryViewType.Message) }
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
+    var showDeleteConfirmDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
@@ -289,20 +291,13 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
         )
     }
 
-    showDeleteConfirm?.let { notification ->
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = null },
-            title = { Text("Delete Notification") },
-            text = { Text("Are you sure you want to delete this notification?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    mainViewmodel.deleteNotification(notification)
-                    showDeleteConfirm = null
-                }) { Text("Delete") }
+    if (showDeleteConfirmDialog != null) {
+        DeleteConfirmationDialog(
+            onConfirm = {
+                mainViewmodel.deleteNotification(showDeleteConfirmDialog!!)
+                showDeleteConfirmDialog = null
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = null }) { Text("Cancel") }
-            }
+            onDismiss = { showDeleteConfirmDialog = null }
         )
     }
 
@@ -333,7 +328,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                 selectedNotification = null
             },
             onDelete = {
-                showDeleteConfirm = notification
+                showDeleteConfirmDialog = notification
                 selectedNotification = null
             },
             onDismiss = { selectedNotification = null }

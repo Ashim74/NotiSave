@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
+import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
@@ -71,6 +72,7 @@ fun AppHistoryScreen(
     val isRefreshing by mainViewModel.isHistoryRefreshing.collectAsState()
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
+    var showDeleteConfirmDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
@@ -189,6 +191,16 @@ fun AppHistoryScreen(
         )
     }
 
+    if (showDeleteConfirmDialog != null) {
+        DeleteConfirmationDialog(
+            onConfirm = {
+                mainViewModel.deleteNotification(showDeleteConfirmDialog!!)
+                showDeleteConfirmDialog = null
+            },
+            onDismiss = { showDeleteConfirmDialog = null }
+        )
+    }
+
     selectedNotification?.let { notification ->
         NotificationActionSheet(
             onViewDetails = {
@@ -216,7 +228,7 @@ fun AppHistoryScreen(
                 selectedNotification = null
             },
             onDelete = {
-                mainViewModel.deleteNotification(notification)
+                showDeleteConfirmDialog = notification
                 selectedNotification = null
             },
             onDismiss = { selectedNotification = null }
