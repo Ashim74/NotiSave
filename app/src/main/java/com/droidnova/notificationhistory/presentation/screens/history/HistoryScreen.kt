@@ -29,6 +29,7 @@ import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -368,10 +369,16 @@ fun HistoryScreenContent(
         )
     }
 
-    LaunchedEffect(packages, listState, canLoadMore, isLoadingMore) {
+    LaunchedEffect(packages, listState, canLoadMore, isLoadingMore, searchQuery) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { index ->
-                if (index != null && index >= packages.size - 1 && canLoadMore && !isLoadingMore) {
+                if (
+                    index != null &&
+                    searchQuery.isBlank() &&
+                    index >= packages.size - 1 &&
+                    canLoadMore &&
+                    !isLoadingMore
+                ) {
                     onLoadMore()
                 }
             }
@@ -394,7 +401,7 @@ fun HistoryScreenContent(
                                 .padding(24.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            CircularProgressIndicator()
                         }
                     } else {
                         EmptyValueCard(modifier)
@@ -428,13 +435,6 @@ fun HistoryScreenContent(
                     }
                 }
             }
-        }
-        if (isRefreshing) {
-            LinearProgressIndicator(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-            )
         }
         PullRefreshIndicator(
             refreshing = isRefreshing,
@@ -574,7 +574,18 @@ fun AppHistoryContent(
         LazyColumn {
             if (packages.isEmpty()) {
                 item {
-                    EmptyValueCard(modifier)
+                    if (isRefreshing) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        EmptyValueCard(modifier)
+                    }
                 }
             } else {
                 items(sortedGroups) { (_, notifications) ->
@@ -608,13 +619,6 @@ fun AppHistoryContent(
                     }
                 }
             }
-        }
-        if (isRefreshing) {
-            LinearProgressIndicator(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-            )
         }
         PullRefreshIndicator(
             refreshing = isRefreshing,
