@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,6 +83,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     val activity = context as? Activity
     val billingManager = LocalPremiumBillingManager.current
     val isPremium by viewmodel.isPremium.collectAsState()
+    val hasShownPremiumWelcome by viewmodel.hasShownPremiumWelcome.collectAsState()
     val hasPermission by viewmodel.hasNotificationAccess.collectAsState()
     val productDetails = billingManager?.productDetails?.collectAsState()?.value
     val isFetchingPrice = billingManager?.isFetchingProductDetails?.collectAsState()?.value ?: false
@@ -110,10 +112,12 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         }
     }
 
-    LaunchedEffect(isPremium) {
+    LaunchedEffect(isPremium, hasShownPremiumWelcome) {
         if (isPremium) {
             showPurchaseSheet = false
-            showPremiumDialog = true
+            showPremiumDialog = !hasShownPremiumWelcome
+        } else {
+            showPremiumDialog = false
         }
     }
 
@@ -224,6 +228,11 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
             onDismissRequest = { },
             onGoToSettings = {
                 viewmodel.onPermissionSettingsOpened()
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.notification_permission_toast_message),
+                    Toast.LENGTH_LONG
+                ).show()
                 context.startActivity(
                     Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -232,7 +241,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         )
     }
 
-    if (showPurchaseSheet) {
+    if (showPurchaseSheet && !isPremium) {
         PremiumPurchaseBottomSheet(
             priceLabel = priceLabel,
             isLoading = isFetchingPrice || isPurchaseInProgress,
@@ -251,9 +260,13 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
 
     if (showPremiumDialog) {
         PremiumWelcomeDialog(
-            onDismiss = { showPremiumDialog = false },
+            onDismiss = {
+                showPremiumDialog = false
+                viewmodel.markPremiumWelcomeShown()
+            },
             onRestart = {
                 showPremiumDialog = false
+                viewmodel.markPremiumWelcomeShown()
                 activity?.recreate()
             }
         )

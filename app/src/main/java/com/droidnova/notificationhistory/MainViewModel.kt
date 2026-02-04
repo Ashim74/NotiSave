@@ -68,6 +68,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             false
         )
 
+    val hasShownPremiumWelcome: StateFlow<Boolean> =
+        userPrefs.hasShownPremiumWelcome.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            false
+        )
+
     private var currentOffset = 0
     private val pageSize = 100
     private var endReached = false
@@ -90,6 +97,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var allowedPackagesSet = emptySet<String>()
     private var awaitingGrant = false
+    private var autoSelectAllAfterPermissionGrant = false
     private var isInitialized = false
 
     data class AppHistoryUiState(
@@ -198,6 +206,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onPermissionSettingsOpened() {
         awaitingGrant = true
+        autoSelectAllAfterPermissionGrant = true
     }
 
     fun setToggleTracking(isSwitchOn: Boolean) {
@@ -434,12 +443,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setPremiumPurchased(isPremium: Boolean) {
         viewModelScope.launch {
             userPrefs.setPremium(isPremium)
+            if (!isPremium) {
+                userPrefs.setHasShownPremiumWelcome(false)
+            }
+        }
+    }
+
+    fun markPremiumWelcomeShown() {
+        viewModelScope.launch {
+            userPrefs.setHasShownPremiumWelcome(true)
         }
     }
 
     private suspend fun enableTrackingAndRouteIfNeeded() {
         userPrefs.setToggleTracking(true)
         if (allowedPackagesSet.isEmpty()) {
+            if (autoSelectAllAfterPermissionGrant) {
+                autoSelectAllAfterPermissionGrant = false
+                val installedApps = if (_allInstalledApps.value.isNotEmpty()) {
+                    _allInstalledApps.value
+                } else {
+                    getInstalledApps(getApplication(), allowedPackagesSet)
+                }
+                val packageNames = installedApps
+                    .map { it.packageName }
+                    .filter { it !in allowedPackagesSet }
+                if (packageNames.isNotEmpty()) {
+                    setAllowedAppsForPackages(packageNames, true)
+                }
+            }
             _events.emit(HomeUiEvent.NavigateToSelectApps)
         }
     }
