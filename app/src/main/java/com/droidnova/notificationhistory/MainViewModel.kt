@@ -68,12 +68,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             false
         )
 
-    val hasShownPremiumWelcome: StateFlow<Boolean> =
-        userPrefs.hasShownPremiumWelcome.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            false
-        )
+    private val _showPremiumWelcome = MutableStateFlow(false)
+    val showPremiumWelcome: StateFlow<Boolean> = _showPremiumWelcome.asStateFlow()
 
     private var currentOffset = 0
     private val pageSize = 100
@@ -443,16 +439,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setPremiumPurchased(isPremium: Boolean) {
         viewModelScope.launch {
             userPrefs.setPremium(isPremium)
-            if (!isPremium) {
-                userPrefs.setHasShownPremiumWelcome(false)
-            }
+            _showPremiumWelcome.value = isPremium
         }
     }
 
-    fun markPremiumWelcomeShown() {
-        viewModelScope.launch {
-            userPrefs.setHasShownPremiumWelcome(true)
-        }
+    fun dismissPremiumWelcome() {
+        _showPremiumWelcome.value = false
     }
 
     private suspend fun enableTrackingAndRouteIfNeeded() {

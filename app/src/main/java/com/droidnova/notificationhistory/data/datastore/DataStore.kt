@@ -12,7 +12,6 @@ import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.FILTERS_PR
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.KEY_USER_WANTS_TRACKING
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LAUNCH_COUNT
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HISTORY_RETENTION_DAYS
-import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HAS_SHOWN_PREMIUM_WELCOME
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.IS_PREMIUM
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SNOOZE_UNTIL_LAUNCH
@@ -77,19 +76,9 @@ class UserPreferences(private val context: Context) {
         prefs[IS_PREMIUM] ?: false
     }
 
-    val hasShownPremiumWelcome: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[HAS_SHOWN_PREMIUM_WELCOME] ?: false
-    }
-
     suspend fun setPremium(isPremium: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[IS_PREMIUM] = isPremium
-        }
-    }
-
-    suspend fun setHasShownPremiumWelcome(hasShown: Boolean) {
-        context.dataStore.edit { prefs ->
-            prefs[HAS_SHOWN_PREMIUM_WELCOME] = hasShown
         }
     }
 
