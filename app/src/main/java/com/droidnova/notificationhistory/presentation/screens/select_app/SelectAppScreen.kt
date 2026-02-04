@@ -78,6 +78,7 @@ fun SelectAppScreen(
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     var isSelectingAll by remember { mutableStateOf(false) }
+    var bulkActionLabel by remember { mutableStateOf("Selecting apps...") }
     val coroutineScope = rememberCoroutineScope()
     val latestApps by rememberUpdatedState(allInstalledApps)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -116,6 +117,7 @@ fun SelectAppScreen(
         }
     }
     val areAllSelected = filteredApps.isNotEmpty() && filteredApps.all { it.isAllowed }
+    val isSelectAllEnabled = areAllSelected && !isSelectingAll
 
     Scaffold(
         topBar = {
@@ -201,32 +203,45 @@ fun SelectAppScreen(
             }
             item {
                 Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Select All",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Switch(
-                        checked = areAllSelected,
-                        enabled = !isSelectingAll,
-                        onCheckedChange = { checked ->
-                            if (filteredApps.isNotEmpty()) {
-                                coroutineScope.launch {
-                                    isSelectingAll = true
-                                    val packageNames = filteredApps
-                                        .filter { it.isAllowed != checked }
-                                        .map { it.packageName }
-                                    if (packageNames.isNotEmpty()) {
-                                        mainViewModel.setAllowedAppsForPackages(packageNames, checked)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Select All",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = areAllSelected,
+                            enabled = isSelectAllEnabled,
+                            onCheckedChange = { checked ->
+                                if (filteredApps.isNotEmpty()) {
+                                    coroutineScope.launch {
+                                        bulkActionLabel =
+                                            if (checked) "Selecting apps..." else "Removing apps..."
+                                        isSelectingAll = true
+                                        val packageNames = filteredApps
+                                            .filter { it.isAllowed != checked }
+                                            .map { it.packageName }
+                                        if (packageNames.isNotEmpty()) {
+                                            mainViewModel.setAllowedAppsForPackages(packageNames, checked)
+                                        }
+                                        isSelectingAll = false
                                     }
-                                    isSelectingAll = false
                                 }
                             }
-                        }
+                        )
+                    }
+                    Text(
+                        text = if (areAllSelected) {
+                            "All apps are selected."
+                        } else {
+                            "Select every app to enable the bulk toggle."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
                     )
                 }
             }
@@ -286,7 +301,7 @@ fun SelectAppScreen(
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Selecting apps...",
+                        text = bulkActionLabel,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
