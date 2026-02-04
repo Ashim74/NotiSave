@@ -20,6 +20,7 @@ import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -98,10 +99,16 @@ fun AppHistoryScreen(
         mainViewModel.ensureAppHistoryLoaded(packageName)
     }
 
-    LaunchedEffect(filteredNotifications, listState, canLoadMore, isLoadingMore) {
+    LaunchedEffect(filteredNotifications, listState, canLoadMore, isLoadingMore, searchQuery) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { index ->
-                if (index != null && index >= filteredNotifications.size - 1 && canLoadMore && !isLoadingMore) {
+                if (
+                    index != null &&
+                    searchQuery.isBlank() &&
+                    index >= filteredNotifications.size - 1 &&
+                    canLoadMore &&
+                    !isLoadingMore
+                ) {
                     mainViewModel.loadMoreAppHistory(packageName)
                 }
             }
@@ -193,7 +200,7 @@ fun AppHistoryScreen(
                                         .padding(24.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    CircularProgressIndicator()
                                 }
                             } else {
                                 EmptyAppHistoryState()
@@ -216,13 +223,6 @@ fun AppHistoryScreen(
                             }
                         }
                     }
-                }
-                if (isRefreshing) {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.TopCenter)
-                    )
                 }
                 PullRefreshIndicator(
                     refreshing = isRefreshing,
