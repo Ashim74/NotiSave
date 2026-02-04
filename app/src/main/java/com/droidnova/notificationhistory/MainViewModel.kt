@@ -210,9 +210,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val setting = userPrefs.settingFlow.first()
             userPrefs.updateLaunchCount(setting.launchCount + 1)
-            if (setting.snoozeUntilLaunch < 2) {
-                userPrefs.updateSnoozeUntilLaunch(2)
-            }
         }
     }
 
@@ -432,10 +429,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun snoozeRateUsCard() {
+    fun resetLaunchCount() {
         viewModelScope.launch {
-            val current = _settingState.value.launchCount
-            userPrefs.updateSnoozeUntilLaunch(current + 2)
+            userPrefs.updateLaunchCount(0)
         }
     }
 
