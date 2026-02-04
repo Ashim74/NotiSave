@@ -100,6 +100,7 @@
     <string name="notification_permission_description">Enable notification access so we can save and organize your alerts.</string>
     <string name="notification_permission_required_message">You need to allow notification access to use this app.</string>
     <string name="notification_permission_toast_message">In the list, tap Notification History and turn on access.</string>
+    <string name="manage_selected_apps_message">To manage selected apps, tap Select Apps.</string>
     <string name="go_to_settings">Go to settings</string>
 
 </resources>

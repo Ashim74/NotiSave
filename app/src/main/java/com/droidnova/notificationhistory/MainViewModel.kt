@@ -458,21 +458,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun enableTrackingAndRouteIfNeeded() {
         userPrefs.setToggleTracking(true)
         if (allowedPackagesSet.isEmpty()) {
-            if (autoSelectAllAfterPermissionGrant) {
-                autoSelectAllAfterPermissionGrant = false
-                val installedApps = if (_allInstalledApps.value.isNotEmpty()) {
-                    _allInstalledApps.value
-                } else {
-                    getInstalledApps(getApplication(), allowedPackagesSet)
-                }
-                val packageNames = installedApps
-                    .map { it.packageName }
-                    .filter { it !in allowedPackagesSet }
-                if (packageNames.isNotEmpty()) {
-                    setAllowedAppsForPackages(packageNames, true)
-                }
+            val installedApps = if (_allInstalledApps.value.isNotEmpty()) {
+                _allInstalledApps.value
+            } else {
+                getInstalledApps(getApplication(), allowedPackagesSet)
             }
-            _events.emit(HomeUiEvent.NavigateToSelectApps)
+            val packageNames = installedApps
+                .map { it.packageName }
+                .filter { it !in allowedPackagesSet }
+            if (packageNames.isNotEmpty()) {
+                setAllowedAppsForPackages(packageNames, true)
+            }
+            autoSelectAllAfterPermissionGrant = false
+            _events.emit(HomeUiEvent.ShowManageSelectedAppsMessage)
         }
     }
 }
