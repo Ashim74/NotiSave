@@ -45,6 +45,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _history = MutableStateFlow<List<NotificationModel>>(emptyList())
     val history: StateFlow<List<NotificationModel>> = _history.asStateFlow()
 
+    data class HistoryLoadState(
+        val isLoadingMore: Boolean = false,
+        val endReached: Boolean = false
+    )
+
+    private val _historyLoadState = MutableStateFlow(HistoryLoadState())
+    val historyLoadState: StateFlow<HistoryLoadState> = _historyLoadState.asStateFlow()
+
     private val _titleFilters = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
     val titleFilters: StateFlow<Map<String, Set<String>>> = _titleFilters.asStateFlow()
 
@@ -81,6 +89,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var allowedPackagesSet = emptySet<String>()
     private var awaitingGrant = false
     private var isInitialized = false
+
+    data class AppHistoryUiState(
+        val notifications: List<NotificationModel> = emptyList(),
+        val isRefreshing: Boolean = false,
+        val isLoadingMore: Boolean = false,
+        val endReached: Boolean = false,
+        val offset: Int = 0,
+        val generation: Int = 0
+    )
+
+    private val appHistoryStates =
+        mutableMapOf<String, MutableStateFlow<AppHistoryUiState>>()
 
 
     init {
@@ -262,16 +282,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 currentOffset = 0
                 endReached = false
                 _history.value = emptyList()
+                _historyLoadState.value = HistoryLoadState()
                 loadMoreHistory()
             }
         }
     }
 
     fun loadMoreHistory() {
-        if (endReached) return
+        if (endReached || _historyLoadState.value.isLoadingMore) return
         val generation = historyLoadGeneration
         if (activeHistoryLoadGeneration == generation) return
         activeHistoryLoadGeneration = generation
+        _historyLoadState.value = _historyLoadState.value.copy(isLoadingMore = true)
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val entities = dao.getNotifications(pageSize, currentOffset)
@@ -285,6 +307,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (models.size < pageSize) {
                     endReached = true
+                    _historyLoadState.update { it.copy(endReached = true) }
                 }
             } finally {
                 if (activeHistoryLoadGeneration == generation) {
@@ -293,6 +316,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         refreshGeneration = null
                         _isHistoryRefreshing.value = false
                     }
+                    _historyLoadState.update { it.copy(isLoadingMore = false) }
                 }
             }
         }
@@ -307,6 +331,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 currentOffset = 0
                 endReached = false
                 _history.value = emptyList()
+                _historyLoadState.value = HistoryLoadState()
             }
         }
     }
@@ -319,10 +344,64 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun observeNotificationsForPackage(packageName: String) =
-        dao.observeNotificationsByPackage(packageName).map { entities ->
-            entities.map { convertEntityToModel(getApplication(), it) }
+    private fun getAppHistoryState(packageName: String): MutableStateFlow<AppHistoryUiState> {
+        return appHistoryStates.getOrPut(packageName) { MutableStateFlow(AppHistoryUiState()) }
+    }
+
+    fun appHistoryState(packageName: String): StateFlow<AppHistoryUiState> =
+        getAppHistoryState(packageName).asStateFlow()
+
+    fun ensureAppHistoryLoaded(packageName: String) {
+        val state = getAppHistoryState(packageName).value
+        if (state.notifications.isEmpty() && !state.isLoadingMore && !state.isRefreshing) {
+            refreshAppHistory(packageName)
         }
+    }
+
+    fun refreshAppHistory(packageName: String) {
+        val stateFlow = getAppHistoryState(packageName)
+        val nextGeneration = stateFlow.value.generation + 1
+        stateFlow.value = AppHistoryUiState(
+            notifications = emptyList(),
+            isRefreshing = true,
+            isLoadingMore = false,
+            endReached = false,
+            offset = 0,
+            generation = nextGeneration
+        )
+        loadMoreAppHistory(packageName, nextGeneration)
+    }
+
+    fun loadMoreAppHistory(packageName: String, generationOverride: Int? = null) {
+        val stateFlow = getAppHistoryState(packageName)
+        val current = stateFlow.value
+        if (current.endReached || current.isLoadingMore) return
+        val generation = generationOverride ?: current.generation
+        stateFlow.value = current.copy(isLoadingMore = true)
+        viewModelScope.launch(Dispatchers.IO) {
+            val entities = dao.getNotificationsByPackagePaged(
+                packageName = packageName,
+                limit = pageSize,
+                offset = current.offset
+            )
+            val models = entities.map { convertEntityToModel(getApplication(), it) }
+            withContext(Dispatchers.Main) {
+                val latest = stateFlow.value
+                if (latest.generation != generation) {
+                    return@withContext
+                }
+                val updatedNotifications = latest.notifications + models
+                val reachedEnd = models.size < pageSize
+                stateFlow.value = latest.copy(
+                    notifications = updatedNotifications,
+                    offset = latest.offset + models.size,
+                    endReached = reachedEnd,
+                    isLoadingMore = false,
+                    isRefreshing = false
+                )
+            }
+        }
+    }
 
     fun observeLatestNotificationsByApp() =
         dao.observeLatestNotificationsByApp().map { entities ->
