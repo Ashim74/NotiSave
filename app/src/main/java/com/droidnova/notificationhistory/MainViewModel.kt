@@ -2,7 +2,6 @@ package com.droidnova.notificationhistory
 
 import android.app.Application
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
@@ -38,6 +37,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _settingState = MutableStateFlow(SettingState())
     val settingState: StateFlow<SettingState> = _settingState.asStateFlow()
+
+    private val _hasNotificationAccess = MutableStateFlow(false)
+    val hasNotificationAccess: StateFlow<Boolean> = _hasNotificationAccess.asStateFlow()
 
     private val _events = MutableSharedFlow<HomeUiEvent>()
     val events: SharedFlow<HomeUiEvent> = _events.asSharedFlow()
@@ -160,48 +162,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Called when user taps "Enable". */
     fun onEnableClick() {
-        Log.e("yourTag", "enable")
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
         if (granted) {
-            // Already granted: persist toggle + do work
             viewModelScope.launch {
-                userPrefs.setToggleTracking(true)
-                if (allowedPackagesSet.isEmpty()) {
-                    _events.emit(HomeUiEvent.NavigateToSelectApps)
-                }
+                enableTrackingAndRouteIfNeeded()
             }
         } else {
-            // Not granted: ask user
             awaitingGrant = true
-            viewModelScope.launch {
-                _events.emit(HomeUiEvent.OpenNotificationAccessSettings)
-            }
         }
     }
 
     /** Call from UI when screen resumes (user could have granted in Settings). */
     fun onResume() {
-        Log.e("yourTag", "onResume")
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
+        _hasNotificationAccess.value = granted
         if (granted) {
             if (awaitingGrant) {
                 awaitingGrant = false
                 viewModelScope.launch {
-                    userPrefs.setToggleTracking(true)
-                    if (allowedPackagesSet.isEmpty()) {
-                        _events.emit(HomeUiEvent.NavigateToSelectApps)
-                    }
+                    enableTrackingAndRouteIfNeeded()
                 }
             }
         } else {
+            if (awaitingGrant) {
+                awaitingGrant = false
+                viewModelScope.launch {
+                    _events.emit(HomeUiEvent.ShowPermissionRequiredMessage)
+                }
+            }
             viewModelScope.launch {
                 userPrefs.setToggleTracking(false)
             }
         }
     }
 
+    fun onPermissionSettingsOpened() {
+        awaitingGrant = true
+    }
+
     fun setToggleTracking(isSwitchOn: Boolean) {
-        Log.e("yourTag", "setToggleTracking")
         viewModelScope.launch {
             userPrefs.setToggleTracking(isSwitchOn)
         }
@@ -435,6 +434,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setPremiumPurchased(isPremium: Boolean) {
         viewModelScope.launch {
             userPrefs.setPremium(isPremium)
+        }
+    }
+
+    private suspend fun enableTrackingAndRouteIfNeeded() {
+        userPrefs.setToggleTracking(true)
+        if (allowedPackagesSet.isEmpty()) {
+            _events.emit(HomeUiEvent.NavigateToSelectApps)
         }
     }
 }

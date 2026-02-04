@@ -30,6 +30,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -54,7 +55,6 @@ import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.component.RateUsCard
-import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.components.NotificationPermissionBottomSheet
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
@@ -71,6 +71,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     val activity = context as? Activity
     val billingManager = LocalPremiumBillingManager.current
     val isPremium by viewmodel.isPremium.collectAsState()
+    val hasPermission by viewmodel.hasNotificationAccess.collectAsState()
     val productDetails = billingManager?.productDetails?.collectAsState()?.value
     val isFetchingPrice = billingManager?.isFetchingProductDetails?.collectAsState()?.value ?: false
     val isPurchaseInProgress = billingManager?.isPurchaseInProgress?.collectAsState()?.value ?: false
@@ -79,8 +80,14 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     var showPremiumDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    var showPermissionSheet by remember { mutableStateOf(false) }
-    val permissionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val permissionSheetState = remember(hasPermission) {
+        rememberModalBottomSheetState(
+            skipPartiallyExpanded = true,
+            confirmValueChange = { value ->
+                value != SheetValue.Hidden || hasPermission
+            }
+        )
+    }
 
     // initial data
     LaunchedEffect(Unit) {
@@ -104,16 +111,14 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     LaunchedEffect(viewmodel.events) {
         viewmodel.events.collect { event ->
             when (event) {
-                HomeUiEvent.OpenNotificationAccessSettings -> {
-                    showPermissionSheet = true
-                }
-
-                HomeUiEvent.DoWorkAfterEnabled -> {
-                    navController.navigate(Screens.ManageNotifications.route)
-                }
-
                 HomeUiEvent.NavigateToSelectApps -> {
                     navController.navigate(Screens.ManageNotifications.route)
+                }
+
+                HomeUiEvent.ShowPermissionRequiredMessage -> {
+                    snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.notification_permission_required_message)
+                    )
                 }
             }
         }
@@ -124,8 +129,6 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, ev ->
             if (ev == Lifecycle.Event.ON_RESUME) {
-                val hasPermission = NotificationAccessChecker.hasNotificationAccessPermission(context)
-                showPermissionSheet = !hasPermission && showPermissionSheet
                 viewmodel.onResume()
             }
         }
@@ -165,11 +168,14 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
             HomeScreenContent(
                 modifier = Modifier.fillMaxSize(),
                 state = state,
+                isPermissionGranted = hasPermission,
                 navController = navController,
                 onSwitchChange = {
-                    if (it) viewmodel.onEnableClick() else viewmodel.setToggleTracking(
-                        false
-                    )
+                    if (it) {
+                        viewmodel.onEnableClick()
+                    } else {
+                        viewmodel.setToggleTracking(false)
+                    }
                 }
             )
 
@@ -196,12 +202,12 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         }
     }
 
-    if (showPermissionSheet) {
+    if (!hasPermission) {
         NotificationPermissionBottomSheet(
             sheetState = permissionSheetState,
-            onDismissRequest = { showPermissionSheet = false },
+            onDismissRequest = { },
             onGoToSettings = {
-                showPermissionSheet = false
+                viewmodel.onPermissionSettingsOpened()
                 context.startActivity(
                     Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -279,6 +285,7 @@ fun TopBarApp(
 fun HomeScreenContent(
     modifier: Modifier,
     state: SettingState,
+    isPermissionGranted: Boolean,
     onSwitchChange: (Boolean) -> Unit,
     navController: NavController
 ) {
@@ -286,7 +293,7 @@ fun HomeScreenContent(
         modifier = modifier
     ) {
         EnableNotificationsCard(
-            checked = state.userToggleTracking,
+            checked = state.userToggleTracking && isPermissionGranted,
             onCheckedChange = onSwitchChange
         )
 
