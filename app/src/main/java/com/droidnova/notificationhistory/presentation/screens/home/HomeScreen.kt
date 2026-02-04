@@ -17,7 +17,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
@@ -55,6 +58,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
@@ -85,9 +89,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     val priceLabel = productDetails?.oneTimePurchaseOfferDetails?.formattedPrice
     var showPurchaseSheet by remember { mutableStateOf(false) }
     var showPremiumDialog by remember { mutableStateOf(false) }
-    var isIgnoringBatteryOptimizations by remember {
-        mutableStateOf(isIgnoringBatteryOptimizations(context))
-    }
+    var isIgnoringBatteryOptimizations by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val permissionSheetState = rememberModalBottomSheetState(
@@ -306,7 +308,7 @@ fun HomeScreenContent(
     navController: NavController
 ) {
     Column(
-        modifier = modifier
+        modifier = modifier.verticalScroll(rememberScrollState())
     ) {
         EnableNotificationsCard(
             checked = state.userToggleTracking && isPermissionGranted,
@@ -314,14 +316,6 @@ fun HomeScreenContent(
         )
 
         Spacer(Modifier.height(16.dp))
-
-        if (showBatteryOptimizationCard) {
-            BatteryOptimizationCard(
-                onClick = onBatteryOptimizationClick
-            )
-
-            Spacer(Modifier.height(16.dp))
-        }
 
         SelectedAppsCard(
             selectedCount = state.selectedAppsCount,
@@ -333,6 +327,14 @@ fun HomeScreenContent(
         ViewHistoryCard(
             onClick = { navController.navigate(Screens.History.route) }
         )
+
+        Spacer(Modifier.height(16.dp))
+
+        if (showBatteryOptimizationCard) {
+            BatteryOptimizationCard(
+                onClick = onBatteryOptimizationClick
+            )
+        }
     }
 }
 
@@ -345,15 +347,17 @@ private fun BatteryOptimizationCard(onClick: () -> Unit) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(imageVector = Icons.Default.Warning, contentDescription = "Warning")
+                Spacer(Modifier.width(16.dp))
                 Text(
-                    modifier = Modifier.padding(start = 8.dp),
-                    text = "Not working?",
+                    text = "Not saving sometimes?",
                     fontWeight = FontWeight.Bold
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Disable battery optimization to keep notification tracking active in the background."
+                text = "To save notifications reliably, disable battery optimization.",
+                fontSize = 12.sp,
+                lineHeight = 16.sp
             )
             Spacer(modifier = Modifier.height(12.dp))
             Button(onClick = onClick) {
@@ -374,12 +378,12 @@ private fun EnableNotificationsCard(
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notification")
+            Spacer(Modifier.width(16.dp))
             Text(
-                modifier = Modifier.padding(start = 5.dp),
+                modifier = Modifier.weight(1f),
                 text = "Enable Tracking",
                 fontWeight = FontWeight.Bold,
             )
-            Spacer(modifier = Modifier.weight(1f))
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange
@@ -431,7 +435,7 @@ private fun SelectedAppsCard(
                 contentDescription = "Select Apps",
                 tint = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.weight(0.1f))
+            Spacer(Modifier.width(16.dp))
             Text(
                 text = "Select Apps",
                 fontWeight = FontWeight.Bold,
@@ -461,12 +465,12 @@ private fun ViewHistoryCard(onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth()
 
     ) {
-        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.Start) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(painter = painterResource(R.drawable.ic_history), contentDescription = "History")
+            Spacer(Modifier.width(16.dp))
             Text(
                 "View Notification History",
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 5.dp)
             )
         }
     }

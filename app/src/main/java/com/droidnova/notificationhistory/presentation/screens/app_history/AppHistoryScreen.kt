@@ -186,7 +186,7 @@ fun AppHistoryScreen(
                 )
             }
         },
-        contentWindowInsets = WindowInsets(bottom = 0)
+        contentWindowInsets = WindowInsets(bottom = 4.dp)
     ) { innerPadding ->
         Column(
             Modifier

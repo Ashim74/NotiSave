@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -70,7 +71,8 @@ fun AboutScreen(
                     }
                 }
             )
-        }
+        },
+        contentWindowInsets = WindowInsets(bottom = 4.dp)
     ) { innerPadding ->
         Column(
             modifier = Modifier

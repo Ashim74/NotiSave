@@ -31,9 +31,9 @@
     <!-- About screen -->
     <string name="about_title">About</string>
     <string name="rate_us">Rate Us</string>
-    <string name="rate_us_desc">Give us your feedback by rating our app on the Play Store.</string>
+    <string name="rate_us_desc">Enjoying the app? Leave a review.</string>
     <string name="share_us">Share Us</string>
-    <string name="share_us_desc">Spread the word about our app to your friends and family.</string>
+    <string name="share_us_desc">Invite friends to try Notification History.</string>
     <string name="report_bugs">Report Bugs</string>
     <string name="report_bugs_desc">Report any bugs or issues you encounter.</string>
     <string name="follow_instagram">Follow us on Instagram</string>
@@ -43,8 +43,7 @@
     <string name="app_version">App Version</string>
     <string name="checkout_other_apps">Check Out Other Apps</string>
     <string name="check_more_apps_playstore">Check more apps on Play Store</string>
-    <string name="app_about_description">Clipboard History stores your last copied text so you can paste it fast.</string>
-    <string name="other_app_clipboard_title">Clipboard History</string>
+    <string name="app_about_description">Notification History stores your recent alerts so you can revisit them anytime.</string>    <string name="other_app_clipboard_title">Clipboard History</string>
     <string name="other_app_clipboard_description">Save your latest copied text so you can paste it quickly.</string>
     <string name="other_app_flash_alert_title">Flash Alert</string>
     <string name="other_app_flash_alert_description">Get flash alerts for calls, messages, and notifications.</string>
