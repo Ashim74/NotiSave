@@ -1,7 +1,11 @@
 package com.droidnova.notificationhistory.presentation.screens.home
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -79,6 +85,9 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     val priceLabel = productDetails?.oneTimePurchaseOfferDetails?.formattedPrice
     var showPurchaseSheet by remember { mutableStateOf(false) }
     var showPremiumDialog by remember { mutableStateOf(false) }
+    var isIgnoringBatteryOptimizations by remember {
+        mutableStateOf(isIgnoringBatteryOptimizations(context))
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val permissionSheetState = rememberModalBottomSheetState(
@@ -129,6 +138,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         val obs = LifecycleEventObserver { _, ev ->
             if (ev == Lifecycle.Event.ON_RESUME) {
                 viewmodel.onResume()
+                isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(obs)
@@ -169,6 +179,10 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 modifier = Modifier.fillMaxSize(),
                 state = state,
                 isPermissionGranted = hasPermission,
+                showBatteryOptimizationCard = !isIgnoringBatteryOptimizations,
+                onBatteryOptimizationClick = {
+                    openBatteryOptimizationSettings(context)
+                },
                 navController = navController,
                 onSwitchChange = {
                     if (it) {
@@ -286,6 +300,8 @@ fun HomeScreenContent(
     modifier: Modifier,
     state: SettingState,
     isPermissionGranted: Boolean,
+    showBatteryOptimizationCard: Boolean,
+    onBatteryOptimizationClick: () -> Unit,
     onSwitchChange: (Boolean) -> Unit,
     navController: NavController
 ) {
@@ -299,6 +315,14 @@ fun HomeScreenContent(
 
         Spacer(Modifier.height(16.dp))
 
+        if (showBatteryOptimizationCard) {
+            BatteryOptimizationCard(
+                onClick = onBatteryOptimizationClick
+            )
+
+            Spacer(Modifier.height(16.dp))
+        }
+
         SelectedAppsCard(
             selectedCount = state.selectedAppsCount,
             onSelectAppsClick = { navController.navigate(Screens.ManageNotifications.route) }
@@ -309,6 +333,33 @@ fun HomeScreenContent(
         ViewHistoryCard(
             onClick = { navController.navigate(Screens.History.route) }
         )
+    }
+}
+
+@Composable
+private fun BatteryOptimizationCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(imageVector = Icons.Default.Warning, contentDescription = "Warning")
+                Text(
+                    modifier = Modifier.padding(start = 8.dp),
+                    text = "Not working?",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Disable battery optimization to keep notification tracking active in the background."
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(onClick = onClick) {
+                Text("Open battery settings")
+            }
+        }
     }
 }
 
@@ -335,6 +386,28 @@ private fun EnableNotificationsCard(
             )
         }
     }
+}
+
+private fun openBatteryOptimizationSettings(context: Context) {
+    val packageName = context.packageName
+    val requestIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).setData(
+        Uri.parse("package:$packageName")
+    )
+    val settingsIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+    val intent = if (requestIntent.resolveActivity(context.packageManager) != null) {
+        requestIntent
+    } else {
+        settingsIntent
+    }
+    context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
+
+private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+        return true
+    }
+    val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    return powerManager.isIgnoringBatteryOptimizations(context.packageName)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
