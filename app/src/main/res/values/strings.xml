@@ -99,6 +99,7 @@
 
     <string name="notification_permission_title">Allow notification access</string>
     <string name="notification_permission_description">Enable notification access so we can save and organize your alerts.</string>
+    <string name="notification_permission_required_message">You need to allow notification access to use this app.</string>
     <string name="go_to_settings">Go to settings</string>
 
 </resources>
