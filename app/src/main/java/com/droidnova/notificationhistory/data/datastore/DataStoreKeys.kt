@@ -12,7 +12,6 @@ object DataStoreKeys {
     val SNOOZE_UNTIL_LAUNCH = intPreferencesKey("snooze_until_launch")
     val HISTORY_RETENTION_DAYS = intPreferencesKey("history_retention_days")
     val IS_PREMIUM = booleanPreferencesKey("is_premium")
-    val HAS_SHOWN_PREMIUM_WELCOME = booleanPreferencesKey("has_shown_premium_welcome")
     const val FILTERS_PREFIX = "filters_"
 
 }

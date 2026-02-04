@@ -83,14 +83,13 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     val activity = context as? Activity
     val billingManager = LocalPremiumBillingManager.current
     val isPremium by viewmodel.isPremium.collectAsState()
-    val hasShownPremiumWelcome by viewmodel.hasShownPremiumWelcome.collectAsState()
+    val showPremiumWelcome by viewmodel.showPremiumWelcome.collectAsState()
     val hasPermission by viewmodel.hasNotificationAccess.collectAsState()
     val productDetails = billingManager?.productDetails?.collectAsState()?.value
     val isFetchingPrice = billingManager?.isFetchingProductDetails?.collectAsState()?.value ?: false
     val isPurchaseInProgress = billingManager?.isPurchaseInProgress?.collectAsState()?.value ?: false
     val priceLabel = productDetails?.oneTimePurchaseOfferDetails?.formattedPrice
     var showPurchaseSheet by remember { mutableStateOf(false) }
-    var showPremiumDialog by remember { mutableStateOf(false) }
     var isIgnoringBatteryOptimizations by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -112,12 +111,9 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         }
     }
 
-    LaunchedEffect(isPremium, hasShownPremiumWelcome) {
+    LaunchedEffect(isPremium) {
         if (isPremium) {
             showPurchaseSheet = false
-            showPremiumDialog = !hasShownPremiumWelcome
-        } else {
-            showPremiumDialog = false
         }
     }
 
@@ -258,15 +254,13 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         )
     }
 
-    if (showPremiumDialog) {
+    if (showPremiumWelcome) {
         PremiumWelcomeDialog(
             onDismiss = {
-                showPremiumDialog = false
-                viewmodel.markPremiumWelcomeShown()
+                viewmodel.dismissPremiumWelcome()
             },
             onRestart = {
-                showPremiumDialog = false
-                viewmodel.markPremiumWelcomeShown()
+                viewmodel.dismissPremiumWelcome()
                 activity?.recreate()
             }
         )
