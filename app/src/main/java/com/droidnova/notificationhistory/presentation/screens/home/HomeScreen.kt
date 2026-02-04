@@ -107,7 +107,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
 
     LaunchedEffect(billingManager) {
         billingManager?.errors?.collect { message ->
-            snackbarHostState.showSnackbar(message)
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -270,6 +270,12 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
             onRestart = {
                 viewmodel.dismissPremiumWelcome()
                 activity?.recreate()
+            },
+            onOpenInstagram = {
+                IntentUtil.openInstagram(context)
+            },
+            onOpenWhatsapp = {
+                IntentUtil.openWhatsApp(context)
             }
         )
     }
