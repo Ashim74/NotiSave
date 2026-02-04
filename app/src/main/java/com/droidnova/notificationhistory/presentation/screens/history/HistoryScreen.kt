@@ -653,6 +653,13 @@ fun ItemHistoryCard(model: NotificationModel, searchQuery: String, onClick: (Not
                     text = model.receivedAt.substringAfter(", "),
                     style = MaterialTheme.typography.labelSmall
                 )
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options"
+                )
             }
             Spacer(Modifier.height(8.dp))
 
