@@ -15,8 +15,8 @@ android {
         applicationId = "com.droidnova.notificationhistory"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.16"
+        versionCode = 17
+        versionName = "0.17"
 
         buildConfigField("String", "PLAY_STORE_LICENSE_KEY", "\"${project.findProperty("PLAY_STORE_LICENSE_KEY")}\"")
 
