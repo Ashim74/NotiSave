@@ -71,6 +71,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _showPremiumWelcome = MutableStateFlow(false)
     val showPremiumWelcome: StateFlow<Boolean> = _showPremiumWelcome.asStateFlow()
+    private var hasRemoveAdsClick = false
+    private var lastPremiumStatus = false
 
     private var currentOffset = 0
     private val pageSize = 100
@@ -438,12 +440,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setPremiumPurchased(isPremium: Boolean) {
         viewModelScope.launch {
             userPrefs.setPremium(isPremium)
-            _showPremiumWelcome.value = isPremium
         }
+        val shouldShowWelcome = isPremium && !lastPremiumStatus && hasRemoveAdsClick
+        _showPremiumWelcome.value = shouldShowWelcome
+        if (isPremium) {
+            hasRemoveAdsClick = false
+        }
+        lastPremiumStatus = isPremium
     }
 
     fun dismissPremiumWelcome() {
         _showPremiumWelcome.value = false
+    }
+
+    fun onRemoveAdsClicked() {
+        hasRemoveAdsClick = true
     }
 
     private suspend fun enableTrackingAndRouteIfNeeded() {

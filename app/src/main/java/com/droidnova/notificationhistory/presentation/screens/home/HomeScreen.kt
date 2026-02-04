@@ -168,6 +168,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                             snackbarHostState.showSnackbar("You already have premium access.")
                         }
                     } else if (billingManager != null) {
+                        viewmodel.onRemoveAdsClicked()
                         showPurchaseSheet = true
                         billingManager.queryProductDetails()
                     } else {
@@ -301,13 +302,15 @@ fun TopBarApp(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {
-                DropdownMenuItem(
-                    text = { Text(if (isPremium) "Premium Active" else "Remove Ads") },
-                    onClick = {
-                        showMenu = false
-                        onRemoveAds()
-                    }
-                )
+                if (!isPremium) {
+                    DropdownMenuItem(
+                        text = { Text("Remove Ads") },
+                        onClick = {
+                            showMenu = false
+                            onRemoveAds()
+                        }
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text("About") },
                     onClick = {
