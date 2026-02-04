@@ -401,7 +401,7 @@ fun HistoryScreenContent(
                                 .padding(24.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+//                            CircularProgressIndicator()
                         }
                     } else {
                         EmptyValueCard(modifier)

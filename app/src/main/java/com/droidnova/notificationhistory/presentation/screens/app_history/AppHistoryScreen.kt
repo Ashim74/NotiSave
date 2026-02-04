@@ -200,7 +200,7 @@ fun AppHistoryScreen(
                                         .padding(24.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator()
+//                                    CircularProgressIndicator()
                                 }
                             } else {
                                 EmptyAppHistoryState()
