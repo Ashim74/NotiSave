@@ -75,7 +75,7 @@ import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import kotlinx.coroutines.launch
 
-private const val RATE_US_LAUNCH_THRESHOLD = 2
+private const val RATE_US_LAUNCH_THRESHOLD = 3
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
