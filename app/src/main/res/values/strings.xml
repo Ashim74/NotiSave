@@ -21,6 +21,10 @@
     <string name="premium_sheet_secure_note">Reinstall anytime — Premium will restore with the same Google account.</string>
     <string name="premium_welcome_title">Premium unlocked</string>
     <string name="premium_welcome_message">Thanks for supporting the app! Please restart the app to apply your premium perks.</string>
+    <string name="premium_welcome_connect_label">Connect with us</string>
+    <string name="premium_welcome_instagram">Follow us on Instagram</string>
+    <string name="premium_welcome_whatsapp">Join our WhatsApp Community</string>
+    <string name="premium_welcome_restart_hint">Restarting helps apply your premium benefits immediately.</string>
     <string name="premium_welcome_restart_button">Restart now</string>
     <string name="premium_welcome_later_button">Later</string>
     <string name="premium_menu_remove_ads">Remove Ads</string>
@@ -99,6 +103,8 @@
     <string name="notification_permission_title">Allow notification access</string>
     <string name="notification_permission_description">Enable notification access so we can save and organize your alerts.</string>
     <string name="notification_permission_required_message">You need to allow notification access to use this app.</string>
+    <string name="notification_permission_toast_message">In the list, tap Notification History and turn on access.</string>
+    <string name="manage_selected_apps_message">To manage selected apps, tap Select Apps.</string>
     <string name="go_to_settings">Go to settings</string>
 
 </resources>

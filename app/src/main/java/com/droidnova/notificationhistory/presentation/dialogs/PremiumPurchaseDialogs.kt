@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
@@ -43,7 +45,8 @@ fun PremiumPurchaseBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 22.dp, vertical = 16.dp),
+                .padding(horizontal = 22.dp, vertical = 16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(
@@ -120,6 +123,8 @@ fun PremiumPurchaseBottomSheet(
 fun PremiumWelcomeDialog(
     onDismiss: () -> Unit,
     onRestart: () -> Unit,
+    onOpenInstagram: () -> Unit,
+    onOpenWhatsapp: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -130,10 +135,37 @@ fun PremiumWelcomeDialog(
             )
         },
         text = {
-            Text(
-                text = stringResource(R.string.premium_welcome_message),
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = stringResource(R.string.premium_welcome_message),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Text(
+                    text = stringResource(R.string.premium_welcome_connect_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PremiumSocialButton(
+                        iconRes = R.drawable.ic_instagram,
+                        label = stringResource(R.string.premium_welcome_instagram),
+                        onClick = onOpenInstagram
+                    )
+                    PremiumSocialButton(
+                        iconRes = R.drawable.ic_whatsapp,
+                        label = stringResource(R.string.premium_welcome_whatsapp),
+                        onClick = onOpenWhatsapp
+                    )
+                }
+
+                Text(
+                    text = stringResource(R.string.premium_welcome_restart_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         },
         confirmButton = {
             Button(onClick = onRestart) {
@@ -146,6 +178,26 @@ fun PremiumWelcomeDialog(
             }
         }
     )
+}
+
+@Composable
+private fun PremiumSocialButton(
+    iconRes: Int,
+    label: String,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.size(8.dp))
+        Text(text = label)
+    }
 }
 
 @Composable
