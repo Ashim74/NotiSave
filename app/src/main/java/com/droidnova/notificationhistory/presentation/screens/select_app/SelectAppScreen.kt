@@ -117,7 +117,6 @@ fun SelectAppScreen(
         }
     }
     val areAllSelected = filteredApps.isNotEmpty() && filteredApps.all { it.isAllowed }
-    val isSelectAllEnabled = areAllSelected && !isSelectingAll
 
     Scaffold(
         topBar = {
@@ -201,9 +200,9 @@ fun SelectAppScreen(
                     color = Color.Gray
                 )
             }
-            item {
-                Spacer(modifier = Modifier.height(12.dp))
-                Column(modifier = Modifier.fillMaxWidth()) {
+            if (searchQuery.isBlank()) {
+                item {
+                    Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -215,7 +214,7 @@ fun SelectAppScreen(
                         )
                         Switch(
                             checked = areAllSelected,
-                            enabled = isSelectAllEnabled,
+                            enabled = !isSelectingAll,
                             onCheckedChange = { checked ->
                                 if (filteredApps.isNotEmpty()) {
                                     coroutineScope.launch {
@@ -226,7 +225,10 @@ fun SelectAppScreen(
                                             .filter { it.isAllowed != checked }
                                             .map { it.packageName }
                                         if (packageNames.isNotEmpty()) {
-                                            mainViewModel.setAllowedAppsForPackages(packageNames, checked)
+                                            mainViewModel.setAllowedAppsForPackages(
+                                                packageNames,
+                                                checked
+                                            )
                                         }
                                         isSelectingAll = false
                                     }
@@ -234,15 +236,6 @@ fun SelectAppScreen(
                             }
                         )
                     }
-                    Text(
-                        text = if (areAllSelected) {
-                            "All apps are selected."
-                        } else {
-                            "Select every app to enable the bulk toggle."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
                 }
             }
             item {
@@ -370,6 +363,19 @@ fun AppCard(
     }
 }
 
+@Composable
+private fun AppIcon1(packageName: String) {
+    val context = LocalContext.current
+    val bitmap = remember(packageName) {
+        runCatching { context.packageManager.getApplicationIcon(packageName).toBitmap() }
+            .getOrNull()
+    }?.asImageBitmap()
+
+    if (bitmap != null) {
+        Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.size(24.dp))
+    }
+}
+
 private fun buildHighlightedText(text: String, query: String): AnnotatedString {
     if (query.isBlank()) {
         return buildAnnotatedString { append(text) }
@@ -388,18 +394,5 @@ private fun buildHighlightedText(text: String, query: String): AnnotatedString {
             }
             startIndex = index + query.length
         }
-    }
-}
-
-@Composable
-private fun AppIcon1(packageName: String) {
-    val context = LocalContext.current
-    val bitmap = remember(packageName) {
-        runCatching { context.packageManager.getApplicationIcon(packageName).toBitmap() }
-            .getOrNull()
-    }?.asImageBitmap()
-
-    if (bitmap != null) {
-        Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.size(24.dp))
     }
 }

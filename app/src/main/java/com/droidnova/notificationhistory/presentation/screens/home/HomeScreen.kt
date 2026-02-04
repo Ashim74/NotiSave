@@ -279,7 +279,7 @@ fun TopBarApp(
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text(if (isPremium) "Ads removed" else "Remove Ads") },
+                    text = { Text(if (isPremium) "Premium Active" else "Remove Ads") },
                     onClick = {
                         showMenu = false
                         onRemoveAds()

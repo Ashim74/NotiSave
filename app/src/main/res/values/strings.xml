@@ -18,7 +18,7 @@
     <string name="premium_sheet_benefit_support">Priority support</string>
     <string name="premium_sheet_button_with_price">Unlock for %1$s</string>
     <string name="premium_sheet_button_loading">Loading price…</string>
-    <string name="premium_sheet_secure_note">Secure purchase handled by Google Play.</string>
+    <string name="premium_sheet_secure_note">Reinstall anytime — Premium will restore with the same Google account.</string>
     <string name="premium_welcome_title">Premium unlocked</string>
     <string name="premium_welcome_message">Thanks for supporting the app! Please restart the app to apply your premium perks.</string>
     <string name="premium_welcome_restart_button">Restart now</string>
