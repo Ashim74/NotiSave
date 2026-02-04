@@ -5,8 +5,15 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -17,11 +24,11 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.ads.CollapsibleAdBanner
-import com.droidnova.notificationhistory.presentation.screens.applist.AppsNotificationListScreen
+import com.droidnova.notificationhistory.presentation.screens.app_history.AppHistoryScreen
 import com.droidnova.notificationhistory.presentation.screens.about.AboutScreen
 import com.droidnova.notificationhistory.presentation.screens.history.HistoryScreen
 import com.droidnova.notificationhistory.presentation.screens.home.HomeScreen
-import com.droidnova.notificationhistory.presentation.screens.manage_notification.ManageAppNotificationScreen
+import com.droidnova.notificationhistory.presentation.screens.select_app.SelectAppScreen
 import com.droidnova.notificationhistory.presentation.screens.setting.SettingScreen
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
@@ -29,24 +36,11 @@ import com.google.accompanist.systemuicontroller.rememberSystemUiController
 fun AppNavGraph() {
     val navController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
+    val isPremium by mainViewModel.isPremium.collectAsState()
 
-    val systemUiController = rememberSystemUiController()
-    val darkTheme = isSystemInDarkTheme()
-
-    val barColor = if (darkTheme) Color.Black else Color.White
-
-    SideEffect {
-        systemUiController.setStatusBarColor(
-            color = barColor,
-            darkIcons = !darkTheme
-        )
-        systemUiController.setNavigationBarColor(
-            color = barColor,
-            darkIcons = !darkTheme
-        )
-    }
-
-    Column(){
+    Column(
+        modifier = Modifier.padding(WindowInsets.navigationBars.asPaddingValues())
+    ){
         NavHost(
             modifier = Modifier.weight(1f),
             navController = navController,
@@ -83,7 +77,7 @@ fun AppNavGraph() {
                 HistoryScreen(mainViewModel, navController)
             }
             composable(Screens.ManageNotifications.route) {
-                ManageAppNotificationScreen(mainViewModel, navController)
+                SelectAppScreen(mainViewModel, navController)
             }
             composable(Screens.AboutScreen.route) {
                 AboutScreen(navController)
@@ -95,7 +89,7 @@ fun AppNavGraph() {
             ) { backStackEntry ->
                 val packageName =
                     backStackEntry.arguments?.getString("packageName") ?: return@composable
-                AppsNotificationListScreen(mainViewModel, packageName, navController)
+                AppHistoryScreen(mainViewModel, packageName, navController)
             }
 
             composable(
@@ -112,6 +106,8 @@ fun AppNavGraph() {
                 )
             }
         }
-        CollapsibleAdBanner()
+        if (!isPremium) {
+            CollapsibleAdBanner()
+        }
     }
 }

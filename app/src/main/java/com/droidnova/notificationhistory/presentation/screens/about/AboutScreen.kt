@@ -1,10 +1,12 @@
 package com.droidnova.notificationhistory.presentation.screens.about
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -14,6 +16,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,153 +28,175 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color.Companion.Gray
-import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.R
-import com.droidnova.notificationhistory.utils.Constants
-import com.droidnova.notificationhistory.utils.IntentUtils
-import com.droidnova.notificationhistory.utils.IntentUtils.openBVRAppOnPlayStore
-import com.droidnova.notificationhistory.utils.IntentUtils.openClipboardHistoryAppOnPlayStore
-import com.droidnova.notificationhistory.utils.IntentUtils.reportBugs
-
+import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
+import com.droidnova.notificationhistory.utils.about_utils.getRandomOtherApps
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutScreen(navController: NavController) {
+fun AboutScreen(
+    navController: NavController
+) {
     val context = LocalContext.current
+    val otherApps = remember { getRandomOtherApps() }
 
-    Scaffold(topBar =
-        {
+    Scaffold(
+        topBar = {
             TopAppBar(
-                title = {Text("About",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleLarge)},
-                navigationIcon ={
-                    IconButton(onClick = {navController.popBackStack()}) {
+                title = {
+                    Text(
+                        stringResource(R.string.about_title),
+                        fontWeight = FontWeight.W900,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.content_description_back)
                         )
                     }
                 }
             )
-        }) { innerPadding ->
-
-
+        },
+        contentWindowInsets = WindowInsets(bottom = 4.dp)
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()).padding(12.dp)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
+            AppHeader()
+            SpacerHeight(16.dp)
 
             Items(
-                icon = painterResource(R.drawable.ic_rate_us),
-                headingText = "Rate US",
-                labelText = "Give us your feedback by rating our app on the Play Store.",
-                onClick = { IntentUtils.rateUs(context = context) }
+                imageVector = Icons.Outlined.Star,
+                headingText = stringResource(R.string.rate_us),
+                labelText = stringResource(R.string.rate_us_desc),
+                onClick = { IntentUtil.openRateUs(context) }
             )
             SpacerHeight(8.dp)
 
             Items(
-                icon = painterResource(R.drawable.ic_share_app),
-                headingText = "Share Us",
-                labelText = "Spread the word about our app to your friends and family.",
-                onClick = { IntentUtils.shareApp(context = context) }
+                imageVector = Icons.Outlined.Share,
+                headingText = stringResource(R.string.share_us),
+                labelText = stringResource(R.string.share_us_desc),
+                onClick = { IntentUtil.shareApp(context) }
             )
-
             SpacerHeight(8.dp)
 
             Items(
-                icon = painterResource(R.drawable.ic_report_bugs),
-                headingText = "Report Bugs",
-                labelText = "Report any bugs or issues you encounter.",
-                onClick = { reportBugs(context = context) }
+                iconRes = R.drawable.ic_report_bugs,
+                headingText = stringResource(R.string.report_bugs),
+                labelText = stringResource(R.string.report_bugs_desc),
+                onClick = { IntentUtil.sendSupportMail(context, isBug = true) }
             )
-
             SpacerHeight(8.dp)
 
             Items(
-                icon = painterResource(R.drawable.ic_instagram),
-                headingText = "Follow Us on Instagram",
-                labelText = "Get the latest updates, feature previews, and more on our Instagram.",
-                onClick = { IntentUtils.joinInstagramCommunity(context) },
-                overrideColor = false
+                iconRes = R.drawable.ic_instagram,
+                headingText = stringResource(R.string.follow_instagram),
+                labelText = stringResource(R.string.follow_instagram_desc),
+                onClick = { IntentUtil.openInstagram(context) },
+                overrideTint = false
             )
-
             SpacerHeight(8.dp)
 
             Items(
-                icon = painterResource(R.drawable.ic_whatsapp),
-                headingText = "Join Our WhatsApp Community",
-                labelText = "Connect with other users, share feedback, and get support in real-time.",
-                onClick = { IntentUtils.joinWhatsappCommunity(context) },
-                overrideColor = false
+                iconRes = R.drawable.ic_whatsapp,
+                headingText = stringResource(R.string.join_whatsapp),
+                labelText = stringResource(R.string.join_whatsapp_desc),
+                onClick = { IntentUtil.openWhatsApp(context) },
+                overrideTint = false
             )
-
             SpacerHeight(8.dp)
 
-            val version = IntentUtils.fetchAppVersion(context)
+            val version = IntentUtil.fetchAppVersion(context)
 
             Items(
-                icon = painterResource(R.drawable.ic_version),
-                headingText = "App Version",
+                imageVector = Icons.Outlined.Info,
+                headingText = stringResource(R.string.app_version),
                 labelText = version,
-                onClick = { }
+                onClick = {},
+                enabled = false
             )
             SpacerHeight(8.dp)
-
 
             Text(
-                text = "CheckOut Other Apps ",
+                text = stringResource(R.string.checkout_other_apps),
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    color = Gray
+                    color = Color.Gray
                 )
             )
             SpacerHeight(8.dp)
-            AppCard(
-                onClick = { openClipboardHistoryAppOnPlayStore(context) },
-                title = Constants.CLIPBOARD_HISTORY_APP_TITLE,
-                description = Constants.CLIPBOARD_HISTORY_APP_DESCRIPTION,
-                icon = R.drawable.clipboard_history_icon
-            )
-            SpacerHeight(8.dp)
+
+            otherApps.forEach { app ->
+                AppCard(
+                    onClick = { IntentUtil.openPlayStore(context, app.packageName) },
+                    title = stringResource(app.titleRes),
+                    description = stringResource(app.descriptionRes),
+                    iconRes = app.iconRes
+                )
+                SpacerHeight(8.dp)
+            }
 
             AppCard(
-                onClick = { openBVRAppOnPlayStore(context) },
-                title = Constants.BVR_APP_TITLE,
-                description = Constants.BVR_APP_DESCRIPTION,
-                icon = R.drawable.ic_bvr
-            )
-            SpacerHeight(8.dp)
-
-
-            AppCard(
-                onClick = { IntentUtils.openDeveloperDashboardOnPlayStore(context) },
-                title = "Check more apps on PlayStore",
+                onClick = { IntentUtil.openDeveloperPlayConsole(context) },
+                title = stringResource(R.string.check_more_apps_playstore),
                 description = "",
-                icon = R.drawable.ic_play_store
+                iconRes = R.drawable.ic_play_store
             )
-
+            SpacerHeight(16.dp)
         }
     }
 }
 
 @Composable
-fun AppCard(
+private fun AppHeader() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_notification_history),
+            contentDescription = stringResource(R.string.app_name),
+            modifier = Modifier.size(72.dp)
+        )
+        SpacerHeight(12.dp)
+        Text(
+            text = stringResource(R.string.app_name),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+        )
+        SpacerHeight(4.dp)
+        Text(
+            text = stringResource(R.string.app_about_description),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray
+        )
+    }
+}
+
+@Composable
+private fun AppCard(
     onClick: () -> Unit,
     title: String,
     description: String,
-    icon: Int
+    @DrawableRes iconRes: Int
 ) {
     OutlinedCard(
         onClick = onClick,
@@ -179,10 +206,11 @@ fun AppCard(
             modifier = Modifier.padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(icon),
-                contentDescription = "BVR",
-                modifier = Modifier.size(50.dp)
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = title,
+                modifier = Modifier.size(50.dp),
+                tint = Color.Unspecified
             )
             SpacerWidth(8)
             Column {
@@ -192,48 +220,67 @@ fun AppCard(
                         fontWeight = FontWeight.Bold
                     ),
                 )
-                if (description.isNotEmpty()){
+                if (description.isNotEmpty()) {
                     Text(
                         text = description,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Medium,
-                            color = Gray
+                            color = Color.Gray
                         )
                     )
                 }
-
             }
         }
-
     }
 }
 
-
 @Composable
-fun Items(icon: Painter, headingText: String, labelText: String, onClick: () -> Unit,overrideColor:Boolean = true) {
+private fun Items(
+    headingText: String,
+    labelText: String,
+    onClick: () -> Unit,
+    imageVector: ImageVector? = null,
+    @DrawableRes iconRes: Int? = null,
+    overrideTint: Boolean = true,
+    enabled: Boolean = true
+) {
+    val rowModifier = if (enabled) {
+        Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    } else {
+        Modifier.fillMaxWidth()
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                onClick()
-            }
+        modifier = rowModifier
     ) {
-        if (overrideColor){
-            Icon(
-                painter = icon,
-                contentDescription = "Icon ",
-                modifier = Modifier.padding(12.dp)
-            )
-        }else{
-            Image(
-                painter = icon,
-                contentDescription = "Icon ",
-                modifier = Modifier.padding(12.dp)
-            )
+        when {
+            imageVector != null -> {
+                Icon(
+                    imageVector = imageVector,
+                    contentDescription = headingText,
+                    modifier = Modifier.padding(12.dp),
+                    tint = if (overrideTint) MaterialTheme.colorScheme.onSurface else Color.Unspecified
+                )
+            }
+
+            iconRes != null -> {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = headingText,
+                    modifier = Modifier.padding(12.dp),
+                    tint = if (overrideTint) MaterialTheme.colorScheme.onSurface else Color.Unspecified
+                )
+            }
+
+            else -> {
+                Spacer(modifier = Modifier.width(48.dp))
+            }
         }
 
-        Column() {
+        Column {
             Text(
                 text = headingText,
                 style = MaterialTheme.typography.titleMedium
@@ -241,20 +288,18 @@ fun Items(icon: Painter, headingText: String, labelText: String, onClick: () -> 
             Text(
                 text = labelText,
                 style = MaterialTheme.typography.bodySmall,
-                color = Gray
+                color = Color.Gray
             )
         }
     }
 }
 
 @Composable
-fun SpacerHeight(height: Dp) {
+private fun SpacerHeight(height: Dp) {
     Spacer(modifier = Modifier.height(height))
 }
 
 @Composable
-fun SpacerWidth(width: Int) {
+private fun SpacerWidth(width: Int) {
     Spacer(modifier = Modifier.width(width.dp))
 }
-
-

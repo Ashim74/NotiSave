@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NotificationHistory</string>
+    <string name="app_name">Notification History</string>
     <string name="warning_only_matching_titles">Only notifications matching added titles will be saved</string>
     <string name="label_add_title_filter">Add title filter</string>
     <string name="btn_add">Add</string>
@@ -11,5 +11,94 @@
     <string name="btn_apply">Apply</string>
     <string name="remove">Remove</string>
     <string name="back">Back</string>
+    <string name="premium_sheet_title">Go Premium</string>
+    <string name="premium_sheet_subtitle">Remove ads and support future improvements.</string>
+    <string name="premium_sheet_benefit_no_ads">Ad-free experience</string>
+    <string name="premium_sheet_benefit_updates">Support ongoing updates</string>
+    <string name="premium_sheet_benefit_support">Priority support</string>
+    <string name="premium_sheet_button_with_price">Unlock for %1$s</string>
+    <string name="premium_sheet_button_loading">Loading price…</string>
+    <string name="premium_sheet_secure_note">Reinstall anytime — Premium will restore with the same Google account.</string>
+    <string name="premium_welcome_title">Premium unlocked</string>
+    <string name="premium_welcome_message">Thanks for supporting the app! Please restart the app to apply your premium perks.</string>
+    <string name="premium_welcome_restart_button">Restart now</string>
+    <string name="premium_welcome_later_button">Later</string>
+    <string name="premium_menu_remove_ads">Remove Ads</string>
+    <string name="premium_menu_already_unlocked">Premium unlocked</string>
+    <string name="premium_menu_unlocked_subtitle">Thanks for supporting us!</string>
+    <string name="premium_menu_remove_ads_subtitle">Enjoy the app without ads and support development.</string>
+
+    <!-- About screen -->
+    <string name="about_title">About</string>
+    <string name="rate_us">Rate Us</string>
+    <string name="rate_us_desc">Enjoying the app? Leave a review.</string>
+    <string name="share_us">Share Us</string>
+    <string name="share_us_desc">Invite friends to try Notification History.</string>
+    <string name="report_bugs">Report Bugs</string>
+    <string name="report_bugs_desc">Report any bugs or issues you encounter.</string>
+    <string name="follow_instagram">Follow us on Instagram</string>
+    <string name="follow_instagram_desc">Get updates, tips, and new releases.</string>
+    <string name="join_whatsapp">Join our WhatsApp Community</string>
+    <string name="join_whatsapp_desc">Ask questions and get quick support.</string>
+    <string name="app_version">App Version</string>
+    <string name="checkout_other_apps">Check Out Other Apps</string>
+    <string name="check_more_apps_playstore">Check more apps on Play Store</string>
+    <string name="app_about_description">Notification History stores your recent alerts so you can revisit them anytime.</string>    <string name="other_app_clipboard_title">Clipboard History</string>
+    <string name="other_app_clipboard_description">Save your latest copied text so you can paste it quickly.</string>
+    <string name="other_app_flash_alert_title">Flash Alert</string>
+    <string name="other_app_flash_alert_description">Get flash alerts for calls, messages, and notifications.</string>
+    <string name="bvr_app_title">Background Video Recorder</string>
+    <string name="bvr_app_description">Record videos even after closing the app, with the phone locked or after clearing it from recent apps.</string>
+    <string name="secret_calculator_app_title">Secret Calculator</string>
+    <string name="secret_calculator_app_description">Hide photos, videos, and files behind a smart calculator interface. Secure, simple, and secret.</string>
+    <string name="notification_history_app_title">Notification History</string>
+    <string name="notification_history_app_description">Recover dismissed notifications instantly. Check missed calls, messages, or reminders anytime.</string>
+
+    <!-- View model / utilities -->
+    <string name="share_via">Share via</string>
+    <string name="copied_text_label">Copied text</string>
+    <string name="copy_failed_message">Failed to copy due to %1$s</string>
+    <string name="share_app_text">Check out this app: https://play.google.com/store/apps/details?id=%1$s</string>
+    <string name="share_app_chooser">Share app via</string>
+    <string name="export_success">Exported successfully</string>
+    <string name="export_failed">Export failed: %1$s</string>
+    <string name="import_title">Import</string>
+    <string name="import_instruction">Select the texts you want to import</string>
+    <string name="import_button">IMPORT</string>
+    <string name="import_invalid_file">Please select a valid text file</string>
+    <string name="import_none_found">No valid items found in the selected file</string>
+    <string name="import_read_error">Failed to read file: %1$s</string>
+    <string name="feedback_email_subject">Feedback for Your App</string>
+    <string name="report_bugs_title">Report Bugs</string>
+    <string name="no_email_client">No email clients installed.</string>
+    <string name="version_unknown">Version: Unknown</string>
+    <string name="error_app_not_found_play_store">App not found on Play Store</string>
+    <string name="unknown_value">Unknown</string>
+    <string name="feedback_email_subject_detailed">App Feedback - %1$s (%2$s)</string>
+    <string name="feedback_email_body">Device: %1$s %2$s Android Version: %3$s (API %4$d) --- Write your feedback below this line ---</string>
+    <string name="support_subject_bug">Bug Report - %1$s (%2$s)</string>
+    <string name="support_subject_feedback">Feedback - %1$s (%2$s)</string>
+    <string name="support_header_bug">Bug details:</string>
+    <string name="support_header_feedback">Feedback details:</string>
+    <string name="support_email_body">Device: %1$s %2$s\nAndroid Version: %3$s (API %4$d)\n\n%5$s\n</string>
+    <string name="unknown">Unknown\n</string>
+    <string name="something_went_wrong">Something Went Wrong</string>
+    <string name="no_email_app_found">No email found</string>
+
+    <string name="content_description_back">Back</string>
+    <string name="content_description_menu">Menu</string>
+    <string name="content_description_copy">Copy</string>
+    <string name="content_description_more_options">More options</string>
+    <string name="content_description_share">Share</string>
+    <string name="content_description_delete">Delete</string>
+    <string name="content_description_favourite">Favourite</string>
+    <string name="content_description_add_text">Add text</string>
+    <string name="content_description_search">Search</string>
+    <string name="content_description_close_search">Close search</string>
+
+    <string name="notification_permission_title">Allow notification access</string>
+    <string name="notification_permission_description">Enable notification access so we can save and organize your alerts.</string>
+    <string name="notification_permission_required_message">You need to allow notification access to use this app.</string>
+    <string name="go_to_settings">Go to settings</string>
 
 </resources>

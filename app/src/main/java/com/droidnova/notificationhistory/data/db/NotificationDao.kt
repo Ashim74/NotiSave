@@ -25,6 +25,39 @@ interface NotificationDao {
     @Query("SELECT * FROM apps WHERE packageName = :packageName ORDER BY receivedAt DESC")
     suspend fun getNotificationsByPackage(packageName: String): List<NotificationEntity>
 
+    // Fetch a page of notifications for a specific package, newest first
+    @Query(
+        "SELECT * FROM apps WHERE packageName = :packageName ORDER BY receivedAt DESC LIMIT :limit OFFSET :offset"
+    )
+    suspend fun getNotificationsByPackagePaged(
+        packageName: String,
+        limit: Int,
+        offset: Int
+    ): List<NotificationEntity>
+
+    @Query("SELECT * FROM apps WHERE packageName = :packageName ORDER BY receivedAt DESC")
+    fun observeNotificationsByPackage(packageName: String): Flow<List<NotificationEntity>>
+
+    @Query("SELECT receivedAt FROM apps ORDER BY receivedAt DESC LIMIT 1")
+    fun observeLatestReceivedAt(): Flow<Long?>
+
+    @Query(
+        """
+        SELECT * FROM apps
+        WHERE id IN (
+            SELECT id FROM apps AS latest
+            WHERE latest.receivedAt = (
+                SELECT MAX(receivedAt) FROM apps WHERE packageName = latest.packageName
+            )
+        )
+        ORDER BY receivedAt DESC
+        """
+    )
+    fun observeLatestNotificationsByApp(): Flow<List<NotificationEntity>>
+
+    @Query("DELETE FROM apps WHERE id = :notificationId")
+    suspend fun deleteNotificationById(notificationId: Long)
+
     @Query("DELETE FROM apps")
     suspend fun deleteAllNotifications()
 
