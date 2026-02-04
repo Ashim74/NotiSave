@@ -3,6 +3,7 @@ package com.droidnova.notificationhistory.presentation.screens.app_history
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -82,7 +84,7 @@ fun AppHistoryScreen(
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
 
-    val title = notifications.firstOrNull()?.appName?.ifBlank { packageName } ?: packageName
+    var title by remember { mutableStateOf(packageName) }
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
         onRefresh = { mainViewModel.refreshAppHistory(packageName) }
@@ -97,6 +99,14 @@ fun AppHistoryScreen(
 
     LaunchedEffect(packageName) {
         mainViewModel.ensureAppHistoryLoaded(packageName)
+    }
+
+    LaunchedEffect(notifications) {
+        notifications.firstOrNull()?.appName?.ifBlank { packageName }?.let { appName ->
+            if (appName.isNotBlank()) {
+                title = appName
+            }
+        }
     }
 
     LaunchedEffect(filteredNotifications, listState, canLoadMore, isLoadingMore, searchQuery) {
@@ -294,10 +304,17 @@ fun HistoryCard(model: NotificationModel, searchQuery: String, onClick: (Notific
             .clickable { onClick(model) },
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = model.receivedAt.substringAfter(", "),
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = model.receivedAt.substringAfter(", "),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options"
+                )
+            }
             Spacer(Modifier.height(8.dp))
 
 
