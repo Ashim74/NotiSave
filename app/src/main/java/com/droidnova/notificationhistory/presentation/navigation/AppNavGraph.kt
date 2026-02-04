@@ -5,6 +5,10 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -32,21 +36,11 @@ import com.google.accompanist.systemuicontroller.rememberSystemUiController
 fun AppNavGraph() {
     val navController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
-
-    val systemUiController = rememberSystemUiController()
-    val darkTheme = isSystemInDarkTheme()
     val isPremium by mainViewModel.isPremium.collectAsState()
-    val navColor = MaterialTheme.colorScheme.background
 
-
-    SideEffect {
-        systemUiController.setNavigationBarColor(
-            color = navColor,
-            darkIcons = !darkTheme
-        )
-    }
-
-    Column(){
+    Column(
+        modifier = Modifier.padding(WindowInsets.navigationBars.asPaddingValues())
+    ){
         NavHost(
             modifier = Modifier.weight(1f),
             navController = navController,

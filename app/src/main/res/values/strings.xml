@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NotificationHistory</string>
+    <string name="app_name">Notification History</string>
     <string name="warning_only_matching_titles">Only notifications matching added titles will be saved</string>
     <string name="label_add_title_filter">Add title filter</string>
     <string name="btn_add">Add</string>

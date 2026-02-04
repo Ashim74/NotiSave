@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,8 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -80,14 +81,12 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     var showPremiumDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    val permissionSheetState = remember(hasPermission) {
-        rememberModalBottomSheetState(
-            skipPartiallyExpanded = true,
-            confirmValueChange = { value ->
-                value != SheetValue.Hidden || hasPermission
-            }
-        )
-    }
+    val permissionSheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { value ->
+            value != SheetValue.Hidden || hasPermission
+        }
+    )
 
     // initial data
     LaunchedEffect(Unit) {
@@ -157,6 +156,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 }
             )
         },
+        contentWindowInsets = WindowInsets(bottom = 4.dp),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Box(
@@ -320,7 +320,6 @@ private fun EnableNotificationsCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp)
-
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notification")
@@ -332,43 +331,52 @@ private fun EnableNotificationsCard(
             Spacer(modifier = Modifier.weight(1f))
             Switch(
                 checked = checked,
-                onCheckedChange = { value ->
-                    onCheckedChange(value)
-                }
+                onCheckedChange = onCheckedChange
             )
         }
     }
-
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SelectedAppsCard(
     selectedCount: Int,
     onSelectAppsClick: () -> Unit
 ) {
     Card(
+        onClick = onSelectAppsClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(0.dp) // Flat card
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(
-                onClick = onSelectAppsClick
-            ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_apps),
+                contentDescription = "Select Apps",
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.weight(0.1f))
+            Text(
+                text = "Select Apps",
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    "Select Apps",
-                    fontWeight = FontWeight.Bold
+                    text = selectedCount.toString(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Apps selected",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(Modifier.weight(1f))
-            Text(
-                "$selectedCount Apps Selected",
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(end = 8.dp)
-            )
         }
     }
 }
