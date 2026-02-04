@@ -75,6 +75,8 @@ import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import kotlinx.coroutines.launch
 
+private const val RATE_US_LAUNCH_THRESHOLD = 2
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
@@ -203,10 +205,10 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 }
             )
 
-            if (state.launchCount >= state.snoozeUntilLaunch && state.showRateUsCard) {
+            if (state.launchCount >= RATE_US_LAUNCH_THRESHOLD && state.showRateUsCard) {
                 RateUsCard(
                     modifier = Modifier.align(Alignment.BottomCenter),
-                    onCancelClicked = { viewmodel.snoozeRateUsCard() },
+                    onCancelClicked = { viewmodel.resetLaunchCount() },
                     onOkClicked = {
                         IntentUtil.openRateUs(context)
                         viewmodel.hideRateUsCard()
@@ -219,7 +221,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                     },
                     onFeedbackClicked = {
                         IntentUtil.sendSupportMail(context, isBug = false)
-                        viewmodel.snoozeRateUsCard()
+                        viewmodel.resetLaunchCount()
                     }
                 )
             }// if

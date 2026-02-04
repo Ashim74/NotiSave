@@ -14,7 +14,6 @@ import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LAUNCH_COU
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HISTORY_RETENTION_DAYS
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.IS_PREMIUM
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
-import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SNOOZE_UNTIL_LAUNCH
 import com.droidnova.notificationhistory.data_shared.SettingState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -32,7 +31,6 @@ class UserPreferences(private val context: Context) {
             launchCount = preferences[LAUNCH_COUNT] ?: 0,
             showRateUsCard = preferences[SHOW_RATE_US_CARD]?: true,
             userToggleTracking = preferences[KEY_USER_WANTS_TRACKING] ?: true,
-            snoozeUntilLaunch = preferences[SNOOZE_UNTIL_LAUNCH] ?: 2,
             selectedAppsCount = allowed.size,
             historyRetentionDays = preferences[HISTORY_RETENTION_DAYS]
                 ?: SettingState.DEFAULT_HISTORY_RETENTION_DAYS,
@@ -135,12 +133,6 @@ class UserPreferences(private val context: Context) {
             it[SHOW_RATE_US_CARD] = false
         }
     }
-    suspend fun updateSnoozeUntilLaunch(value: Int) {
-        context.dataStore.edit { preference ->
-            preference[SNOOZE_UNTIL_LAUNCH] = value
-        }
-    }
-
     suspend fun updateHistoryRetentionDays(days: Int) {
         context.dataStore.edit { preference ->
             preference[HISTORY_RETENTION_DAYS] = days
