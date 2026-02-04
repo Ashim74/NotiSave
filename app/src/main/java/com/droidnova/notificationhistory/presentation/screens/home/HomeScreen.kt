@@ -134,6 +134,14 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                         message = context.getString(R.string.notification_permission_required_message)
                     )
                 }
+
+                HomeUiEvent.ShowManageSelectedAppsMessage -> {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.manage_selected_apps_message),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
     }
