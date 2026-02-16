@@ -84,6 +84,9 @@ fun SelectAppScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(allInstalledApps) {
+        if (allInstalledApps.isEmpty() && uiList.isNotEmpty()) {
+            return@LaunchedEffect
+        }
         if (uiList.isEmpty()) {
             uiList = allInstalledApps
         } else {
@@ -98,10 +101,12 @@ fun SelectAppScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                uiList = latestApps.sortedWith(
-                    compareByDescending<AppInfo> { it.isAllowed } // NEW
-                        .thenBy { it.appName.lowercase() }        // NEW
-                )
+                if (latestApps.isNotEmpty()) {
+                    uiList = latestApps.sortedWith(
+                        compareByDescending<AppInfo> { it.isAllowed }
+                            .thenBy { it.appName.lowercase() }
+                    )
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
