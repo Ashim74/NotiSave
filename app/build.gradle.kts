@@ -15,8 +15,8 @@ android {
         applicationId = "com.droidnova.notificationhistory"
         minSdk = 26
         targetSdk = 36
-        versionCode = 17
-        versionName = "0.17"
+        versionCode = 19
+        versionName = "0.19"
 
         buildConfigField("String", "PLAY_STORE_LICENSE_KEY", "\"${project.findProperty("PLAY_STORE_LICENSE_KEY")}\"")
 
@@ -79,7 +79,7 @@ dependencies {
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
 
     implementation("com.google.android.gms:play-services-ads:24.9.0")
-    implementation("com.android.billingclient:billing-ktx:7.1.1")
+    implementation("com.android.billingclient:billing-ktx:9.1.0")
     implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-crashlytics")
