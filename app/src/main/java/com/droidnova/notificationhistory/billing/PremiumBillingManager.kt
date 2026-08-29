@@ -41,6 +41,7 @@ class PremiumBillingManager(
                 .enableOneTimeProducts()
                 .build()
         )
+        .enableAutoServiceReconnection()
         .build()
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
@@ -108,10 +109,11 @@ class PremiumBillingManager(
                 )
                 .build()
 
-            billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+            billingClient.queryProductDetailsAsync(params) { billingResult, queryResult ->
                 _isFetchingProductDetails.value = false
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    _productDetails.value = productDetailsList.firstOrNull()
+                    _productDetails.value = queryResult.productDetailsList
+                        .firstOrNull { it.productId == productId }
                     if (_productDetails.value == null) {
                         emitError("Product not available right now. Please try again later.")
                     }
@@ -136,6 +138,12 @@ class PremiumBillingManager(
                     listOf(
                         BillingFlowParams.ProductDetailsParams.newBuilder()
                             .setProductDetails(details)
+                            .apply {
+                                details.oneTimePurchaseOfferDetailsList
+                                    ?.firstOrNull()
+                                    ?.offerToken
+                                    ?.let(::setOfferToken)
+                            }
                             .build()
                     )
                 )
@@ -182,7 +190,9 @@ class PremiumBillingManager(
                 emitError("Purchase canceled.")
             }
             BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
-                onPremiumStatusChanged(true)
+                // Restore the owned item through the normal verification path rather than granting
+                // entitlement solely from the launch response.
+                queryActivePurchases()
             }
             BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> {
                 emitError("Billing service disconnected. Please try again.")
@@ -208,6 +218,9 @@ class PremiumBillingManager(
                 }
 
                 if (!purchase.isAcknowledged) {
+                    // Grant the verified purchase now; querying purchases on a later app start will
+                    // retry acknowledgement if this request is interrupted.
+                    onPremiumStatusChanged(true)
                     acknowledgePurchase(purchase)
                 } else {
                     onPremiumStatusChanged(true)
@@ -215,7 +228,6 @@ class PremiumBillingManager(
             }
             Purchase.PurchaseState.PENDING -> {
                 emitError("Purchase pending. You'll get premium once it's completed.")
-                onPremiumStatusChanged(false)
             }
             else -> Unit
         }

@@ -90,7 +90,9 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     val productDetails = billingManager?.productDetails?.collectAsState()?.value
     val isFetchingPrice = billingManager?.isFetchingProductDetails?.collectAsState()?.value ?: false
     val isPurchaseInProgress = billingManager?.isPurchaseInProgress?.collectAsState()?.value ?: false
-    val priceLabel = productDetails?.oneTimePurchaseOfferDetails?.formattedPrice
+    val priceLabel = productDetails?.oneTimePurchaseOfferDetailsList
+        ?.firstOrNull()
+        ?.formattedPrice
     var showPurchaseSheet by remember { mutableStateOf(false) }
     var isIgnoringBatteryOptimizations by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
     val snackbarHostState = remember { SnackbarHostState() }
