@@ -3,12 +3,10 @@ package com.droidnova.notificationhistory.utils
 import android.content.Context
 import android.content.pm.LauncherApps
 import android.os.UserManager
-import android.util.Log
 import com.droidnova.notificationhistory.presentation.screens.select_app.AppInfo
 
 
 fun getInstalledApps(context: Context, allowedList: Set<String>): List<AppInfo> {
-    Log.e("Mantsh2232","getInstalledAppsCalled()  allowedList $allowedList")
     val appList = mutableListOf<AppInfo>()
     val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
     val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps

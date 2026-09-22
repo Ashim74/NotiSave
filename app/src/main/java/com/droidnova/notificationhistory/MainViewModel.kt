@@ -96,7 +96,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var allowedPackagesSet = emptySet<String>()
     private var awaitingGrant = false
-    private var autoSelectAllAfterPermissionGrant = false
 
     data class AppHistoryUiState(
         val notifications: List<NotificationModel> = emptyList(),
@@ -197,7 +196,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onPermissionSettingsOpened() {
         awaitingGrant = true
-        autoSelectAllAfterPermissionGrant = true
     }
 
     fun setToggleTracking(isSwitchOn: Boolean) {
@@ -234,13 +232,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun setAllowedAppsForPackages(packageNames: List<String>, add: Boolean) {
         withContext(Dispatchers.IO) {
-            packageNames.forEach { packageName ->
-                if (add) {
-                    userPrefs.allowApp(packageName)
-                } else {
-                    userPrefs.blockApp(packageName)
-                }
-            }
+            val updatedAllowedApps = if (add) packageNames.toSet() else emptySet()
+            userPrefs.setAllowedApps(updatedAllowedApps)
         }
     }
 
@@ -459,18 +452,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun enableTrackingAndRouteIfNeeded() {
         userPrefs.setToggleTracking(true)
-        if (allowedPackagesSet.isEmpty()) {
-            val installedApps = _allInstalledApps.value.ifEmpty {
-                getInstalledApps(getApplication(), allowedPackagesSet)
-            }
-            val packageNames = installedApps
-                .map { it.packageName }
-                .filter { it !in allowedPackagesSet }
-            if (packageNames.isNotEmpty()) {
-                setAllowedAppsForPackages(packageNames, true)
-            }
-            autoSelectAllAfterPermissionGrant = false
-            _events.emit(HomeUiEvent.ShowManageSelectedAppsMessage)
+        if (userPrefs.allowedApps.first().isEmpty()) {
+            _events.emit(HomeUiEvent.NavigateToSelectApps)
         }
     }
 }

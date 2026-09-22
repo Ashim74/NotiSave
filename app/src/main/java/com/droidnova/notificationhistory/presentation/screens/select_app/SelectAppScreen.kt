@@ -1,6 +1,5 @@
 package com.droidnova.notificationhistory.presentation.screens.select_app
 
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -221,15 +220,10 @@ fun SelectAppScreen(
                                         bulkActionLabel =
                                             if (checked) "Selecting apps..." else "Removing apps..."
                                         isSelectingAll = true
-                                        val packageNames = filteredApps
-                                            .filter { it.isAllowed != checked }
-                                            .map { it.packageName }
-                                        if (packageNames.isNotEmpty()) {
-                                            mainViewModel.setAllowedAppsForPackages(
-                                                packageNames,
-                                                checked
-                                            )
-                                        }
+                                        mainViewModel.setAllowedAppsForPackages(
+                                            filteredApps.map { it.packageName },
+                                            checked
+                                        )
                                         isSelectingAll = false
                                     }
                                 }
@@ -334,8 +328,6 @@ fun AppCard(
             Switch(
                 checked = apps.isAllowed,
                 onCheckedChange = { checked ->
-                    Log.e("Mantsh2232", " ManageAppNotificationScreen isallowed ${apps.isAllowed}")
-                    Log.e("Mantsh2232", "ManageAppNotificationScreen checked $checked")
                     onToggle(checked)
                 }
             )

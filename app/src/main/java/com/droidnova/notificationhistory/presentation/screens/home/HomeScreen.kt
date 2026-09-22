@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -349,6 +350,15 @@ fun HomeScreenContent(
             selectedCount = state.selectedAppsCount,
             onSelectAppsClick = { navController.navigate(Screens.ManageNotifications.route) }
         )
+
+        if (state.userToggleTracking && state.selectedAppsCount == 0) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.select_at_least_one_app_message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
 
         Spacer(Modifier.height(16.dp))
 

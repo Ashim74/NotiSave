@@ -1,7 +1,6 @@
 package com.droidnova.notificationhistory.data.datastore
 
 import android.content.Context
-import android.util.Log
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -81,7 +80,6 @@ class UserPreferences(private val context: Context) {
     }
 
     suspend fun allowApp(packageAppName: String) {
-        Log.e("Mantsh2232","dataStoreFucntionCalled allowApp() $packageAppName")
         context.dataStore.edit { prefs ->
             val currentAppsPackage = prefs[allowedAppsKey] ?: emptySet()
             prefs[allowedAppsKey] = currentAppsPackage + packageAppName
@@ -89,10 +87,15 @@ class UserPreferences(private val context: Context) {
     }
 
     suspend fun blockApp(packageAppName: String) {
-        Log.e("Mantsh2232"," blockApp $packageAppName")
         context.dataStore.edit { prefs ->
             val currentAppsPackage = prefs[allowedAppsKey] ?: emptySet()
             prefs[allowedAppsKey] = currentAppsPackage - packageAppName
+        }
+    }
+
+    suspend fun setAllowedApps(packageNames: Set<String>) {
+        context.dataStore.edit { prefs ->
+            prefs[allowedAppsKey] = packageNames
         }
     }
 

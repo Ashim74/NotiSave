@@ -110,6 +110,7 @@ We need notification access to save and organize your notifications.\n\nHow to e
 Find “Notification History” → Turn ON access.
 </string>
     <string name="manage_selected_apps_message">To manage selected apps, tap Select Apps.</string>
+    <string name="select_at_least_one_app_message">Select at least one app to start saving notifications.</string>
     <string name="go_to_settings">Go to settings</string>
 
 </resources>

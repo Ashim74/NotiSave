@@ -1,7 +1,6 @@
 package com.droidnova.notificationhistory.presentation.screens.history
 
 import android.graphics.drawable.Drawable
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -100,7 +99,6 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     val settingsState by mainViewmodel.settingState.collectAsState()
     val isRefreshing by mainViewmodel.isHistoryRefreshing.collectAsState()
     val historyLoadState by mainViewmodel.historyLoadState.collectAsState()
-    Log.e("Mantsha", "HistoryScreen: ${packages.value}")
     var showMenu by remember { mutableStateOf(false) }
     var showConfirm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf<NotificationModel?>(null) }
@@ -418,7 +416,6 @@ fun HistoryScreenContent(
                         )
                     }
                     items(notifications, key = { it.id }) { item ->
-                        Log.e("Mantsha", "HistoryScreenContent: ${item}")
                         ItemHistoryCard(item, searchQuery, onItemClick)
                     }
                 }

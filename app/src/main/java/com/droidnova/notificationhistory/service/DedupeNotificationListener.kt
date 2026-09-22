@@ -3,7 +3,7 @@ package com.droidnova.notificationhistory.service
 import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import android.util.Log
+import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.db.NotificationDao
@@ -46,7 +46,6 @@ class NotificationListener : NotificationListenerService() {
             // Allowed apps list ko observe karo
             prefs.allowedApps.collect { set ->
                 allowedCache = set
-                Log.d("NLS", "allowed packages = $set")
             }
         }
 
@@ -60,7 +59,6 @@ class NotificationListener : NotificationListenerService() {
         serviceScope.launch {
             prefs.allTitleFilters.collect { map ->
                 titleFilters = map
-                Log.d("NLS", "title filters updated: ${map.mapValues { it.value.size }}")
             }
         }
 
@@ -74,8 +72,15 @@ class NotificationListener : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val pkg = sbn.packageName ?: return
 
-        // 1) Allowed app filter
-        if (allowedCache.isNotEmpty() && pkg !in allowedCache) return
+        // Capture only when access, tracking, and explicit app selection all allow it.
+        if (!shouldCaptureNotification(
+                hasNotificationAccess = NotificationAccessChecker
+                    .hasNotificationAccessPermission(applicationContext),
+                trackingEnabled = trackingEnabled,
+                allowedPackages = allowedCache,
+                packageName = pkg
+            )
+        ) return
 
         // 2) (Optional) noisy notifications ko skip karo
         if (shouldSkip(sbn)) return
@@ -90,14 +95,18 @@ class NotificationListener : NotificationListenerService() {
 
         // 5)  Atomic check+update BEFORE launching coroutine
         val allowed = cache.allowAndReserve(key, contentHash)
-        if (!allowed) {
-            Log.d("Dedupe", "Duplicate skip (within window): key=$key")
-            return
-        }
+        if (!allowed) return
 
         // 6) DB insert (background)
         serviceScope.launch {
-            if (!trackingEnabled) return@launch
+            if (!shouldCaptureNotification(
+                    hasNotificationAccess = NotificationAccessChecker
+                        .hasNotificationAccessPermission(applicationContext),
+                    trackingEnabled = trackingEnabled,
+                    allowedPackages = allowedCache,
+                    packageName = pkg
+                )
+            ) return@launch
 
             val dao = AppDatabase.getInstance(applicationContext).notificationDao()
 
@@ -125,7 +134,6 @@ class NotificationListener : NotificationListenerService() {
                 // If 'shouldSave' is false: skip saving
                 return@launch
             }
-            Log.e("NLSs", "onNotificationPosted (matched): $entity")
             dao.insertApp(entity)  // Room 2.6+ ho to @Upsert best hai
             enforceRetention(dao)
         }
@@ -170,3 +178,10 @@ class NotificationListener : NotificationListenerService() {
         dao.deleteNotificationsOlderThan(threshold)
     }
 }
+
+internal fun shouldCaptureNotification(
+    hasNotificationAccess: Boolean,
+    trackingEnabled: Boolean,
+    allowedPackages: Set<String>,
+    packageName: String
+): Boolean = hasNotificationAccess && trackingEnabled && packageName in allowedPackages
