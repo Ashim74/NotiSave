@@ -9,22 +9,26 @@ import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.db.NotificationDao
 import com.droidnova.notificationhistory.data.db.NotificationEntity
 import com.droidnova.notificationhistory.data_shared.SettingState
-import kotlinx.coroutines.*
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class NotificationListener : NotificationListenerService() {
 
-    // “Thodi der ke liye model yaad rakhna” => DedupeCache
-    private val cache = DedupeCache(ttlMs = 2000L) // 2s window
-
-    // Service scope (IO)
+    private val cache = DedupeCache(ttlMs = 2000L)
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val lastRetentionCleanupAt = AtomicLong(0L)
 
     private lateinit var prefs: UserPreferences
 
-    // Fast reads
     @Volatile private var allowedCache: Set<String> = emptySet()
     @Volatile private var trackingEnabled: Boolean = false
     @Volatile private var historyRetentionDays: Int = SettingState.DEFAULT_HISTORY_RETENTION_DAYS
@@ -43,10 +47,7 @@ class NotificationListener : NotificationListenerService() {
         }
 
         serviceScope.launch {
-            // Allowed apps list ko observe karo
-            prefs.allowedApps.collect { set ->
-                allowedCache = set
-            }
+            prefs.allowedApps.collect { allowedCache = it }
         }
 
         serviceScope.launch {
@@ -57,11 +58,8 @@ class NotificationListener : NotificationListenerService() {
         }
 
         serviceScope.launch {
-            prefs.allTitleFilters.collect { map ->
-                titleFilters = map
-            }
+            prefs.allTitleFilters.collect { titleFilters = it }
         }
-
     }
 
     override fun onDestroy() {
@@ -70,112 +68,114 @@ class NotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        val pkg = sbn.packageName ?: return
+        val packageName = sbn.packageName ?: return
 
-        // Capture only when access, tracking, and explicit app selection all allow it.
+        // Preserve M1: permission, user tracking, and explicit package selection are all required.
         if (!shouldCaptureNotification(
                 hasNotificationAccess = NotificationAccessChecker
                     .hasNotificationAccessPermission(applicationContext),
                 trackingEnabled = trackingEnabled,
                 allowedPackages = allowedCache,
-                packageName = pkg
+                packageName = packageName
             )
         ) return
 
-        // 2) (Optional) noisy notifications ko skip karo
-        if (shouldSkip(sbn)) return
+        val content = NotificationContentExtractor.extract(sbn.notification)
+        if (shouldSkip(sbn.notification, content)) return
 
-        // 3) Unique key (system-made), fallback if needed
-        val key = sbn.key ?: "${pkg}:${sbn.id}:${sbn.tag ?: ""}"
+        // The system key is stable for updates; the fallback is not package-only.
+        val notificationKey = sbn.key ?: "$packageName:${sbn.id}:${sbn.tag.orEmpty()}"
 
-        // 4) Content fingerprint (model ka “essence”): title + text
-        val title = extractTitle(sbn.notification)
-        val text = extractText(sbn.notification)
-        val contentHash = (title + "|" + text).hashCode()
-
-        // 5)  Atomic check+update BEFORE launching coroutine
-        val allowed = cache.allowAndReserve(key, contentHash)
-        if (!allowed) return
-
-        // 6) DB insert (background)
         serviceScope.launch {
+            // Recheck immediately before persistence in case settings changed after the callback.
             if (!shouldCaptureNotification(
                     hasNotificationAccess = NotificationAccessChecker
                         .hasNotificationAccessPermission(applicationContext),
                     trackingEnabled = trackingEnabled,
                     allowedPackages = allowedCache,
-                    packageName = pkg
+                    packageName = packageName
                 )
             ) return@launch
 
-            val dao = AppDatabase.getInstance(applicationContext).notificationDao()
-
-            val entity = NotificationEntity(
-                packageName = pkg,
-                title = title,
-                message = text,
-                receivedAt = sbn.postTime
-            )
-
-            val filters = titleFilters[pkg] ?: emptySet() // Get filters user set for this app
-            val titleLower = title.lowercase().replace("\\s".toRegex(), "") // Lowercase and remove all whitespace from title
-
-            val shouldSave = if (filters.isEmpty()) {
-                // No filters: save ALL notifications for this app
-                true
-            } else {
-                // Filters exist: save ONLY if the title matches at least one filter
-                filters.any { filter ->
-                    titleLower.contains(filter.lowercase().replace("\\s".toRegex(), ""))
-                }
-            }
-
-            if (!shouldSave) {
-                // If 'shouldSave' is false: skip saving
+            if (!matchesTitleFilter(content.title, titleFilters[packageName].orEmpty())) {
                 return@launch
             }
-            dao.insertApp(entity)  // Room 2.6+ ho to @Upsert best hai
-            enforceRetention(dao)
+
+            if (!cache.allowAndReserve(notificationKey, content.normalizedForDedupe())) {
+                return@launch
+            }
+
+            val dao = AppDatabase.getInstance(applicationContext).notificationDao()
+            val contentFingerprint = content.contentFingerprint()
+            val duplicateCheckAt = System.currentTimeMillis()
+            if (dao.hasRecentDuplicate(
+                    notificationKey = notificationKey,
+                    contentFingerprint = contentFingerprint,
+                    since = duplicateCheckAt - PERSISTENT_DEDUPE_WINDOW_MS,
+                    until = duplicateCheckAt
+                )
+            ) return@launch
+
+            dao.insertApp(
+                NotificationEntity(
+                    packageName = packageName,
+                    title = content.title,
+                    message = content.message,
+                    receivedAt = sbn.postTime,
+                    notificationKey = notificationKey,
+                    contentFingerprint = contentFingerprint,
+                    conversationTitle = content.conversationTitle
+                )
+            )
+            enforceRetentionIfDue(dao)
         }
     }
 
-    /** Optional: cut noise (rakho ya hatao apni need ke hisab se) */
-    private fun shouldSkip(sbn: StatusBarNotification): Boolean {
-        val n = sbn.notification
-        val isGroupSummary = (n.flags and Notification.FLAG_GROUP_SUMMARY) != 0
-        val isOngoing = (n.flags and Notification.FLAG_ONGOING_EVENT) != 0
-        val isFgService = (n.flags and Notification.FLAG_FOREGROUND_SERVICE) != 0
-        val hasMeaningfulContent = extractTitle(n).isNotBlank() || extractText(n).isNotBlank()
-        return (isGroupSummary && !hasMeaningfulContent) || isOngoing || isFgService
+    private fun shouldSkip(
+        notification: Notification,
+        content: ExtractedNotificationContent
+    ): Boolean {
+        val isOngoing = (notification.flags and Notification.FLAG_ONGOING_EVENT) != 0
+        val isForegroundService =
+            (notification.flags and Notification.FLAG_FOREGROUND_SERVICE) != 0
+
+        if (isOngoing || isForegroundService) return true
+
+        // Meaningful group summaries are allowed; empty summaries fail this shared content check.
+        return !content.hasMeaningfulContent
     }
 
-    private fun extractTitle(notification: Notification): String {
-        val extras = notification.extras
-        return extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
-            ?: extras.getCharSequence(Notification.EXTRA_TITLE_BIG)?.toString()
-            ?: ""
-    }
-
-    private fun extractText(notification: Notification): String {
-        val extras = notification.extras
-        val textLines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
-        return when {
-            !extras.getCharSequence(Notification.EXTRA_TEXT).isNullOrBlank() ->
-                extras.getCharSequence(Notification.EXTRA_TEXT).toString()
-            !textLines.isNullOrEmpty() -> textLines.joinToString("\n")
-            !extras.getCharSequence(Notification.EXTRA_BIG_TEXT).isNullOrBlank() ->
-                extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
-            !extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT).isNullOrBlank() ->
-                extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT).toString()
-            else -> ""
-        }
-    }
-
-    private suspend fun enforceRetention(dao: NotificationDao) {
+    private suspend fun enforceRetentionIfDue(
+        dao: NotificationDao,
+        now: Long = System.currentTimeMillis()
+    ) {
         val retention = historyRetentionDays
         if (retention <= 0) return
-        val threshold = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(retention.toLong())
+
+        while (true) {
+            val lastCleanup = lastRetentionCleanupAt.get()
+            val elapsed = now - lastCleanup
+            if (lastCleanup != 0L && elapsed >= 0 && elapsed < RETENTION_CLEANUP_INTERVAL_MS) {
+                return
+            }
+            if (lastRetentionCleanupAt.compareAndSet(lastCleanup, now)) break
+        }
+
+        val threshold = now - TimeUnit.DAYS.toMillis(retention.toLong())
         dao.deleteNotificationsOlderThan(threshold)
+    }
+
+    private companion object {
+        val PERSISTENT_DEDUPE_WINDOW_MS = TimeUnit.MINUTES.toMillis(5)
+        val RETENTION_CLEANUP_INTERVAL_MS = TimeUnit.HOURS.toMillis(6)
+    }
+}
+
+internal fun matchesTitleFilter(title: String, filters: Set<String>): Boolean {
+    if (filters.isEmpty()) return true
+    val normalizedTitle = title.lowercase(Locale.ROOT).replace("\\s".toRegex(), "")
+    return filters.any { filter ->
+        normalizedTitle.contains(filter.lowercase(Locale.ROOT).replace("\\s".toRegex(), ""))
     }
 }
 

@@ -8,12 +8,17 @@ import com.droidnova.notificationhistory.core.permission.NotificationAccessCheck
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
+import com.droidnova.notificationhistory.data.model.HistoryDateFilter
+import com.droidnova.notificationhistory.data.model.HistoryFilterState
 import com.droidnova.notificationhistory.data.model.NotificationModel
+import com.droidnova.notificationhistory.data.model.toDateBounds
 import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent
 import com.droidnova.notificationhistory.presentation.screens.select_app.AppInfo
 import com.droidnova.notificationhistory.utils.getInstalledApps
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -24,11 +29,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 import kotlin.jvm.Volatile
 
@@ -56,6 +61,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _historyLoadState = MutableStateFlow(HistoryLoadState())
     val historyLoadState: StateFlow<HistoryLoadState> = _historyLoadState.asStateFlow()
 
+    private val _historyFilters = MutableStateFlow(HistoryFilterState())
+    val historyFilters: StateFlow<HistoryFilterState> = _historyFilters.asStateFlow()
+
+    private val _appSummaries = MutableStateFlow<List<NotificationModel>>(emptyList())
+    val appSummaries: StateFlow<List<NotificationModel>> = _appSummaries.asStateFlow()
+
     private val _titleFilters = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
     val titleFilters: StateFlow<Map<String, Set<String>>> = _titleFilters.asStateFlow()
 
@@ -74,13 +85,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var hasRemoveAdsClick = false
     private var lastPremiumStatus = false
 
-    private var currentOffset = 0
     private val pageSize = 100
     private var endReached = false
     private var hasLoadedInitialHistory = false
     private var lastRetentionDays = SettingState.DEFAULT_HISTORY_RETENTION_DAYS
     private var historyLoadGeneration = 0
-    private var latestHistoryTimestamp: Long? = null
+    private var latestHistoryCursor: HistoryCursor? = null
+    private var historyCursor: HistoryCursor? = null
+    private var activeHistoryQuery = HistoryPageQuery()
+    private var historySearchJob: Job? = null
 
     @Volatile
     private var activeHistoryLoadGeneration: Int? = null
@@ -102,12 +115,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val isRefreshing: Boolean = false,
         val isLoadingMore: Boolean = false,
         val endReached: Boolean = false,
-        val offset: Int = 0,
+        val searchQuery: String = "",
+        val cursorReceivedAt: Long? = null,
+        val cursorId: Long? = null,
         val generation: Int = 0
     )
 
     private val appHistoryStates =
         mutableMapOf<String, MutableStateFlow<AppHistoryUiState>>()
+    private val appHistorySearchJobs = mutableMapOf<String, Job>()
+
+    private data class HistoryCursor(val receivedAt: Long, val id: Long)
+
+    private data class HistoryPageQuery(
+        val packageName: String? = null,
+        val searchQuery: String = "",
+        val startInclusive: Long = Long.MIN_VALUE,
+        val endExclusive: Long = Long.MAX_VALUE
+    )
 
 
     init {
@@ -136,22 +161,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         viewModelScope.launch {
-            dao.observeLatestReceivedAt().collectLatest { latest ->
+            dao.observeLatestNotification().collectLatest { latest ->
                 if (latest == null) {
                     if (_history.value.isNotEmpty()) {
-                        refreshHistory(lastRetentionDays)
+                        resetHistoryAndLoad()
                     }
-                    latestHistoryTimestamp = null
+                    latestHistoryCursor = null
                     return@collectLatest
                 }
 
-                val previous = latestHistoryTimestamp
-                latestHistoryTimestamp = latest
+                val latestCursor = HistoryCursor(latest.receivedAt, latest.id)
+                val previous = latestHistoryCursor
+                latestHistoryCursor = latestCursor
 
-                if (previous != null && latest > previous) {
-                    refreshHistory(lastRetentionDays)
+                if (previous != null && latestCursor.isNewerThan(previous)) {
+                    resetHistoryAndLoad()
                 } else if (previous == null && hasLoadedInitialHistory && _history.value.isEmpty()) {
-                    refreshHistory(lastRetentionDays)
+                    resetHistoryAndLoad()
+                }
+            }
+        }
+        viewModelScope.launch {
+            dao.observeLatestNotificationsByApp().collectLatest { entities ->
+                _appSummaries.value = entities.map {
+                    convertEntityToModel(getApplication(), it)
                 }
             }
         }
@@ -265,6 +298,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         refreshHistory(lastRetentionDays)
     }
 
+    fun updateHistorySearchQuery(query: String) {
+        historySearchJob?.cancel()
+        historySearchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MS)
+            val normalized = normalizeSearchQuery(query)
+            if (_historyFilters.value.searchQuery != normalized) {
+                _historyFilters.update { it.copy(searchQuery = normalized) }
+                resetHistoryAndLoad()
+            }
+        }
+    }
+
+    fun setHistoryAppFilter(packageName: String?) {
+        if (_historyFilters.value.packageName == packageName) return
+        _historyFilters.update { it.copy(packageName = packageName) }
+        resetHistoryAndLoad()
+    }
+
+    fun setHistoryDateFilter(
+        dateFilter: HistoryDateFilter,
+        customStartDate: LocalDate? = null,
+        customEndDate: LocalDate? = null
+    ): Boolean {
+        if (dateFilter == HistoryDateFilter.Custom &&
+            (customStartDate == null || customEndDate == null || customStartDate.isAfter(customEndDate))
+        ) return false
+
+        val updated = _historyFilters.value.copy(
+            dateFilter = dateFilter,
+            customStartDate = if (dateFilter == HistoryDateFilter.Custom) customStartDate else null,
+            customEndDate = if (dateFilter == HistoryDateFilter.Custom) customEndDate else null
+        )
+        if (updated == _historyFilters.value) return true
+        _historyFilters.value = updated
+        resetHistoryAndLoad()
+        return true
+    }
+
+    fun clearHistoryFilters() {
+        val current = _historyFilters.value
+        if (!current.hasActiveFilters) return
+        _historyFilters.value = current.copy(
+            packageName = null,
+            dateFilter = HistoryDateFilter.AllTime,
+            customStartDate = null,
+            customEndDate = null
+        )
+        resetHistoryAndLoad()
+    }
+
     private fun refreshHistory(retentionDays: Int) {
         val sanitizedDays = retentionDays.coerceAtLeast(0)
         _isHistoryRefreshing.value = true
@@ -275,16 +358,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 dao.deleteNotificationsOlderThan(threshold)
             }
             withContext(Dispatchers.Main) {
-                historyLoadGeneration++
-                refreshGeneration = historyLoadGeneration
-                activeHistoryLoadGeneration = null
-                currentOffset = 0
-                endReached = false
-                _history.value = emptyList()
-                _historyLoadState.value = HistoryLoadState()
-                loadMoreHistory()
+                resetHistoryAndLoad()
             }
         }
+    }
+
+    private fun resetHistoryAndLoad() {
+        historyLoadGeneration++
+        refreshGeneration = historyLoadGeneration
+        activeHistoryLoadGeneration = null
+        historyCursor = null
+        endReached = false
+        activeHistoryQuery = _historyFilters.value.toPageQuery()
+        _history.value = emptyList()
+        _historyLoadState.value = HistoryLoadState()
+        _isHistoryRefreshing.value = true
+        loadMoreHistory()
     }
 
     fun loadMoreHistory() {
@@ -293,16 +382,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (activeHistoryLoadGeneration == generation) return
         activeHistoryLoadGeneration = generation
         _historyLoadState.value = _historyLoadState.value.copy(isLoadingMore = true)
+        val cursor = historyCursor
+        val query = activeHistoryQuery
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val entities = dao.getNotifications(pageSize, currentOffset)
+                val entities = dao.getHistoryPage(
+                    packageName = query.packageName,
+                    searchQuery = query.searchQuery,
+                    startInclusive = query.startInclusive,
+                    endExclusive = query.endExclusive,
+                    cursorReceivedAt = cursor?.receivedAt,
+                    cursorId = cursor?.id,
+                    limit = pageSize
+                )
                 val models = entities.map { convertEntityToModel(getApplication(), it) }
                 if (generation != historyLoadGeneration) {
                     return@launch
                 }
+                entities.lastOrNull()?.let {
+                    historyCursor = HistoryCursor(it.receivedAt, it.id)
+                }
                 if (models.isNotEmpty()) {
-                    currentOffset += models.size
-                    _history.update { it + models }
+                    _history.update { current ->
+                        val existingIds = current.asSequence().map { it.id }.toHashSet()
+                        current + models.filterNot { it.id in existingIds }
+                    }
                 }
                 if (models.size < pageSize) {
                     endReached = true
@@ -322,16 +426,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearAllHistory() {
+        clearAllHistoryUiState()
         viewModelScope.launch(Dispatchers.IO) {
             dao.deleteAllNotifications()
-            withContext(Dispatchers.Main) {
-                historyLoadGeneration++
-                activeHistoryLoadGeneration = null
-                currentOffset = 0
-                endReached = false
-                _history.value = emptyList()
-                _historyLoadState.value = HistoryLoadState()
-            }
+        }
+    }
+
+    private fun clearAllHistoryUiState() {
+        historyLoadGeneration++
+        activeHistoryLoadGeneration = null
+        refreshGeneration = null
+        historyCursor = null
+        endReached = true
+        _history.value = emptyList()
+        _historyLoadState.value = HistoryLoadState(endReached = true)
+        _isHistoryRefreshing.value = false
+        _appSummaries.value = emptyList()
+        appHistoryStates.values.forEach { stateFlow ->
+            val current = stateFlow.value
+            stateFlow.value = current.copy(
+                notifications = emptyList(),
+                isRefreshing = false,
+                isLoadingMore = false,
+                endReached = true,
+                cursorReceivedAt = null,
+                cursorId = null,
+                generation = current.generation + 1
+            )
         }
     }
 
@@ -359,13 +480,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshAppHistory(packageName: String) {
         val stateFlow = getAppHistoryState(packageName)
+        resetAppHistory(packageName, stateFlow.value.searchQuery)
+    }
+
+    fun updateAppHistorySearchQuery(packageName: String, query: String) {
+        appHistorySearchJobs.remove(packageName)?.cancel()
+        appHistorySearchJobs[packageName] = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MS)
+            val normalized = normalizeSearchQuery(query)
+            if (getAppHistoryState(packageName).value.searchQuery != normalized) {
+                resetAppHistory(packageName, normalized)
+            }
+        }
+    }
+
+    private fun resetAppHistory(packageName: String, searchQuery: String) {
+        val stateFlow = getAppHistoryState(packageName)
         val nextGeneration = stateFlow.value.generation + 1
         stateFlow.value = AppHistoryUiState(
             notifications = emptyList(),
             isRefreshing = true,
             isLoadingMore = false,
             endReached = false,
-            offset = 0,
+            searchQuery = searchQuery,
             generation = nextGeneration
         )
         loadMoreAppHistory(packageName, nextGeneration)
@@ -378,10 +515,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val generation = generationOverride ?: current.generation
         stateFlow.value = current.copy(isLoadingMore = true)
         viewModelScope.launch(Dispatchers.IO) {
-            val entities = dao.getNotificationsByPackagePaged(
+            val entities = dao.getHistoryPage(
                 packageName = packageName,
+                searchQuery = current.searchQuery,
+                startInclusive = Long.MIN_VALUE,
+                endExclusive = Long.MAX_VALUE,
+                cursorReceivedAt = current.cursorReceivedAt,
+                cursorId = current.cursorId,
                 limit = pageSize,
-                offset = current.offset
             )
             val models = entities.map { convertEntityToModel(getApplication(), it) }
             withContext(Dispatchers.Main) {
@@ -389,31 +530,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (latest.generation != generation) {
                     return@withContext
                 }
-                val updatedNotifications = latest.notifications + models
+                val existingIds = latest.notifications.asSequence().map { it.id }.toHashSet()
+                val updatedNotifications =
+                    latest.notifications + models.filterNot { it.id in existingIds }
                 val reachedEnd = models.size < pageSize
+                val nextCursor = entities.lastOrNull()
                 stateFlow.value = latest.copy(
                     notifications = updatedNotifications,
-                    offset = latest.offset + models.size,
                     endReached = reachedEnd,
                     isLoadingMore = false,
-                    isRefreshing = false
+                    isRefreshing = false,
+                    cursorReceivedAt = nextCursor?.receivedAt ?: latest.cursorReceivedAt,
+                    cursorId = nextCursor?.id ?: latest.cursorId
                 )
             }
         }
     }
 
-    fun observeLatestNotificationsByApp() =
-        dao.observeLatestNotificationsByApp().map { entities ->
-            entities.map { convertEntityToModel(getApplication(), it) }
-        }
-
     fun deleteNotification(notification: NotificationModel) {
+        removeNotificationFromUi(notification.id)
         viewModelScope.launch(Dispatchers.IO) {
             dao.deleteNotificationById(notification.id)
-            withContext(Dispatchers.Main) {
-                _history.update { current ->
-                    current.filterNot { it.id == notification.id }
-                }
+        }
+    }
+
+    private fun removeNotificationFromUi(notificationId: Long) {
+        _history.update { current -> current.filterNot { it.id == notificationId } }
+        _appSummaries.update { current -> current.filterNot { it.id == notificationId } }
+        appHistoryStates.values.forEach { stateFlow ->
+            stateFlow.update { current ->
+                current.copy(
+                    notifications = current.notifications.filterNot { it.id == notificationId }
+                )
             }
         }
     }
@@ -450,10 +598,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         hasRemoveAdsClick = true
     }
 
+    private fun HistoryFilterState.toPageQuery(): HistoryPageQuery {
+        val bounds = toDateBounds()
+        return HistoryPageQuery(
+            packageName = packageName,
+            searchQuery = searchQuery,
+            startInclusive = bounds.startInclusive,
+            endExclusive = bounds.endExclusive
+        )
+    }
+
+    private fun HistoryCursor.isNewerThan(other: HistoryCursor): Boolean =
+        receivedAt > other.receivedAt || (receivedAt == other.receivedAt && id > other.id)
+
     private suspend fun enableTrackingAndRouteIfNeeded() {
         userPrefs.setToggleTracking(true)
         if (userPrefs.allowedApps.first().isEmpty()) {
             _events.emit(HomeUiEvent.NavigateToSelectApps)
         }
+    }
+
+    private companion object {
+        const val SEARCH_DEBOUNCE_MS = 300L
+        val SEARCH_WHITESPACE = Regex("\\s+")
+
+        fun normalizeSearchQuery(query: String): String =
+            query.trim().replace(SEARCH_WHITESPACE, " ")
     }
 }

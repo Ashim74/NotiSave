@@ -1,38 +1,49 @@
 package com.droidnova.notificationhistory.service
 
 /**
- * Short-term memory for duplicates.
- * Same (key + contentHash) ko chhote time-window me sirf ek baar allow karta hai.
+ * Thread-safe, bounded short-term memory for duplicate notification callbacks.
  */
 class DedupeCache(
-    private val ttlMs: Long = 2000L,   // "thodi der" = 2s (tune as needed)
-    private val maxSize: Int = 512     // memory bound
+    private val ttlMs: Long = 2000L,
+    private val maxSize: Int = 512
 ) {
-    private data class Entry(val hash: Int, var at: Long)
+    init {
+        require(ttlMs > 0) { "ttlMs must be positive" }
+        require(maxSize > 0) { "maxSize must be positive" }
+    }
 
-    // LRU-ish behavior (accessOrder = true) so old entries nikal sake
-    private val map = LinkedHashMap<String, Entry>(maxSize, 0.75f, true)
+    private data class CacheKey(val notificationKey: String, val contentDigest: String)
+
+    private val map = LinkedHashMap<CacheKey, Long>(maxSize, 0.75f, true)
 
     /**
-     * true => allow (reserve now), false => duplicate (skip)
-     * NOTE: Atomic (synchronized) so no races.
+     * Returns true and reserves this key/content pair, or false for a duplicate in the window.
      */
-    fun allowAndReserve(key: String, contentHash: Int, now: Long = System.currentTimeMillis()): Boolean {
+    fun allowAndReserve(
+        notificationKey: String,
+        normalizedContent: String,
+        now: Long = System.currentTimeMillis()
+    ): Boolean {
+        val cacheKey = CacheKey(notificationKey, sha256(normalizedContent))
         synchronized(map) {
-            val e = map[key]
-            if (e != null && now - e.at < ttlMs && e.hash == contentHash) {
-                // Same key + same content in window => duplicate
+            val previous = map[cacheKey]
+            val elapsed = previous?.let { now - it }
+            if (elapsed != null && elapsed >= 0 && elapsed < ttlMs) {
+                // Use a sliding window so a burst of repeated callbacks stays suppressed.
+                map[cacheKey] = now
                 return false
             }
-            // Reserve / update
-            map[key] = Entry(contentHash, now)
 
-            // Bound size
+            map[cacheKey] = now
             if (map.size > maxSize) {
-                val it = map.entries.iterator()
-                if (it.hasNext()) { it.next(); it.remove() }
+                val iterator = map.entries.iterator()
+                if (iterator.hasNext()) {
+                    iterator.next()
+                    iterator.remove()
+                }
             }
             return true
         }
     }
+
 }

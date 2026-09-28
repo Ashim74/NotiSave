@@ -40,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -80,7 +81,9 @@ fun AppHistoryScreen(
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<NotificationModel?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable(packageName) {
+        mutableStateOf(appHistoryState.searchQuery)
+    }
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
@@ -90,13 +93,6 @@ fun AppHistoryScreen(
         refreshing = isRefreshing,
         onRefresh = { mainViewModel.refreshAppHistory(packageName) }
     )
-
-    val filteredNotifications = notifications.filter {
-        it.title.contains(searchQuery, ignoreCase = true) || it.text.contains(
-            searchQuery,
-            ignoreCase = true
-        )
-    }
 
     LaunchedEffect(packageName) {
         mainViewModel.ensureAppHistoryLoaded(packageName)
@@ -110,13 +106,12 @@ fun AppHistoryScreen(
         }
     }
 
-    LaunchedEffect(filteredNotifications, listState, canLoadMore, isLoadingMore, searchQuery) {
+    LaunchedEffect(notifications, listState, canLoadMore, isLoadingMore) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { index ->
                 if (
                     index != null &&
-                    searchQuery.isBlank() &&
-                    index >= filteredNotifications.size - 1 &&
+                    index >= notifications.size - 1 &&
                     canLoadMore &&
                     !isLoadingMore
                 ) {
@@ -132,7 +127,10 @@ fun AppHistoryScreen(
                     title = {
                         TextField(
                             value = searchQuery,
-                            onValueChange = { searchQuery = it },
+                            onValueChange = {
+                                searchQuery = it
+                                mainViewModel.updateAppHistorySearchQuery(packageName, it)
+                            },
                             placeholder = { Text("Search notifications") },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -152,13 +150,17 @@ fun AppHistoryScreen(
                         IconButton(onClick = {
                             isSearchActive = false
                             searchQuery = ""
+                            mainViewModel.updateAppHistorySearchQuery(packageName, "")
                         }) {
                             Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Close search")
                         }
                     },
                     actions = {
                         if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
+                            IconButton(onClick = {
+                                searchQuery = ""
+                                mainViewModel.updateAppHistorySearchQuery(packageName, "")
+                            }) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
                                     contentDescription = "Clear search"
@@ -203,7 +205,7 @@ fun AppHistoryScreen(
                     modifier = Modifier.fillMaxSize(),
                     state = listState
                 ) {
-                    if (filteredNotifications.isEmpty()) {
+                    if (notifications.isEmpty()) {
                         item {
                             if (isRefreshing) {
                                 Box(
@@ -212,14 +214,20 @@ fun AppHistoryScreen(
                                         .padding(24.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-//                                    CircularProgressIndicator()
+                                    CircularProgressIndicator()
                                 }
                             } else {
-                                EmptyAppHistoryState()
+                                EmptyAppHistoryState(
+                                    if (searchQuery.isNotBlank()) {
+                                        "No search results."
+                                    } else {
+                                        "No notification history."
+                                    }
+                                )
                             }
                         }
                     } else {
-                        items(filteredNotifications, key = { it.id }) { item ->
+                        items(notifications, key = { it.id }) { item ->
                             HistoryCard(item, searchQuery = searchQuery, onClick = { selectedNotification = it })
                         }
                         if (isLoadingMore) {
@@ -338,7 +346,7 @@ fun HistoryCard(model: NotificationModel, searchQuery: String, onClick: (Notific
 }
 
 @Composable
-private fun EmptyAppHistoryState() {
+private fun EmptyAppHistoryState(message: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -346,7 +354,7 @@ private fun EmptyAppHistoryState() {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "No notifications found.",
+            text = message,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.W700
         )
