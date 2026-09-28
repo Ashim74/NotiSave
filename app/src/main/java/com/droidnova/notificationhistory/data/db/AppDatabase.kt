@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [NotificationEntity::class], version = 2)
+@Database(entities = [NotificationEntity::class], version = 3)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
 
@@ -20,7 +20,7 @@ abstract class AppDatabase: RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "notification_db"
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { instance = it }
             }
@@ -43,6 +43,23 @@ abstract class AppDatabase: RoomDatabase() {
                     "CREATE INDEX IF NOT EXISTS " +
                         "`index_apps_notificationKey_contentFingerprint_receivedAt` " +
                         "ON `apps` (`notificationKey`, `contentFingerprint`, `receivedAt`)"
+                )
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `apps` ADD COLUMN `isTrashed` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL("ALTER TABLE `apps` ADD COLUMN `trashedAt` INTEGER")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_apps_isTrashed_receivedAt_id` " +
+                        "ON `apps` (`isTrashed`, `receivedAt`, `id`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_apps_isTrashed_trashedAt_id` " +
+                        "ON `apps` (`isTrashed`, `trashedAt`, `id`)"
                 )
             }
         }

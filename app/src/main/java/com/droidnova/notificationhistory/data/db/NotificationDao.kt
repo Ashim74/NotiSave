@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NotificationDao {
-    @Query("SELECT * FROM apps WHERE packageName = :packageName LIMIT 1")
+    @Query("SELECT * FROM apps WHERE packageName = :packageName AND isTrashed = 0 LIMIT 1")
     suspend fun getAppByPackage(packageName: String): NotificationEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -20,6 +20,7 @@ interface NotificationDao {
             SELECT 1 FROM apps
             WHERE notificationKey = :notificationKey
               AND contentFingerprint = :contentFingerprint
+              AND isTrashed = 0
               AND receivedAt BETWEEN :since AND :until
             LIMIT 1
         )
@@ -32,13 +33,14 @@ interface NotificationDao {
         until: Long
     ): Boolean
 
-    @Query("SELECT * FROM apps ORDER BY receivedAt DESC")
+    @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC")
     suspend fun getAllApps(): List<NotificationEntity>
 
     @Query(
         """
         SELECT * FROM apps
-        WHERE (:packageName IS NULL OR packageName = :packageName)
+        WHERE isTrashed = 0
+          AND (:packageName IS NULL OR packageName = :packageName)
           AND (
               :searchQuery = ''
               OR title LIKE '%' || :searchQuery || '%' COLLATE NOCASE
@@ -67,21 +69,23 @@ interface NotificationDao {
     ): List<NotificationEntity>
 
     // Fetch notifications for a specific package, newest first
-    @Query("SELECT * FROM apps WHERE packageName = :packageName ORDER BY receivedAt DESC")
+    @Query("SELECT * FROM apps WHERE packageName = :packageName AND isTrashed = 0 ORDER BY receivedAt DESC")
     suspend fun getNotificationsByPackage(packageName: String): List<NotificationEntity>
 
-    @Query("SELECT * FROM apps WHERE packageName = :packageName ORDER BY receivedAt DESC")
+    @Query("SELECT * FROM apps WHERE packageName = :packageName AND isTrashed = 0 ORDER BY receivedAt DESC")
     fun observeNotificationsByPackage(packageName: String): Flow<List<NotificationEntity>>
 
-    @Query("SELECT * FROM apps ORDER BY receivedAt DESC, id DESC LIMIT 1")
+    @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC, id DESC LIMIT 1")
     fun observeLatestNotification(): Flow<NotificationEntity?>
 
     @Query(
         """
         SELECT * FROM apps AS summary
-        WHERE id = (
+        WHERE isTrashed = 0
+          AND id = (
             SELECT id FROM apps
             WHERE packageName = summary.packageName
+              AND isTrashed = 0
             ORDER BY receivedAt DESC, id DESC
             LIMIT 1
         )
@@ -90,17 +94,35 @@ interface NotificationDao {
     )
     fun observeLatestNotificationsByApp(): Flow<List<NotificationEntity>>
 
-    @Query("DELETE FROM apps WHERE id = :notificationId")
-    suspend fun deleteNotificationById(notificationId: Long)
+    @Query(
+        "UPDATE apps SET isTrashed = 1, trashedAt = :trashedAt " +
+            "WHERE id = :notificationId AND isTrashed = 0"
+    )
+    suspend fun moveNotificationToTrash(notificationId: Long, trashedAt: Long): Int
 
-    @Query("DELETE FROM apps")
-    suspend fun deleteAllNotifications()
+    @Query("UPDATE apps SET isTrashed = 1, trashedAt = :trashedAt WHERE isTrashed = 0")
+    suspend fun moveAllActiveToTrash(trashedAt: Long): Int
 
-    @Query("DELETE FROM apps WHERE receivedAt < :threshold")
-    suspend fun deleteNotificationsOlderThan(threshold: Long): Int
+    @Query("DELETE FROM apps WHERE isTrashed = 0 AND receivedAt < :threshold")
+    suspend fun deleteActiveNotificationsOlderThan(threshold: Long): Int
+
+    @Query("SELECT * FROM apps WHERE isTrashed = 1 ORDER BY trashedAt DESC, id DESC")
+    fun observeTrash(): Flow<List<NotificationEntity>>
+
+    @Query("UPDATE apps SET isTrashed = 0, trashedAt = NULL WHERE id = :notificationId AND isTrashed = 1")
+    suspend fun restoreNotification(notificationId: Long): Int
+
+    @Query("UPDATE apps SET isTrashed = 0, trashedAt = NULL WHERE isTrashed = 1")
+    suspend fun restoreAllNotifications(): Int
+
+    @Query("DELETE FROM apps WHERE id = :notificationId AND isTrashed = 1")
+    suspend fun permanentlyDeleteNotification(notificationId: Long): Int
+
+    @Query("DELETE FROM apps WHERE isTrashed = 1")
+    suspend fun emptyTrash(): Int
 
     // Observe all rows, newest first
-    @Query("SELECT * FROM apps ORDER BY receivedAt DESC")
+    @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC")
     fun observeAll(): Flow<List<NotificationEntity>>
 
 }

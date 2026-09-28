@@ -11,5 +11,6 @@ data class NotificationModel(
     val text: String,
     val receivedAt: String,
     val receivedAtEpoch: Long,
-    //val days:String
+    val isTrashed: Boolean = false,
+    val trashedAtEpoch: Long? = null
 )

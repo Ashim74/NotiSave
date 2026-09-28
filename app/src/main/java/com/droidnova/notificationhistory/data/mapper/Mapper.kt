@@ -22,7 +22,9 @@ fun convertEntityToModel(context: Context, notificationEntity: NotificationEntit
         title = notificationEntity.title,
         text = notificationEntity.message,
         receivedAt = notificationEntity.receivedAt.toReadableTime(),
-        receivedAtEpoch = notificationEntity.receivedAt
+        receivedAtEpoch = notificationEntity.receivedAt,
+        isTrashed = notificationEntity.isTrashed,
+        trashedAtEpoch = notificationEntity.trashedAt
     )
     return notificationModel
 }

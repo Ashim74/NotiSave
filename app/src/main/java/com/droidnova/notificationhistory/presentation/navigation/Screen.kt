@@ -4,6 +4,8 @@ sealed class Screens(val route: String) {
    data object Home : Screens("home")
    data object History : Screens("History")
    data object ManageNotifications : Screens("ManageNotifications")
+   data object AppSettings : Screens("AppSettings")
+   data object Trash : Screens("Trash")
    data object AboutScreen : Screens("AboutScreen")
 
    data object AppsNotificationListScreen : Screens("app_notifications/{packageName}") {

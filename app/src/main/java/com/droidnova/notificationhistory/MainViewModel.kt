@@ -67,6 +67,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _appSummaries = MutableStateFlow<List<NotificationModel>>(emptyList())
     val appSummaries: StateFlow<List<NotificationModel>> = _appSummaries.asStateFlow()
 
+    private val _trash = MutableStateFlow<List<NotificationModel>>(emptyList())
+    val trash: StateFlow<List<NotificationModel>> = _trash.asStateFlow()
+
+    private val _isTrashLoading = MutableStateFlow(true)
+    val isTrashLoading: StateFlow<Boolean> = _isTrashLoading.asStateFlow()
+
     private val _titleFilters = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
     val titleFilters: StateFlow<Map<String, Set<String>>> = _titleFilters.asStateFlow()
 
@@ -186,6 +192,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _appSummaries.value = entities.map {
                     convertEntityToModel(getApplication(), it)
                 }
+            }
+        }
+        viewModelScope.launch {
+            dao.observeTrash().collectLatest { entities ->
+                val trashModels = withContext(Dispatchers.IO) {
+                    entities.map { convertEntityToModel(getApplication(), it) }
+                }
+                _trash.value = trashModels
+                removeTrashedNotificationsFromActiveUi(trashModels.mapTo(hashSetOf()) { it.id })
+                _isTrashLoading.value = false
             }
         }
         refreshListenerGranted()
@@ -352,13 +368,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val sanitizedDays = retentionDays.coerceAtLeast(0)
         _isHistoryRefreshing.value = true
         viewModelScope.launch(Dispatchers.IO) {
-            if (sanitizedDays > 0) {
+            val deletedCount = if (sanitizedDays > 0) {
                 val threshold = System.currentTimeMillis() -
                         TimeUnit.DAYS.toMillis(sanitizedDays.toLong())
-                dao.deleteNotificationsOlderThan(threshold)
-            }
+                dao.deleteActiveNotificationsOlderThan(threshold)
+            } else 0
             withContext(Dispatchers.Main) {
                 resetHistoryAndLoad()
+                if (deletedCount > 0) refreshAllLoadedAppHistories()
             }
         }
     }
@@ -428,7 +445,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun clearAllHistory() {
         clearAllHistoryUiState()
         viewModelScope.launch(Dispatchers.IO) {
-            dao.deleteAllNotifications()
+            dao.moveAllActiveToTrash(System.currentTimeMillis())
         }
     }
 
@@ -547,10 +564,62 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun deleteNotification(notification: NotificationModel) {
+    fun moveNotificationToTrash(notification: NotificationModel) {
         removeNotificationFromUi(notification.id)
         viewModelScope.launch(Dispatchers.IO) {
-            dao.deleteNotificationById(notification.id)
+            dao.moveNotificationToTrash(
+                notificationId = notification.id,
+                trashedAt = System.currentTimeMillis()
+            )
+        }
+    }
+
+    fun restoreNotification(notification: NotificationModel) {
+        _trash.update { current -> current.filterNot { it.id == notification.id } }
+        viewModelScope.launch(Dispatchers.IO) {
+            if (dao.restoreNotification(notification.id) > 0) {
+                withContext(Dispatchers.Main) {
+                    resetHistoryAndLoad()
+                    refreshLoadedAppHistory(notification.packageName)
+                }
+            }
+        }
+    }
+
+    fun permanentlyDeleteNotification(notification: NotificationModel) {
+        _trash.update { current -> current.filterNot { it.id == notification.id } }
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.permanentlyDeleteNotification(notification.id)
+        }
+    }
+
+    fun restoreAllNotifications() {
+        _trash.value = emptyList()
+        viewModelScope.launch(Dispatchers.IO) {
+            if (dao.restoreAllNotifications() > 0) {
+                withContext(Dispatchers.Main) {
+                    resetHistoryAndLoad()
+                    refreshAllLoadedAppHistories()
+                }
+            }
+        }
+    }
+
+    fun emptyTrash() {
+        _trash.value = emptyList()
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.emptyTrash()
+        }
+    }
+
+    private fun refreshLoadedAppHistory(packageName: String) {
+        val state = appHistoryStates[packageName]?.value ?: return
+        resetAppHistory(packageName, state.searchQuery)
+    }
+
+    private fun refreshAllLoadedAppHistories() {
+        appHistoryStates.toMap().forEach { (packageName, stateFlow) ->
+            resetAppHistory(packageName, stateFlow.value.searchQuery)
         }
     }
 
@@ -562,6 +631,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 current.copy(
                     notifications = current.notifications.filterNot { it.id == notificationId }
                 )
+            }
+        }
+    }
+
+    private fun removeTrashedNotificationsFromActiveUi(trashedIds: Set<Long>) {
+        if (trashedIds.isEmpty()) return
+        _history.update { current -> current.filterNot { it.id in trashedIds } }
+        _appSummaries.update { current -> current.filterNot { it.id in trashedIds } }
+        appHistoryStates.values.forEach { stateFlow ->
+            stateFlow.update { current ->
+                current.copy(notifications = current.notifications.filterNot { it.id in trashedIds })
             }
         }
     }

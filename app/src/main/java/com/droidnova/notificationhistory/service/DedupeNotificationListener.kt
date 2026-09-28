@@ -162,7 +162,7 @@ class NotificationListener : NotificationListenerService() {
         }
 
         val threshold = now - TimeUnit.DAYS.toMillis(retention.toLong())
-        dao.deleteNotificationsOlderThan(threshold)
+        dao.deleteActiveNotificationsOlderThan(threshold)
     }
 
     private companion object {

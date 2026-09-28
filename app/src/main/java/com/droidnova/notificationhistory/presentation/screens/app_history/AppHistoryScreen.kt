@@ -1,29 +1,22 @@
 package com.droidnova.notificationhistory.presentation.screens.app_history
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,19 +42,17 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
+import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
+import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
+import com.droidnova.notificationhistory.presentation.components.NotificationHistoryCard
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.toReadableShareText
 
@@ -152,7 +143,7 @@ fun AppHistoryScreen(
                             searchQuery = ""
                             mainViewModel.updateAppHistorySearchQuery(packageName, "")
                         }) {
-                            Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Close search")
+                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close search")
                         }
                     },
                     actions = {
@@ -177,7 +168,7 @@ fun AppHistoryScreen(
                     title = { Text(title, fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     },
                     actions = {
@@ -208,27 +199,25 @@ fun AppHistoryScreen(
                     if (notifications.isEmpty()) {
                         item {
                             if (isRefreshing) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(24.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator()
-                                }
+                                HistoryLoadingState(Modifier.fillMaxSize())
                             } else {
-                                EmptyAppHistoryState(
-                                    if (searchQuery.isNotBlank()) {
+                                HistoryEmptyState(
+                                    message = if (searchQuery.isNotBlank()) {
                                         "No search results."
                                     } else {
                                         "No notification history."
-                                    }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
                         }
                     } else {
                         items(notifications, key = { it.id }) { item ->
-                            HistoryCard(item, searchQuery = searchQuery, onClick = { selectedNotification = it })
+                            NotificationHistoryCard(
+                                notification = item,
+                                searchQuery = searchQuery,
+                                onClick = { selectedNotification = item }
+                            )
                         }
                         if (isLoadingMore) {
                             item {
@@ -263,7 +252,7 @@ fun AppHistoryScreen(
     if (showDeleteConfirmDialog != null) {
         DeleteConfirmationDialog(
             onConfirm = {
-                mainViewModel.deleteNotification(showDeleteConfirmDialog!!)
+                mainViewModel.moveNotificationToTrash(showDeleteConfirmDialog!!)
                 showDeleteConfirmDialog = null
             },
             onDismiss = { showDeleteConfirmDialog = null }
@@ -302,82 +291,5 @@ fun AppHistoryScreen(
             },
             onDismiss = { selectedNotification = null }
         )
-    }
-}
-
-@Composable
-fun HistoryCard(model: NotificationModel, searchQuery: String, onClick: (NotificationModel) -> Unit) {
-    Card(
-        modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .fillMaxWidth()
-            .clickable { onClick(model) },
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = model.receivedAt.substringAfter(", "),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options"
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-
-
-            Text(
-                text = buildHighlightedText(text = model.title, query = searchQuery),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.W800
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = buildHighlightedText(text = model.text, query = searchQuery),
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-private fun EmptyAppHistoryState(message: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.W700
-        )
-    }
-}
-
-private fun buildHighlightedText(text: String, query: String): AnnotatedString {
-    if (query.isBlank()) {
-        return buildAnnotatedString { append(text) }
-    }
-    return buildAnnotatedString {
-        var startIndex = 0
-        while (startIndex < text.length) {
-            val index = text.indexOf(query, startIndex, ignoreCase = true)
-            if (index == -1) {
-                append(text.substring(startIndex))
-                break
-            }
-            append(text.substring(startIndex, index))
-            withStyle(style = SpanStyle(color = Color.Black, background = Color(0xFFFFF9C4))) {
-                append(text.substring(index, index + query.length))
-            }
-            startIndex = index + query.length
-        }
     }
 }
