@@ -38,6 +38,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -76,6 +79,7 @@ import com.droidnova.notificationhistory.presentation.components.NotificationAct
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
 import com.droidnova.notificationhistory.presentation.components.NotificationHistoryCard
 import com.droidnova.notificationhistory.presentation.navigation.Screens
+import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationListContent
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.toReadableShareText
 import java.time.LocalDate
@@ -87,10 +91,22 @@ import java.time.format.FormatStyle
 
 enum class HistoryViewType { Message, Apps }
 
+/** Messages tab: flat history (all notifications) or grouped messaging conversations. */
+enum class MessagesMode { All, Conversations }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
+fun HistoryScreen(
+    mainViewmodel: MainViewModel,
+    navController: NavController,
+    initialPackageFilter: String? = null
+) {
     val context = LocalContext.current
+
+    // Transient app filter handed over by Insights; it lives in the ViewModel, never DataStore.
+    LaunchedEffect(initialPackageFilter) {
+        if (initialPackageFilter != null) mainViewmodel.setHistoryAppFilter(initialPackageFilter)
+    }
     val packages = mainViewmodel.history.collectAsState()
     val appSummaries by mainViewmodel.appSummaries.collectAsState()
     val historyFilters by mainViewmodel.historyFilters.collectAsState()
@@ -99,6 +115,7 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
     var showMenu by remember { mutableStateOf(false) }
     var showCustomDateRange by remember { mutableStateOf(false) }
     var viewType by rememberSaveable { mutableStateOf(HistoryViewType.Message) }
+    var messagesMode by rememberSaveable { mutableStateOf(MessagesMode.All) }
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<NotificationModel?>(null) }
@@ -228,18 +245,35 @@ fun HistoryScreen(mainViewmodel: MainViewModel, navController: NavController) {
                     onCustomDateRequested = { showCustomDateRange = true },
                     onClearFilters = mainViewmodel::clearHistoryFilters
                 )
-                HistoryScreenContent(
-                    modifier = Modifier.weight(1f),
-                    isRefreshing = isRefreshing,
-                    isLoadingMore = historyLoadState.isLoadingMore,
-                    canLoadMore = !historyLoadState.endReached,
-                    packages = packages.value,
-                    searchQuery = searchQuery,
-                    hasActiveFilters = historyFilters.hasActiveFilters,
-                    onLoadMore = { mainViewmodel.loadMoreHistory() },
-                    onItemClick = { selectedNotification = it },
-                    onRefresh = { mainViewmodel.refreshHistory() }
+                MessagesModeSelector(
+                    selected = messagesMode,
+                    onSelected = { messagesMode = it }
                 )
+                when (messagesMode) {
+                    MessagesMode.All -> HistoryScreenContent(
+                        modifier = Modifier.weight(1f),
+                        isRefreshing = isRefreshing,
+                        isLoadingMore = historyLoadState.isLoadingMore,
+                        canLoadMore = !historyLoadState.endReached,
+                        packages = packages.value,
+                        searchQuery = searchQuery,
+                        hasActiveFilters = historyFilters.hasActiveFilters,
+                        onLoadMore = { mainViewmodel.loadMoreHistory() },
+                        onItemClick = { selectedNotification = it },
+                        onRefresh = { mainViewmodel.refreshHistory() }
+                    )
+                    MessagesMode.Conversations -> ConversationListContent(
+                        mainViewModel = mainViewmodel,
+                        searchQuery = historyFilters.searchQuery,
+                        hasActiveFilters = historyFilters.hasActiveFilters,
+                        onConversationClick = { conversation ->
+                            navController.navigate(
+                                Screens.ConversationDetail.createRoute(conversation.conversationKey)
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
             HistoryViewType.Apps -> AppHistoryContent(
                 modifier = contentModifier,
@@ -519,6 +553,36 @@ private fun HistoryFilterBar(
             TextButton(onClick = onClearFilters) {
                 Text("Clear filters")
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MessagesModeSelector(
+    selected: MessagesMode,
+    onSelected: (MessagesMode) -> Unit
+) {
+    val options = MessagesMode.entries
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        options.forEachIndexed { index, mode ->
+            SegmentedButton(
+                selected = selected == mode,
+                onClick = { onSelected(mode) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                label = {
+                    Text(
+                        when (mode) {
+                            MessagesMode.All -> "All"
+                            MessagesMode.Conversations -> "Conversations"
+                        }
+                    )
+                }
+            )
         }
     }
 }

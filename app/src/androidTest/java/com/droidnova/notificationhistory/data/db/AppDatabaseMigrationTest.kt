@@ -63,7 +63,11 @@ class AppDatabaseMigrationTest {
         }
 
         database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4
+            )
             .allowMainThreadQueries()
             .build()
 
@@ -98,9 +102,90 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrationFrom3To4PreservesRowsAndLeavesThemUnclassified() {
+        context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null).use { legacyDb ->
+            legacyDb.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `apps` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `packageName` TEXT NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `message` TEXT NOT NULL,
+                    `receivedAt` INTEGER NOT NULL,
+                    `notificationKey` TEXT,
+                    `contentFingerprint` TEXT,
+                    `conversationTitle` TEXT,
+                    `isTrashed` INTEGER NOT NULL DEFAULT 0,
+                    `trashedAt` INTEGER
+                )
+                """.trimIndent()
+            )
+            legacyDb.execSQL(
+                """
+                INSERT INTO `apps` (`id`, `packageName`, `title`, `message`, `receivedAt`,
+                    `notificationKey`, `contentFingerprint`, `conversationTitle`,
+                    `isTrashed`, `trashedAt`)
+                VALUES (7, 'com.whatsapp', 'Family', 'Hello', 1000, 'key', 'fp', 'Family', 1, 2000)
+                """.trimIndent()
+            )
+            listOf(
+                "CREATE INDEX `index_apps_receivedAt` ON `apps` (`receivedAt`)",
+                "CREATE INDEX `index_apps_packageName_receivedAt` ON `apps` (`packageName`, `receivedAt`)",
+                "CREATE INDEX `index_apps_notificationKey_contentFingerprint_receivedAt` " +
+                    "ON `apps` (`notificationKey`, `contentFingerprint`, `receivedAt`)",
+                "CREATE INDEX `index_apps_isTrashed_receivedAt_id` ON `apps` (`isTrashed`, `receivedAt`, `id`)",
+                "CREATE INDEX `index_apps_isTrashed_trashedAt_id` ON `apps` (`isTrashed`, `trashedAt`, `id`)"
+            ).forEach(legacyDb::execSQL)
+            legacyDb.version = 3
+        }
+
+        database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
+            .addMigrations(
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4
+            )
+            .allowMainThreadQueries()
+            .build()
+
+        val migratedDb = checkNotNull(database).openHelper.writableDatabase
+        migratedDb.query(
+            """
+            SELECT id, packageName, title, message, receivedAt, conversationTitle,
+                   isTrashed, trashedAt, conversationKey, conversationName
+            FROM apps
+            """.trimIndent()
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(7L, cursor.getLong(0))
+            assertEquals("com.whatsapp", cursor.getString(1))
+            assertEquals("Family", cursor.getString(2))
+            assertEquals("Hello", cursor.getString(3))
+            assertEquals(1000L, cursor.getLong(4))
+            assertEquals("Family", cursor.getString(5))
+            assertEquals(1, cursor.getInt(6))
+            assertEquals(2000L, cursor.getLong(7))
+            assertNull(cursor.getString(8))
+            assertNull(cursor.getString(9))
+            assertFalse(cursor.moveToNext())
+        }
+
+        val indexNames = mutableSetOf<String>()
+        migratedDb.query("PRAGMA index_list(`apps`)").use { cursor ->
+            val nameColumn = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) indexNames += cursor.getString(nameColumn)
+        }
+        assertTrue("index_apps_conversationKey_isTrashed_receivedAt_id" in indexNames)
+    }
+
+    @Test
     fun persistentDuplicateLookupRequiresSameKeyAndFingerprintWithinWindow() = runBlocking {
         database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4
+            )
             .allowMainThreadQueries()
             .build()
         val dao = checkNotNull(database).notificationDao()

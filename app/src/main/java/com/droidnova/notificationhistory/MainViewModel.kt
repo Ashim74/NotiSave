@@ -13,6 +13,10 @@ import com.droidnova.notificationhistory.data.model.HistoryFilterState
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data.model.toDateBounds
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationDetailUiState
+import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationHistoryController
+import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationListUiState
+import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationQuery
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent
 import com.droidnova.notificationhistory.presentation.screens.select_app.AppInfo
 import com.droidnova.notificationhistory.utils.getInstalledApps
@@ -92,6 +96,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var lastPremiumStatus = false
 
     private val pageSize = 100
+    private val conversations = ConversationHistoryController(
+        context = application,
+        dao = dao,
+        scope = viewModelScope,
+        pageSize = pageSize
+    )
+    val conversationList: StateFlow<ConversationListUiState> = conversations.conversationList
     private var endReached = false
     private var hasLoadedInitialHistory = false
     private var lastRetentionDays = SettingState.DEFAULT_HISTORY_RETENTION_DAYS
@@ -387,6 +398,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         historyCursor = null
         endReached = false
         activeHistoryQuery = _historyFilters.value.toPageQuery()
+        conversations.setQuery(activeHistoryQuery.toConversationQuery())
         _history.value = emptyList()
         _historyLoadState.value = HistoryLoadState()
         _isHistoryRefreshing.value = true
@@ -459,6 +471,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _historyLoadState.value = HistoryLoadState(endReached = true)
         _isHistoryRefreshing.value = false
         _appSummaries.value = emptyList()
+        conversations.clearAll()
         appHistoryStates.values.forEach { stateFlow ->
             val current = stateFlow.value
             stateFlow.value = current.copy(
@@ -612,6 +625,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadMoreConversations() = conversations.loadMoreConversations()
+
+    fun conversationDetailState(conversationKey: String): StateFlow<ConversationDetailUiState> =
+        conversations.conversationDetail(conversationKey)
+
+    fun loadOlderConversationMessages(conversationKey: String) =
+        conversations.loadOlderMessages(conversationKey)
+
     private fun refreshLoadedAppHistory(packageName: String) {
         val state = appHistoryStates[packageName]?.value ?: return
         resetAppHistory(packageName, state.searchQuery)
@@ -626,6 +647,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun removeNotificationFromUi(notificationId: Long) {
         _history.update { current -> current.filterNot { it.id == notificationId } }
         _appSummaries.update { current -> current.filterNot { it.id == notificationId } }
+        conversations.removeNotifications(setOf(notificationId))
         appHistoryStates.values.forEach { stateFlow ->
             stateFlow.update { current ->
                 current.copy(
@@ -639,6 +661,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (trashedIds.isEmpty()) return
         _history.update { current -> current.filterNot { it.id in trashedIds } }
         _appSummaries.update { current -> current.filterNot { it.id in trashedIds } }
+        conversations.removeNotifications(trashedIds)
         appHistoryStates.values.forEach { stateFlow ->
             stateFlow.update { current ->
                 current.copy(notifications = current.notifications.filterNot { it.id in trashedIds })
@@ -687,6 +710,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             endExclusive = bounds.endExclusive
         )
     }
+
+    private fun HistoryPageQuery.toConversationQuery() = ConversationQuery(
+        packageName = packageName,
+        searchQuery = searchQuery,
+        startInclusive = startInclusive,
+        endExclusive = endExclusive
+    )
 
     private fun HistoryCursor.isNewerThan(other: HistoryCursor): Boolean =
         receivedAt > other.receivedAt || (receivedAt == other.receivedAt && id > other.id)

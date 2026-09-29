@@ -8,6 +8,7 @@ import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.db.NotificationDao
 import com.droidnova.notificationhistory.data.db.NotificationEntity
+import com.droidnova.notificationhistory.data.mapper.fetchAppName
 import com.droidnova.notificationhistory.data_shared.SettingState
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -105,6 +106,11 @@ class NotificationListener : NotificationListenerService() {
                 return@launch
             }
 
+            val conversation = NotificationConversationDetector.detect(
+                packageName = packageName,
+                notification = sbn.notification,
+                appLabel = fetchAppName(packageManager, packageName)
+            )
             val dao = AppDatabase.getInstance(applicationContext).notificationDao()
             val contentFingerprint = content.contentFingerprint()
             val duplicateCheckAt = System.currentTimeMillis()
@@ -124,7 +130,9 @@ class NotificationListener : NotificationListenerService() {
                     receivedAt = sbn.postTime,
                     notificationKey = notificationKey,
                     contentFingerprint = contentFingerprint,
-                    conversationTitle = content.conversationTitle
+                    conversationTitle = content.conversationTitle,
+                    conversationKey = conversation?.key,
+                    conversationName = conversation?.displayName
                 )
             )
             enforceRetentionIfDue(dao)

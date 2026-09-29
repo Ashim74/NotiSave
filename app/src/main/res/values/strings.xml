@@ -168,4 +168,34 @@ Find “Notification History” → Turn ON access.
     <string name="trash_empty_question">Empty Trash?</string>
     <string name="trash_empty_confirmation">All notifications in Trash will be permanently deleted and cannot be recovered.</string>
 
+
+    <!-- Insights (M7) -->
+    <string name="insights_title">Insights</string>
+    <string name="home_insights">Insights</string>
+    <string name="home_insights_description">Activity trends and top apps</string>
+    <string name="insights_range_today">Today</string>
+    <string name="insights_range_7_days">7 days</string>
+    <string name="insights_range_30_days">30 days</string>
+    <string name="insights_range_all_time">All time</string>
+    <string name="insights_total">Notifications</string>
+    <string name="insights_active_apps">Active apps</string>
+    <string name="insights_most_active_app">Most active app</string>
+    <string name="insights_busiest_hour">Busiest hour</string>
+    <string name="insights_none">—</string>
+    <string name="insights_notification_count">%1$d notifications</string>
+    <string name="insights_activity">Activity</string>
+    <string name="insights_bucket_hourly">Notifications per hour</string>
+    <string name="insights_bucket_daily">Notifications per day</string>
+    <string name="insights_bucket_weekly">Notifications per week</string>
+    <string name="insights_bucket_monthly">Notifications per month</string>
+    <string name="insights_bucket_yearly">Notifications per year</string>
+    <string name="insights_chart_description">Activity chart with %1$d periods. Peak: %2$s with %3$d notifications.</string>
+    <string name="insights_chart_description_empty">Activity chart. No notifications in this range.</string>
+    <string name="insights_chart_bar_description">%1$s: %2$d notifications</string>
+    <string name="insights_top_apps">Top apps</string>
+    <string name="insights_count_and_percent">%1$d · %2$d%%</string>
+    <string name="insights_top_app_description">%1$s, %2$d notifications, %3$d percent. Opens history for this app.</string>
+    <string name="insights_empty">No notifications in this range.</string>
+    <string name="insights_error">Insights could not be loaded.</string>
+    <string name="insights_retry">Retry</string>
 </resources>

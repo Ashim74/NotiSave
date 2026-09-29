@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
@@ -51,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -184,6 +186,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
             onPermissionAction = { showPermissionSheet = true },
             onHistory = { navController.navigate(Screens.History.route) },
             onManageApps = { navController.navigate(Screens.ManageNotifications.route) },
+            onInsights = { navController.navigate(Screens.Insights.route) },
             onBatteryAction = { openBatteryOptimizationSettings(context) },
             onRateCancel = viewmodel::resetLaunchCount,
             onRateConfirmed = {
@@ -304,6 +307,7 @@ private fun HomeDashboard(
     onPermissionAction: () -> Unit,
     onHistory: () -> Unit,
     onManageApps: () -> Unit,
+    onInsights: () -> Unit,
     onBatteryAction: () -> Unit,
     onRateCancel: () -> Unit,
     onRateConfirmed: () -> Unit,
@@ -347,6 +351,7 @@ private fun HomeDashboard(
                 )
             }
         }
+        item { InsightsEntryCard(onClick = onInsights) }
         if (state.userToggleTracking && state.selectedAppsCount == 0) {
             item {
                 Text(
@@ -468,6 +473,49 @@ private fun DashboardActionCard(
                 modifier = Modifier.padding(top = 2.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun InsightsEntryCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_insights),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.home_insights),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = stringResource(R.string.home_insights_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

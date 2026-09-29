@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [NotificationEntity::class], version = 3)
+@Database(entities = [NotificationEntity::class], version = 4)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
 
@@ -20,7 +20,7 @@ abstract class AppDatabase: RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "notification_db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { instance = it }
             }
@@ -60,6 +60,22 @@ abstract class AppDatabase: RoomDatabase() {
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_apps_isTrashed_trashedAt_id` " +
                         "ON `apps` (`isTrashed`, `trashedAt`, `id`)"
+                )
+            }
+        }
+
+        /**
+         * Adds nullable conversation metadata. Existing rows keep every value and stay
+         * unclassified (NULL): legacy data cannot identify conversations reliably.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `apps` ADD COLUMN `conversationKey` TEXT")
+                db.execSQL("ALTER TABLE `apps` ADD COLUMN `conversationName` TEXT")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "`index_apps_conversationKey_isTrashed_receivedAt_id` " +
+                        "ON `apps` (`conversationKey`, `isTrashed`, `receivedAt`, `id`)"
                 )
             }
         }

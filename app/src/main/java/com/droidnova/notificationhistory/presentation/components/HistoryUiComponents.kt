@@ -19,9 +19,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -32,7 +35,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.data.mapper.fetchAppIcon
 import com.droidnova.notificationhistory.data.model.NotificationModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun NotificationHistoryCard(
@@ -118,6 +124,19 @@ fun HistoryAppIcon(drawable: Drawable?, modifier: Modifier = Modifier) {
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+/**
+ * Resolves and shows an app icon for [packageName] off the main thread, falling back to the
+ * generic icon while loading or when the package is not installed.
+ */
+@Composable
+fun PackageAppIcon(packageName: String, modifier: Modifier = Modifier) {
+    val packageManager = LocalContext.current.packageManager
+    val icon by produceState<Drawable?>(initialValue = null, packageName) {
+        value = withContext(Dispatchers.IO) { fetchAppIcon(packageManager, packageName) }
+    }
+    HistoryAppIcon(drawable = icon, modifier = modifier)
 }
 
 @Composable

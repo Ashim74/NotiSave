@@ -24,6 +24,10 @@ import androidx.room.ColumnInfo
         Index(
             value = ["isTrashed", "trashedAt", "id"],
             name = "index_apps_isTrashed_trashedAt_id"
+        ),
+        Index(
+            value = ["conversationKey", "isTrashed", "receivedAt", "id"],
+            name = "index_apps_conversationKey_isTrashed_receivedAt_id"
         )
     ]
 )
@@ -37,5 +41,9 @@ data class NotificationEntity(
     val contentFingerprint: String? = null,
     val conversationTitle: String? = null,
     @ColumnInfo(defaultValue = "0") val isTrashed: Boolean = false,
-    val trashedAt: Long? = null
+    val trashedAt: Long? = null,
+    /** Package-scoped conversation identity; null for non-messaging or unclassified rows. */
+    val conversationKey: String? = null,
+    /** Display name of the conversation/contact/group at capture time. */
+    val conversationName: String? = null
 )
