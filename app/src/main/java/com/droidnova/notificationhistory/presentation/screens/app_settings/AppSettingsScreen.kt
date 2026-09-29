@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
@@ -52,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +72,7 @@ import com.droidnova.notificationhistory.presentation.components.openNotificatio
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDialog
 import com.droidnova.notificationhistory.presentation.navigation.Screens
+import com.droidnova.notificationhistory.presentation.navigation.navigateToTab
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,6 +98,7 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     val privacyOptionsRequired by consentManager.privacyOptionsRequired.collectAsState()
     val themeMode by mainViewModel.themeMode.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showRetentionDialog by remember { mutableStateOf(false) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -116,17 +118,7 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
-                    }
-                }
-            )
+            TopAppBar(title = { Text(stringResource(R.string.settings_title)) })
         }
     ) { padding ->
         LazyColumn(
@@ -188,7 +180,15 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                     icon = Icons.Default.Notifications,
                     title = stringResource(R.string.home_view_history),
                     supportingText = stringResource(R.string.settings_open_history_description),
-                    onClick = { navController.navigate(Screens.History.route) }
+                    onClick = { navController.navigateToTab(Screens.History.route) }
+                )
+            }
+            item {
+                SettingsRow(
+                    icon = ImageVector.vectorResource(R.drawable.ic_history),
+                    title = stringResource(R.string.settings_retention),
+                    supportingText = retentionLabel(state.historyRetentionDays),
+                    onClick = { showRetentionDialog = true }
                 )
             }
             item {
@@ -316,6 +316,49 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
             }
         )
     }
+    if (showRetentionDialog) {
+        AlertDialog(
+            onDismissRequest = { showRetentionDialog = false },
+            title = { Text(stringResource(R.string.settings_retention_dialog_title)) },
+            text = {
+                Column {
+                    RETENTION_OPTIONS_DAYS.forEach { days ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    mainViewModel.updateHistoryRetentionDays(days)
+                                    showRetentionDialog = false
+                                }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = days == state.historyRetentionDays,
+                                onClick = {
+                                    mainViewModel.updateHistoryRetentionDays(days)
+                                    showRetentionDialog = false
+                                }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(retentionLabel(days))
+                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.settings_retention_description),
+                        modifier = Modifier.padding(top = 8.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showRetentionDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
     if (showThemeDialog) {
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
@@ -375,6 +418,17 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
         )
     }
 }
+
+/** 0 means "never delete"; see the retention gate in the listener and MainViewModel. */
+private val RETENTION_OPTIONS_DAYS = listOf(7, 14, 30, 90, 0)
+
+@Composable
+private fun retentionLabel(days: Int): String =
+    if (days <= 0) {
+        stringResource(R.string.settings_retention_forever)
+    } else {
+        pluralStringResource(R.plurals.settings_retention_days, days, days)
+    }
 
 @StringRes
 private fun ThemeMode.labelRes(): Int = when (this) {

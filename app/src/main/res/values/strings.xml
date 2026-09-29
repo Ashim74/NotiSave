@@ -170,6 +170,39 @@ Find “Notification History” → Turn ON access.
     <string name="trash_empty_question">Empty Trash?</string>
     <string name="trash_empty_confirmation">All notifications in Trash will be permanently deleted and cannot be recovered.</string>
 
+    <!-- Bottom navigation -->
+    <string name="nav_home">Home</string>
+
+    <!-- Home dashboard -->
+    <string name="home_status_recording">Recording</string>
+    <string name="home_status_reconnecting">Reconnecting…</string>
+    <string name="home_status_reconnecting_description">Access is granted but the listener isn\'t connected. Tap to reconnect.</string>
+    <string name="home_status_allow">Allow</string>
+    <plurals name="home_saved_today">
+        <item quantity="one">%d notification saved today</item>
+        <item quantity="other">%d notifications saved today</item>
+    </plurals>
+    <string name="home_today_section">Today</string>
+    <string name="home_stat_notifications">Notifications</string>
+    <string name="home_stat_apps">Apps</string>
+    <string name="home_stat_top_app">Top app</string>
+    <string name="home_recent_section">Recent</string>
+    <string name="home_see_all">See all</string>
+    <string name="home_recent_empty_title">Nothing saved yet</string>
+    <string name="home_recent_empty_description">Notifications from your selected apps will appear here as they arrive.</string>
+    <string name="home_no_apps_selected_title">No apps selected</string>
+    <string name="home_select_apps_action">Select</string>
+
+    <!-- History retention -->
+    <string name="settings_retention">History retention</string>
+    <string name="settings_retention_dialog_title">Keep history for</string>
+    <string name="settings_retention_description">Older notifications are deleted automatically. Items in Trash are not affected.</string>
+    <string name="settings_retention_forever">Keep forever</string>
+    <plurals name="settings_retention_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+
     <!-- Appearance -->
     <string name="settings_appearance_section">Appearance</string>
     <string name="settings_theme">Theme</string>
@@ -191,7 +224,8 @@ Find “Notification History” → Turn ON access.
     <string name="delete_confirmation_message">You can restore this notification later from Trash.</string>
 
     <!-- History -->
-    <string name="history_title">Notification History</string>
+    <string name="history_title">History</string>
+    <string name="history_cap_hint">Showing the latest %1$d notifications. Use search or filters to narrow down.</string>
     <string name="search_notifications_hint">Search notifications</string>
     <string name="history_tab_messages">Messages</string>
     <string name="history_tab_apps">Apps</string>

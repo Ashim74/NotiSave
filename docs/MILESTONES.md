@@ -10,7 +10,7 @@ Companion to [UPDATE_PLAN.md](UPDATE_PLAN.md). Issue IDs (S1, U4, A3 …) refer 
 | M2 | Performance & memory | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M3 | Dependencies, ads & consent | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M4 | Design system & theming | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
-| M5 | Navigation redesign (bottom nav + screens) | ⬜ Not started |
+| M5 | Navigation redesign (bottom nav + screens) | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M6 | Onboarding, retention & engagement | ⬜ Not started |
 | M7 | Hardening, QA & release | ⬜ Not started |
 
@@ -89,15 +89,19 @@ Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 ## M5 — Navigation redesign
 *The visible redesign. Fixes: U1, U4, U5, A5; plan §3.1–3.3.*
 
-- [ ] Bottom navigation: Home / History / Insights / Settings; secondary screens as pushed routes (U5)
-- [ ] Home rebuild: hero status card, today-at-a-glance stats, recent-notifications preview (last 5), contextual warnings, RateUsCard (plan §3.2)
-- [ ] History simplification: one segmented control `All | Conversations | Apps` replacing TabRow + nested selector; unified filter bar (U4)
+- [x] Bottom navigation (`AppNavGraph`): Home / History / Insights / Settings via `NavigationBar`, `navigateToTab()` (single-top, per-tab state save/restore), fade for tab switches vs. slide for pushed screens, ad banner sits above the bar, back arrows removed from the three tab screens (U5)
+- [x] Home rebuild: `CaptureStatusCard` (Recording / Paused / Reconnecting / Access needed, with today's saved count), Today stat row (notifications, apps, top app → Insights), Manage-apps card, contextual warnings (no apps selected, battery), Recent preview (last 5 via new `HomeViewModel` + `observeRecentActive`) with "See all". **RateUsCard call, trigger and callbacks unchanged** — only wrapped in a `Box` to keep its 16 dp margin (plan §3.2)
+- [x] History simplification: `HistoryView { All, Conversations, Apps }` segmented control replaces TabRow + nested selector; filter bar shared by All/Conversations; capped-list hint shown when `isCapped` (U4)
 - [x] Migrate pull-to-refresh to M3 `PullToRefreshBox` in History + AppHistory; drop M2 dep (U1) — *done early in M3*
-- [ ] URI-encode `app_notifications/{packageName}` route arg (A5)
-- [ ] Naming consistency: "Manage apps" everywhere; unified search placeholders/content descriptions (U7)
-- [ ] Settings tab: add retention-days control (wire up existing `updateHistoryRetentionDays`) and theme picker
+- [x] URI-encode `app_notifications/{packageName}` and `SettingScreen/{packageName}` route args (A5)
+- [x] Naming consistency: "Manage Apps" everywhere; search placeholders/content descriptions unified (done across M4/M5) (U7)
+- [x] Settings tab: "History retention" row + dialog (7/14/30/90 days/Keep forever) wired to `updateHistoryRetentionDays`; theme picker (M4)
 
 **Acceptance:** all existing functionality reachable in ≤ same tap count; History/Conversations/Apps in one tap from anywhere; navigation state survives process death.
+- [x] Compile green; 56 unit tests green; `RateUsCard.kt` untouched (git), Home call site diff = indentation only
+- [ ] On-device: tab switching keeps scroll/filter state per tab; back from any tab returns to Home; Insights → top app opens History with that app filter
+- [ ] On-device: Home hero shows Recording with today's count; revoke access → "Permission required" with Allow; force-stop listener → "Reconnecting…" then recovers
+- [ ] On-device: ad banner renders above the bottom bar without overlapping; no double bottom padding on tab screens
 
 ## M6 — Onboarding, retention & engagement
 *Reasons to return. Plan §3.4–3.5. Fixes: S12.*

@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -62,6 +61,7 @@ import com.droidnova.notificationhistory.data.insights.InsightsRange
 import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
 import com.droidnova.notificationhistory.presentation.components.PackageAppIcon
 import com.droidnova.notificationhistory.presentation.navigation.Screens
+import com.droidnova.notificationhistory.presentation.navigation.navigateToTab
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,15 +84,7 @@ fun InsightsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.insights_title), fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.content_description_back)
-                        )
-                    }
-                }
+                title = { Text(stringResource(R.string.insights_title), fontWeight = FontWeight.Bold) }
             )
         }
     ) { innerPadding ->
@@ -134,8 +126,10 @@ fun InsightsScreen(
                             TopAppsCard(
                                 apps = data.topApps,
                                 onAppClick = { app ->
-                                    navController.navigate(
-                                        Screens.History.createRoute(app.packageName)
+                                    // Fresh args must win over any saved History tab state.
+                                    navController.navigateToTab(
+                                        Screens.History.createRoute(app.packageName),
+                                        restoreState = false
                                     )
                                 }
                             )

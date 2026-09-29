@@ -3,22 +3,22 @@ package com.droidnova.notificationhistory.presentation.screens.home
 import android.app.Activity
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -50,9 +50,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -64,24 +63,39 @@ import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.component.RateUsCard
+import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.presentation.components.EmptyState
+import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
+import com.droidnova.notificationhistory.presentation.components.NotificationHistoryCard
 import com.droidnova.notificationhistory.presentation.components.NotificationPermissionBottomSheet
+import com.droidnova.notificationhistory.presentation.components.SectionHeader
+import com.droidnova.notificationhistory.presentation.components.StatCard
+import com.droidnova.notificationhistory.presentation.components.StatusCard
+import com.droidnova.notificationhistory.presentation.components.StatusTone
 import com.droidnova.notificationhistory.presentation.components.isBatteryOptimizationIgnored
 import com.droidnova.notificationhistory.presentation.components.openBatteryOptimizationSettings
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDialog
 import com.droidnova.notificationhistory.presentation.navigation.Screens
+import com.droidnova.notificationhistory.presentation.navigation.navigateToTab
+import com.droidnova.notificationhistory.service.ListenerReconnector
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import kotlinx.coroutines.launch
 
 private const val RATE_US_LAUNCH_THRESHOLD = 3
 
-private enum class TrackingVisualState { Active, Paused, PermissionRequired }
+/** What the hero card says about capture right now. */
+private enum class CaptureState { Recording, Paused, Reconnecting, AccessNeeded }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
+fun HomeScreen(
+    viewmodel: MainViewModel,
+    homeViewModel: HomeViewModel,
+    navController: NavController
+) {
     val state by viewmodel.settingState.collectAsState()
     val context = LocalContext.current
     val activity = context as? Activity
@@ -89,6 +103,9 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
     val isPremium by viewmodel.isPremium.collectAsState()
     val showPremiumWelcome by viewmodel.showPremiumWelcome.collectAsState()
     val hasPermission by viewmodel.hasNotificationAccess.collectAsState()
+    val listenerConnected by viewmodel.listenerConnected.collectAsState()
+    val todaySummary by homeViewModel.todaySummary.collectAsState()
+    val recentNotifications by homeViewModel.recentNotifications.collectAsState()
     val productDetails = billingManager?.productDetails?.collectAsState()?.value
     val isFetchingPrice = billingManager?.isFetchingProductDetails?.collectAsState()?.value ?: false
     val isPurchaseInProgress = billingManager?.isPurchaseInProgress?.collectAsState()?.value ?: false
@@ -97,6 +114,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         ?.formattedPrice
     var showPurchaseSheet by remember { mutableStateOf(false) }
     var showPermissionSheet by remember { mutableStateOf(false) }
+    var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var batteryIgnored by remember { mutableStateOf(isBatteryOptimizationIgnored(context)) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -134,6 +152,7 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewmodel.onResume()
+                homeViewModel.refresh()
                 batteryIgnored = isBatteryOptimizationIgnored(context)
             }
         }
@@ -161,7 +180,6 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
         topBar = {
             HomeTopBar(
                 isPremium = isPremium,
-                onSettings = { navController.navigate(Screens.AppSettings.route) },
                 onAbout = { navController.navigate(Screens.AboutScreen.route) },
                 onRemoveAds = ::openPurchaseSheet
             )
@@ -174,6 +192,9 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 .padding(padding),
             state = state,
             hasPermission = hasPermission,
+            listenerConnected = listenerConnected,
+            todaySummary = todaySummary,
+            recentNotifications = recentNotifications,
             showBatteryWarning = !batteryIgnored,
             showRateCard = state.launchCount >= RATE_US_LAUNCH_THRESHOLD && state.showRateUsCard,
             onTrackingChanged = { enabled ->
@@ -184,10 +205,12 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 }
             },
             onPermissionAction = { showPermissionSheet = true },
-            onHistory = { navController.navigate(Screens.History.route) },
+            onReconnect = { ListenerReconnector.ensureConnected(context) },
+            onSeeAllHistory = { navController.navigateToTab(Screens.History.route) },
             onManageApps = { navController.navigate(Screens.ManageNotifications.route) },
-            onInsights = { navController.navigate(Screens.Insights.route) },
+            onInsights = { navController.navigateToTab(Screens.Insights.route) },
             onBatteryAction = { openBatteryOptimizationSettings(context) },
+            onNotificationClick = { showDetailsDialog = it },
             onRateCancel = viewmodel::resetLaunchCount,
             onRateConfirmed = {
                 IntentUtil.openRateUs(context)
@@ -220,6 +243,13 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
                 ).show()
                 openNotificationAccessSettings(context)
             }
+        )
+    }
+
+    showDetailsDialog?.let { notification ->
+        NotificationDetailsDialog(
+            notification = notification,
+            onDismiss = { showDetailsDialog = null }
         )
     }
 
@@ -257,7 +287,6 @@ fun HomeScreen(viewmodel: MainViewModel, navController: NavController) {
 @Composable
 private fun HomeTopBar(
     isPremium: Boolean,
-    onSettings: () -> Unit,
     onAbout: () -> Unit,
     onRemoveAds: () -> Unit
 ) {
@@ -265,9 +294,6 @@ private fun HomeTopBar(
     TopAppBar(
         title = { Text(stringResource(R.string.app_name)) },
         actions = {
-            IconButton(onClick = onSettings) {
-                Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
-            }
             IconButton(onClick = { showMenu = true }) {
                 Icon(
                     Icons.Default.MoreVert,
@@ -301,188 +327,239 @@ private fun HomeDashboard(
     modifier: Modifier,
     state: SettingState,
     hasPermission: Boolean,
+    listenerConnected: Boolean,
+    todaySummary: HomeTodaySummary,
+    recentNotifications: List<NotificationModel>,
     showBatteryWarning: Boolean,
     showRateCard: Boolean,
     onTrackingChanged: (Boolean) -> Unit,
     onPermissionAction: () -> Unit,
-    onHistory: () -> Unit,
+    onReconnect: () -> Unit,
+    onSeeAllHistory: () -> Unit,
     onManageApps: () -> Unit,
     onInsights: () -> Unit,
     onBatteryAction: () -> Unit,
+    onNotificationClick: (NotificationModel) -> Unit,
     onRateCancel: () -> Unit,
     onRateConfirmed: () -> Unit,
     onRated: (Int) -> Unit,
     onFeedback: () -> Unit
 ) {
+    // NotificationHistoryCard carries its own 12 dp side margin, so the list keeps 4 dp and every
+    // other item adds 12 dp: cards and rows line up at 16 dp from the screen edge.
+    val itemPadding = Modifier.padding(horizontal = 12.dp)
+    val noAppsSelected = state.userToggleTracking && state.selectedAppsCount == 0
+
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            TrackingStatusCard(
+            CaptureStatusCard(
+                modifier = itemPadding,
                 trackingEnabled = state.userToggleTracking,
                 hasPermission = hasPermission,
+                listenerConnected = listenerConnected,
+                savedToday = todaySummary.total,
                 onTrackingChanged = onTrackingChanged,
-                onPermissionAction = onPermissionAction
+                onPermissionAction = onPermissionAction,
+                onReconnect = onReconnect
             )
         }
+        if (noAppsSelected) {
+            item {
+                StatusCard(
+                    modifier = itemPadding,
+                    title = stringResource(R.string.home_no_apps_selected_title),
+                    description = stringResource(R.string.select_at_least_one_app_message),
+                    icon = Icons.Default.Warning,
+                    tone = StatusTone.Warning,
+                    onClick = onManageApps,
+                    trailing = {
+                        Button(onClick = onManageApps) {
+                            Text(stringResource(R.string.home_select_apps_action))
+                        }
+                    }
+                )
+            }
+        }
+        if (showBatteryWarning) {
+            item {
+                StatusCard(
+                    modifier = itemPadding,
+                    title = stringResource(R.string.battery_warning_title),
+                    description = stringResource(R.string.battery_warning_description),
+                    icon = Icons.Default.Warning,
+                    tone = StatusTone.Warning,
+                    onClick = onBatteryAction,
+                    trailing = {
+                        Button(onClick = onBatteryAction) { Text(stringResource(R.string.fix)) }
+                    }
+                )
+            }
+        }
+
+        item { SectionHeader(text = stringResource(R.string.home_today_section), modifier = itemPadding) }
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = itemPadding.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                DashboardActionCard(
+                StatCard(
                     modifier = Modifier.weight(1f),
-                    icon = Icons.Default.Notifications,
-                    title = stringResource(R.string.home_view_history),
-                    supportingText = stringResource(R.string.home_view_history_description),
-                    onClick = onHistory
+                    value = todaySummary.total.toString(),
+                    label = stringResource(R.string.home_stat_notifications),
+                    onClick = onInsights
                 )
-                DashboardActionCard(
+                StatCard(
                     modifier = Modifier.weight(1f),
-                    icon = Icons.Default.Settings,
-                    title = stringResource(R.string.home_manage_apps),
-                    supportingText = stringResource(
-                        R.string.home_selected_apps_count,
-                        state.selectedAppsCount
-                    ),
-                    onClick = onManageApps
+                    value = todaySummary.activeApps.toString(),
+                    label = stringResource(R.string.home_stat_apps),
+                    onClick = onInsights
+                )
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    value = todaySummary.topAppLabel ?: stringResource(R.string.insights_none),
+                    label = stringResource(R.string.home_stat_top_app),
+                    onClick = onInsights
                 )
             }
         }
-        item { InsightsEntryCard(onClick = onInsights) }
-        if (state.userToggleTracking && state.selectedAppsCount == 0) {
+
+        item {
+            ManageAppsCard(
+                modifier = itemPadding,
+                selectedCount = state.selectedAppsCount,
+                onClick = onManageApps
+            )
+        }
+
+        item {
+            Row(
+                modifier = itemPadding.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionHeader(
+                    text = stringResource(R.string.home_recent_section),
+                    modifier = Modifier.weight(1f)
+                )
+                if (recentNotifications.isNotEmpty()) {
+                    TextButton(onClick = onSeeAllHistory) {
+                        Text(stringResource(R.string.home_see_all))
+                    }
+                }
+            }
+        }
+        if (recentNotifications.isEmpty()) {
             item {
-                Text(
-                    text = stringResource(R.string.select_at_least_one_app_message),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(horizontal = 4.dp)
+                EmptyState(
+                    modifier = itemPadding,
+                    title = stringResource(R.string.home_recent_empty_title),
+                    description = stringResource(R.string.home_recent_empty_description)
+                )
+            }
+        } else {
+            items(recentNotifications.size, key = { recentNotifications[it].id }) { index ->
+                val notification = recentNotifications[index]
+                NotificationHistoryCard(
+                    notification = notification,
+                    searchQuery = "",
+                    onClick = { onNotificationClick(notification) }
                 )
             }
         }
-        if (showBatteryWarning) item { BatteryWarningCard(onBatteryAction) }
+
         if (showRateCard) {
             item {
-                RateUsCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    onCancelClicked = onRateCancel,
-                    onOkClicked = onRateConfirmed,
-                    onRated = onRated,
-                    onFeedbackClicked = onFeedback
-                )
+                Box(modifier = itemPadding) {
+                    RateUsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onCancelClicked = onRateCancel,
+                        onOkClicked = onRateConfirmed,
+                        onRated = onRated,
+                        onFeedbackClicked = onFeedback
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun TrackingStatusCard(
+private fun CaptureStatusCard(
+    modifier: Modifier,
     trackingEnabled: Boolean,
     hasPermission: Boolean,
+    listenerConnected: Boolean,
+    savedToday: Int,
     onTrackingChanged: (Boolean) -> Unit,
-    onPermissionAction: () -> Unit
+    onPermissionAction: () -> Unit,
+    onReconnect: () -> Unit
 ) {
-    val state = when {
-        !hasPermission -> TrackingVisualState.PermissionRequired
-        trackingEnabled -> TrackingVisualState.Active
-        else -> TrackingVisualState.Paused
+    val captureState = when {
+        !hasPermission -> CaptureState.AccessNeeded
+        !trackingEnabled -> CaptureState.Paused
+        !listenerConnected -> CaptureState.Reconnecting
+        else -> CaptureState.Recording
     }
-    val title = when (state) {
-        TrackingVisualState.Active -> stringResource(R.string.tracking_active)
-        TrackingVisualState.Paused -> stringResource(R.string.tracking_paused)
-        TrackingVisualState.PermissionRequired -> stringResource(R.string.tracking_permission_required)
+    val title = when (captureState) {
+        CaptureState.Recording -> stringResource(R.string.home_status_recording)
+        CaptureState.Paused -> stringResource(R.string.tracking_paused)
+        CaptureState.Reconnecting -> stringResource(R.string.home_status_reconnecting)
+        CaptureState.AccessNeeded -> stringResource(R.string.tracking_permission_required)
     }
-    val description = when (state) {
-        TrackingVisualState.Active -> stringResource(R.string.tracking_active_description)
-        TrackingVisualState.Paused -> stringResource(R.string.tracking_paused_description)
-        TrackingVisualState.PermissionRequired -> stringResource(R.string.tracking_permission_description)
+    val description = when (captureState) {
+        CaptureState.Recording ->
+            pluralStringResource(R.plurals.home_saved_today, savedToday, savedToday)
+        CaptureState.Paused -> stringResource(R.string.tracking_paused_description)
+        CaptureState.Reconnecting -> stringResource(R.string.home_status_reconnecting_description)
+        CaptureState.AccessNeeded -> stringResource(R.string.tracking_permission_description)
     }
-    val icon = when (state) {
-        TrackingVisualState.Active -> Icons.Default.CheckCircle
-        TrackingVisualState.Paused -> Icons.Default.Info
-        TrackingVisualState.PermissionRequired -> Icons.Default.Warning
+    val icon = when (captureState) {
+        CaptureState.Recording -> Icons.Default.CheckCircle
+        CaptureState.Paused -> Icons.Default.Info
+        CaptureState.Reconnecting -> Icons.Default.Refresh
+        CaptureState.AccessNeeded -> Icons.Default.Warning
     }
-    val colors = when (state) {
-        TrackingVisualState.Active -> CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        )
-        TrackingVisualState.Paused -> CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        TrackingVisualState.PermissionRequired -> CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
-        )
+    val tone = when (captureState) {
+        CaptureState.Recording -> StatusTone.Positive
+        CaptureState.Paused -> StatusTone.Neutral
+        CaptureState.Reconnecting -> StatusTone.Warning
+        CaptureState.AccessNeeded -> StatusTone.Error
     }
 
-    Card(modifier = Modifier.fillMaxWidth(), colors = colors, shape = RoundedCornerShape(16.dp)) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(26.dp))
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp)
-                ) {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(description, style = MaterialTheme.typography.bodySmall)
+    StatusCard(
+        modifier = modifier,
+        title = title,
+        description = description,
+        icon = icon,
+        tone = tone,
+        onClick = when (captureState) {
+            CaptureState.Reconnecting -> onReconnect
+            CaptureState.AccessNeeded -> onPermissionAction
+            else -> null
+        },
+        trailing = {
+            if (captureState == CaptureState.AccessNeeded) {
+                Button(onClick = onPermissionAction) {
+                    Text(stringResource(R.string.home_status_allow))
                 }
+            } else {
                 Switch(
                     checked = trackingEnabled && hasPermission,
                     onCheckedChange = onTrackingChanged
                 )
             }
-            if (!hasPermission) {
-                TextButton(onClick = onPermissionAction, modifier = Modifier.align(Alignment.End)) {
-                    Text(stringResource(R.string.go_to_settings))
-                }
-            }
         }
-    }
+    )
 }
 
 @Composable
-private fun DashboardActionCard(
-    modifier: Modifier,
-    icon: ImageVector,
-    title: String,
-    supportingText: String,
-    onClick: () -> Unit
-) {
+private fun ManageAppsCard(modifier: Modifier, selectedCount: Int, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 124.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Text(
-                text = title,
-                modifier = Modifier.padding(top = 12.dp),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = supportingText,
-                modifier = Modifier.padding(top = 2.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun InsightsEntryCard(onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
         )
@@ -492,65 +569,28 @@ private fun InsightsEntryCard(onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_insights),
+                Icons.Default.Settings,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary
             )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp)
-            ) {
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.home_insights),
+                    text = stringResource(R.string.home_manage_apps),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = stringResource(R.string.home_insights_description),
+                    text = stringResource(R.string.home_selected_apps_count, selectedCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Icon(
-                Icons.Default.KeyboardArrowRight,
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-}
-
-@Composable
-private fun BatteryWarningCard(onClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Warning, contentDescription = null)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 10.dp)
-            ) {
-                Text(
-                    stringResource(R.string.battery_warning_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    stringResource(R.string.battery_warning_description),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            Button(onClick = onClick) { Text(stringResource(R.string.fix)) }
         }
     }
 }

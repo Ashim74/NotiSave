@@ -21,6 +21,7 @@ import com.droidnova.notificationhistory.presentation.screens.conversations.Conv
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationQuery
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent
 import com.droidnova.notificationhistory.presentation.screens.select_app.AppInfo
+import com.droidnova.notificationhistory.service.NotificationListener
 import com.droidnova.notificationhistory.utils.getInstalledApps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -52,6 +53,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _hasNotificationAccess = MutableStateFlow(false)
     val hasNotificationAccess: StateFlow<Boolean> = _hasNotificationAccess.asStateFlow()
+
+    // Persisted flag comes from the listener's connect/disconnect callbacks; the live flag is the
+    // in-process binding state re-read on resume. Either being true means we are capturing.
+    private val _listenerConnectedLive = MutableStateFlow(NotificationListener.isConnected)
+    val listenerConnected: StateFlow<Boolean> =
+        combine(userPrefs.listenerConnected, _listenerConnectedLive) { persisted, live ->
+            persisted || live
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     private val _events = MutableSharedFlow<HomeUiEvent>()
     val events: SharedFlow<HomeUiEvent> = _events.asSharedFlow()
@@ -247,6 +256,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun onResume() {
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
         _hasNotificationAccess.value = granted
+        _listenerConnectedLive.value = NotificationListener.isConnected
         if (granted) {
             if (awaitingGrant) {
                 awaitingGrant = false

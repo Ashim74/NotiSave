@@ -37,8 +37,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -87,10 +85,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 
-enum class HistoryViewType { Message, Apps }
-
-/** Messages tab: flat history (all notifications) or grouped messaging conversations. */
-enum class MessagesMode { All, Conversations }
+/** One segmented control replaces the former Messages/Apps tabs plus All/Conversations selector. */
+enum class HistoryView { All, Conversations, Apps }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,8 +108,7 @@ fun HistoryScreen(
     val historyLoadState by mainViewmodel.historyLoadState.collectAsState()
     var showMenu by remember { mutableStateOf(false) }
     var showCustomDateRange by remember { mutableStateOf(false) }
-    var viewType by rememberSaveable { mutableStateOf(HistoryViewType.Message) }
-    var messagesMode by rememberSaveable { mutableStateOf(MessagesMode.All) }
+    var view by rememberSaveable { mutableStateOf(HistoryView.All) }
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<NotificationModel?>(null) }
@@ -121,8 +116,8 @@ fun HistoryScreen(
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(viewType) {
-        if (viewType == HistoryViewType.Apps) {
+    LaunchedEffect(view) {
+        if (view == HistoryView.Apps) {
             isSearchActive = false
             searchQuery = ""
             mainViewmodel.updateHistorySearchQuery("")
@@ -188,16 +183,8 @@ fun HistoryScreen(
                 } else {
                 TopAppBar(
                     title = { Text(stringResource(R.string.history_title)) },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back)
-                            )
-                        }
-                    },
                     actions = {
-                        if (viewType == HistoryViewType.Message) {
+                        if (view != HistoryView.Apps) {
                             IconButton(onClick = { isSearchActive = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Search,
@@ -226,24 +213,12 @@ fun HistoryScreen(
                     }
                 )
                 }
-                TabRow(selectedTabIndex = if (viewType == HistoryViewType.Message) 0 else 1) {
-                    Tab(
-                        selected = viewType == HistoryViewType.Message,
-                        onClick = { viewType = HistoryViewType.Message },
-                        text = { Text(stringResource(R.string.history_tab_messages)) }
-                    )
-                    Tab(
-                        selected = viewType == HistoryViewType.Apps,
-                        onClick = { viewType = HistoryViewType.Apps },
-                        text = { Text(stringResource(R.string.history_tab_apps)) }
-                    )
-                }
+                HistoryViewSelector(selected = view, onSelected = { view = it })
             }
         }
     ) { innerPadding ->
-        val contentModifier = Modifier.padding(innerPadding)
-        when (viewType) {
-            HistoryViewType.Message -> Column(modifier = contentModifier) {
+        Column(modifier = Modifier.padding(innerPadding)) {
+            if (view != HistoryView.Apps) {
                 HistoryFilterBar(
                     filters = historyFilters,
                     appSummaries = appSummaries,
@@ -252,45 +227,42 @@ fun HistoryScreen(
                     onCustomDateRequested = { showCustomDateRange = true },
                     onClearFilters = mainViewmodel::clearHistoryFilters
                 )
-                MessagesModeSelector(
-                    selected = messagesMode,
-                    onSelected = { messagesMode = it }
-                )
-                when (messagesMode) {
-                    MessagesMode.All -> HistoryScreenContent(
-                        modifier = Modifier.weight(1f),
-                        isRefreshing = isRefreshing,
-                        isLoadingMore = historyLoadState.isLoadingMore,
-                        canLoadMore = !historyLoadState.endReached,
-                        packages = packages.value,
-                        searchQuery = searchQuery,
-                        hasActiveFilters = historyFilters.hasActiveFilters,
-                        onLoadMore = { mainViewmodel.loadMoreHistory() },
-                        onItemClick = { selectedNotification = it },
-                        onRefresh = { mainViewmodel.refreshHistory() }
-                    )
-                    MessagesMode.Conversations -> ConversationListContent(
-                        mainViewModel = mainViewmodel,
-                        searchQuery = historyFilters.searchQuery,
-                        hasActiveFilters = historyFilters.hasActiveFilters,
-                        onConversationClick = { conversation ->
-                            navController.navigate(
-                                Screens.ConversationDetail.createRoute(conversation.conversationKey)
-                            )
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
             }
-            HistoryViewType.Apps -> AppHistoryContent(
-                modifier = contentModifier,
-                isRefreshing = isRefreshing,
-                packages = appSummaries,
-                onAppClick = { packageName ->
-                    navController.navigate(Screens.AppsNotificationListScreen.createRoute(packageName))
-                },
-                onRefresh = { mainViewmodel.refreshHistory() }
-            )
+            when (view) {
+                HistoryView.All -> HistoryScreenContent(
+                    modifier = Modifier.weight(1f),
+                    isRefreshing = isRefreshing,
+                    isLoadingMore = historyLoadState.isLoadingMore,
+                    canLoadMore = !historyLoadState.endReached,
+                    isCapped = historyLoadState.isCapped,
+                    packages = packages.value,
+                    searchQuery = searchQuery,
+                    hasActiveFilters = historyFilters.hasActiveFilters,
+                    onLoadMore = { mainViewmodel.loadMoreHistory() },
+                    onItemClick = { selectedNotification = it },
+                    onRefresh = { mainViewmodel.refreshHistory() }
+                )
+                HistoryView.Conversations -> ConversationListContent(
+                    mainViewModel = mainViewmodel,
+                    searchQuery = historyFilters.searchQuery,
+                    hasActiveFilters = historyFilters.hasActiveFilters,
+                    onConversationClick = { conversation ->
+                        navController.navigate(
+                            Screens.ConversationDetail.createRoute(conversation.conversationKey)
+                        )
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                HistoryView.Apps -> AppHistoryContent(
+                    modifier = Modifier.weight(1f),
+                    isRefreshing = isRefreshing,
+                    packages = appSummaries,
+                    onAppClick = { packageName ->
+                        navController.navigate(Screens.AppsNotificationListScreen.createRoute(packageName))
+                    },
+                    onRefresh = { mainViewmodel.refreshHistory() }
+                )
+            }
         }
     }
 
@@ -368,6 +340,7 @@ fun HistoryScreenContent(
     isRefreshing: Boolean,
     isLoadingMore: Boolean,
     canLoadMore: Boolean,
+    isCapped: Boolean,
     packages: List<NotificationModel>,
     searchQuery: String,
     hasActiveFilters: Boolean,
@@ -445,6 +418,18 @@ fun HistoryScreenContent(
                         ) {
                             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         }
+                    }
+                }
+                if (isCapped) {
+                    item {
+                        Text(
+                            text = stringResource(R.string.history_cap_hint, packages.size),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 16.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -557,27 +542,28 @@ private fun HistoryFilterBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MessagesModeSelector(
-    selected: MessagesMode,
-    onSelected: (MessagesMode) -> Unit
+private fun HistoryViewSelector(
+    selected: HistoryView,
+    onSelected: (HistoryView) -> Unit
 ) {
-    val options = MessagesMode.entries
+    val options = HistoryView.entries
     SingleChoiceSegmentedButtonRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
-        options.forEachIndexed { index, mode ->
+        options.forEachIndexed { index, option ->
             SegmentedButton(
-                selected = selected == mode,
-                onClick = { onSelected(mode) },
+                selected = selected == option,
+                onClick = { onSelected(option) },
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
                 label = {
                     Text(
                         stringResource(
-                            when (mode) {
-                                MessagesMode.All -> R.string.history_mode_all
-                                MessagesMode.Conversations -> R.string.history_mode_conversations
+                            when (option) {
+                                HistoryView.All -> R.string.history_mode_all
+                                HistoryView.Conversations -> R.string.history_mode_conversations
+                                HistoryView.Apps -> R.string.history_tab_apps
                             }
                         )
                     )
