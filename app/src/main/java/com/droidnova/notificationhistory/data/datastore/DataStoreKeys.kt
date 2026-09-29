@@ -14,6 +14,7 @@ object DataStoreKeys {
     val IS_PREMIUM = booleanPreferencesKey("is_premium")
     val LISTENER_CONNECTED = booleanPreferencesKey("listener_connected")
     val THEME_MODE = stringPreferencesKey("theme_mode")
+    val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
     const val FILTERS_PREFIX = "filters_"
 
 }

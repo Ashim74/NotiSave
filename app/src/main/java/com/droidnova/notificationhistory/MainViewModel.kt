@@ -22,6 +22,7 @@ import com.droidnova.notificationhistory.presentation.screens.conversations.Conv
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent
 import com.droidnova.notificationhistory.presentation.screens.select_app.AppInfo
 import com.droidnova.notificationhistory.service.NotificationListener
+import com.droidnova.notificationhistory.utils.CrashReporter
 import com.droidnova.notificationhistory.utils.getInstalledApps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -102,6 +104,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             SharingStarted.WhileSubscribed(5_000),
             false
         )
+
+    /** null while DataStore is still loading; the splash stays up until it resolves. */
+    val onboardingComplete: StateFlow<Boolean?> =
+        userPrefs.onboardingComplete.map<Boolean, Boolean?> { it }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    fun completeOnboarding() {
+        viewModelScope.launch { userPrefs.setOnboardingComplete() }
+    }
+
+    /** First-run convenience: if nothing is selected yet, pre-tick the installed messengers. */
+    fun preselectCommonApps(installed: List<AppInfo>) {
+        viewModelScope.launch {
+            if (userPrefs.allowedApps.first().isNotEmpty()) return@launch
+            val installedPackages = installed.mapTo(hashSetOf()) { it.packageName }
+            val preset = COMMON_MESSAGING_APPS.filterTo(linkedSetOf()) { it in installedPackages }
+            if (preset.isNotEmpty()) userPrefs.setAllowedApps(preset)
+        }
+    }
+
+    // One-shot request from the "Search" launcher shortcut, consumed by HistoryScreen.
+    private val _historySearchFocusRequested = MutableStateFlow(false)
+    val historySearchFocusRequested: StateFlow<Boolean> = _historySearchFocusRequested.asStateFlow()
+
+    fun requestHistorySearchFocus() {
+        _historySearchFocusRequested.value = true
+    }
+
+    fun consumeHistorySearchFocus() {
+        _historySearchFocusRequested.value = false
+    }
 
     // Eager so the Activity applies the saved theme on its very first frame.
     val themeMode: StateFlow<ThemeMode> =
@@ -408,9 +441,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val sanitizedDays = retentionDays.coerceAtLeast(0)
         _isHistoryRefreshing.value = true
         viewModelScope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            runCatching {
+                dao.deleteTrashedBefore(
+                    now - TimeUnit.DAYS.toMillis(SettingState.TRASH_RETENTION_DAYS.toLong())
+                )
+            }.onFailure(CrashReporter::record)
             val deletedCount = if (sanitizedDays > 0) {
-                val threshold = System.currentTimeMillis() -
-                        TimeUnit.DAYS.toMillis(sanitizedDays.toLong())
+                val threshold = now - TimeUnit.DAYS.toMillis(sanitizedDays.toLong())
                 dao.deleteActiveNotificationsOlderThan(threshold)
             } else 0
             withContext(Dispatchers.Main) {
@@ -771,6 +809,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         const val SEARCH_DEBOUNCE_MS = 300L
         /** Upper bound on rows held in memory for the flat history list (30 pages of 100). */
         const val MAX_LOADED_HISTORY = 3_000
+
+        /** Messengers most users want saved; pre-selected during onboarding when installed. */
+        val COMMON_MESSAGING_APPS = listOf(
+            "com.whatsapp",
+            "com.whatsapp.w4b",
+            "org.telegram.messenger",
+            "com.facebook.orca",
+            "com.instagram.android",
+            "org.thoughtcrime.securesms",
+            "com.google.android.apps.messaging",
+            "com.samsung.android.messaging",
+            "com.snapchat.android",
+            "com.discord",
+            "com.viber.voip"
+        )
         val SEARCH_WHITESPACE = Regex("\\s+")
 
         fun normalizeSearchQuery(query: String): String =

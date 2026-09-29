@@ -13,6 +13,7 @@ import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LAUNCH_COU
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HISTORY_RETENTION_DAYS
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.IS_PREMIUM
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LISTENER_CONNECTED
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.ONBOARDING_COMPLETE
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.THEME_MODE
 import com.droidnova.notificationhistory.data_shared.SettingState
@@ -90,6 +91,22 @@ class UserPreferences(private val context: Context) {
     suspend fun setListenerConnected(connected: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[LISTENER_CONNECTED] = connected
+        }
+    }
+
+    /**
+     * The flag is only written by the onboarding flow (added in 0.20). Users upgrading from
+     * older versions have no flag, so anyone who already selected apps or launched the app
+     * more than once is treated as onboarded instead of being shown the intro.
+     */
+    val onboardingComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[ONBOARDING_COMPLETE]
+            ?: ((prefs[allowedAppsKey]?.isNotEmpty() == true) || (prefs[LAUNCH_COUNT] ?: 0) > 1)
+    }
+
+    suspend fun setOnboardingComplete() {
+        context.dataStore.edit { prefs ->
+            prefs[ONBOARDING_COMPLETE] = true
         }
     }
 

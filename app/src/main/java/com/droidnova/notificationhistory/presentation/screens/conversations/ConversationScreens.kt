@@ -48,6 +48,7 @@ import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.ConversationModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
+import com.droidnova.notificationhistory.presentation.components.EmptyState
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
 import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
 import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
@@ -71,7 +72,9 @@ fun ConversationListContent(
     searchQuery: String,
     hasActiveFilters: Boolean,
     onConversationClick: (ConversationModel) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClearSearch: (() -> Unit)? = null,
+    onClearFilters: (() -> Unit)? = null
 ) {
     val state by mainViewModel.conversationList.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -97,12 +100,28 @@ fun ConversationListContent(
                 if (!state.hasLoaded) {
                     HistoryLoadingState(Modifier.fillMaxSize())
                 } else {
-                    val message = when {
-                        searchQuery.isNotBlank() -> stringResource(R.string.conversations_empty_search)
-                        hasActiveFilters -> stringResource(R.string.conversations_empty_filters)
-                        else -> stringResource(R.string.conversations_empty)
+                    when {
+                        searchQuery.isNotBlank() -> EmptyState(
+                            title = stringResource(R.string.conversations_empty_search),
+                            modifier = Modifier.fillMaxSize(),
+                            actionLabel = onClearSearch?.let {
+                                stringResource(R.string.content_description_clear_search)
+                            },
+                            onAction = onClearSearch
+                        )
+                        hasActiveFilters -> EmptyState(
+                            title = stringResource(R.string.conversations_empty_filters),
+                            modifier = Modifier.fillMaxSize(),
+                            actionLabel = onClearFilters?.let {
+                                stringResource(R.string.history_clear_filters)
+                            },
+                            onAction = onClearFilters
+                        )
+                        else -> EmptyState(
+                            title = stringResource(R.string.conversations_empty),
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
-                    HistoryEmptyState(message, Modifier.fillMaxSize())
                 }
             }
         } else {

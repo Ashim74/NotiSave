@@ -170,6 +170,39 @@ Find “Notification History” → Turn ON access.
     <string name="trash_empty_question">Empty Trash?</string>
     <string name="trash_empty_confirmation">All notifications in Trash will be permanently deleted and cannot be recovered.</string>
 
+    <!-- Onboarding -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_get_started">Get started</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_allow_access">Allow access</string>
+    <string name="onboarding_done">Done</string>
+    <string name="onboarding_intro_title">Never lose a notification again</string>
+    <string name="onboarding_intro_description">Notification History quietly saves the alerts you swipe away, so you can read deleted messages, missed reminders and everything else later.</string>
+    <string name="onboarding_access_title">Allow notification access</string>
+    <string name="onboarding_access_description">Android needs your permission before any app can read notifications. Nothing leaves your device.</string>
+    <string name="onboarding_access_granted_hint">You\'re all set. Next, choose which apps to save.</string>
+    <string name="onboarding_apps_title">Choose apps to save</string>
+    <string name="onboarding_apps_description">We\'ve pre-selected your messaging apps. You can change this anytime from Manage Apps.</string>
+
+    <!-- Recording-stopped alert -->
+    <string name="alert_channel_name">Recording status</string>
+    <string name="alert_channel_description">Alerts when Notification History stops saving notifications.</string>
+    <string name="alert_listener_stopped_title">Recording stopped</string>
+    <string name="alert_listener_stopped_text">Notification History lost its connection and isn\'t saving notifications. Tap to reconnect.</string>
+
+    <!-- Launcher shortcuts -->
+    <string name="shortcut_search_short">Search</string>
+    <string name="shortcut_search_long">Search notifications</string>
+    <string name="shortcut_history_short">History</string>
+    <string name="shortcut_history_long">Open notification history</string>
+    <string name="shortcut_insights_short">Insights</string>
+    <string name="shortcut_insights_long">Open insights</string>
+
+    <!-- Empty-state helpers -->
+    <string name="history_empty_description">Notifications from your selected apps will be saved here as they arrive.</string>
+    <string name="trash_empty_description">Notifications you delete stay here for %1$d days before they\'re removed for good.</string>
+    <string name="insights_empty_description">Once notifications are saved, trends and top apps will show up here.</string>
+
     <!-- Bottom navigation -->
     <string name="nav_home">Home</string>
 

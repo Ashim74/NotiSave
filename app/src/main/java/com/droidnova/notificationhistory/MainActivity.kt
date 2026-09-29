@@ -22,9 +22,11 @@ import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.billing.PremiumBillingManager
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.presentation.navigation.AppNavGraph
+import com.droidnova.notificationhistory.presentation.navigation.LaunchAction
 import com.droidnova.notificationhistory.presentation.ui.theme.AppTheme
 import com.droidnova.notificationhistory.presentation.ui.theme.isDark
 import com.droidnova.notificationhistory.service.ListenerReconnector
+import com.droidnova.notificationhistory.utils.Analytics
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -33,8 +35,14 @@ class MainActivity : ComponentActivity() {
     private lateinit var billingManager: PremiumBillingManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        Analytics.init(applicationContext)
+        // Hold the splash until we know whether to show onboarding or Home; avoids a flash of
+        // the wrong screen on cold start.
+        splash.setKeepOnScreenCondition { viewModel.onboardingComplete.value == null }
+        val launchAction = LaunchAction.from(intent)
+        if (launchAction == LaunchAction.Reconnect) Analytics.log(Analytics.RECONNECT_TAPPED)
         applyEdgeToEdge(darkTheme = null)
         billingManager = PremiumBillingManager(
             context = applicationContext,
@@ -62,7 +70,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier
                             .fillMaxSize()
                     ) {
-                        AppNavGraph()
+                        AppNavGraph(launchAction = launchAction)
                     }
                 }
             }

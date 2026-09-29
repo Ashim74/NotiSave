@@ -24,8 +24,12 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
@@ -52,6 +56,7 @@ import com.droidnova.notificationhistory.presentation.screens.home.HomeScreen
 import com.droidnova.notificationhistory.presentation.screens.home.HomeViewModel
 import com.droidnova.notificationhistory.presentation.screens.insights.InsightsScreen
 import com.droidnova.notificationhistory.presentation.screens.insights.InsightsViewModel
+import com.droidnova.notificationhistory.presentation.screens.onboarding.OnboardingScreen
 import com.droidnova.notificationhistory.presentation.screens.select_app.SelectAppScreen
 import com.droidnova.notificationhistory.presentation.screens.setting.SettingScreen
 import com.droidnova.notificationhistory.presentation.screens.trash.TrashScreen
@@ -112,13 +117,45 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.exit(forward: Bool
     }
 
 @Composable
-fun AppNavGraph() {
-    val navController = rememberNavController()
+fun AppNavGraph(launchAction: LaunchAction = LaunchAction.None) {
     val mainViewModel: MainViewModel = viewModel()
+    // null: DataStore not read yet (splash is still covering the window).
+    val onboardingComplete by mainViewModel.onboardingComplete.collectAsState()
+    when (onboardingComplete) {
+        null -> return
+        false -> OnboardingScreen(
+            mainViewModel = mainViewModel,
+            onFinished = mainViewModel::completeOnboarding
+        )
+        // Completing onboarding flips the flag, which composes the main shell fresh with Home
+        // as its start destination; no cross-graph navigation needed.
+        true -> MainShell(mainViewModel, launchAction)
+    }
+}
+
+@Composable
+private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) {
+    val navController = rememberNavController()
     val isPremium by mainViewModel.isPremium.collectAsState()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isTopLevel = currentRoute in Screens.TOP_LEVEL_ROUTES
+
+    // Shortcut / alert intents are honored once per process, after the graph exists.
+    var launchHandled by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(launchAction) {
+        if (launchHandled) return@LaunchedEffect
+        launchHandled = true
+        when (launchAction) {
+            LaunchAction.OpenHistory -> navController.navigateToTab(Screens.History.route)
+            LaunchAction.OpenInsights -> navController.navigateToTab(Screens.Insights.route)
+            LaunchAction.OpenSearch -> {
+                mainViewModel.requestHistorySearchFocus()
+                navController.navigateToTab(Screens.History.route)
+            }
+            LaunchAction.Reconnect, LaunchAction.None -> Unit
+        }
+    }
 
     Column(
         // The NavigationBar pads itself for the gesture bar; without it the column must.

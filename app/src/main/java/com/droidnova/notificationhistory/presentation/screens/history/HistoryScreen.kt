@@ -68,14 +68,15 @@ import com.droidnova.notificationhistory.data.model.HistoryDateFilter
 import com.droidnova.notificationhistory.data.model.HistoryFilterState
 import com.droidnova.notificationhistory.presentation.components.AppListItem
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
+import com.droidnova.notificationhistory.presentation.components.EmptyState
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
-import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
 import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
 import com.droidnova.notificationhistory.presentation.components.NotificationHistoryCard
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationListContent
+import com.droidnova.notificationhistory.utils.Analytics
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.toReadableShareText
 import java.time.LocalDate
@@ -123,6 +124,22 @@ fun HistoryScreen(
             mainViewmodel.updateHistorySearchQuery("")
         }
     }
+    // "Search" launcher shortcut: land on the flat list with the search field open.
+    val searchFocusRequested by mainViewmodel.historySearchFocusRequested.collectAsState()
+    LaunchedEffect(searchFocusRequested) {
+        if (searchFocusRequested) {
+            view = HistoryView.All
+            isSearchActive = true
+            mainViewmodel.consumeHistorySearchFocus()
+        }
+    }
+    LaunchedEffect(Unit) { Analytics.log(Analytics.HISTORY_OPEN) }
+
+    val clearSearch = {
+        searchQuery = ""
+        mainViewmodel.updateHistorySearchQuery("")
+    }
+    val openManageApps = { navController.navigate(Screens.ManageNotifications.route) }
 
     Scaffold(
         topBar = {
@@ -240,7 +257,10 @@ fun HistoryScreen(
                     hasActiveFilters = historyFilters.hasActiveFilters,
                     onLoadMore = { mainViewmodel.loadMoreHistory() },
                     onItemClick = { selectedNotification = it },
-                    onRefresh = { mainViewmodel.refreshHistory() }
+                    onRefresh = { mainViewmodel.refreshHistory() },
+                    onClearSearch = clearSearch,
+                    onClearFilters = mainViewmodel::clearHistoryFilters,
+                    onManageApps = openManageApps
                 )
                 HistoryView.Conversations -> ConversationListContent(
                     mainViewModel = mainViewmodel,
@@ -251,7 +271,9 @@ fun HistoryScreen(
                             Screens.ConversationDetail.createRoute(conversation.conversationKey)
                         )
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    onClearSearch = clearSearch,
+                    onClearFilters = mainViewmodel::clearHistoryFilters
                 )
                 HistoryView.Apps -> AppHistoryContent(
                     modifier = Modifier.weight(1f),
@@ -260,7 +282,8 @@ fun HistoryScreen(
                     onAppClick = { packageName ->
                         navController.navigate(Screens.AppsNotificationListScreen.createRoute(packageName))
                     },
-                    onRefresh = { mainViewmodel.refreshHistory() }
+                    onRefresh = { mainViewmodel.refreshHistory() },
+                    onManageApps = openManageApps
                 )
             }
         }
@@ -346,7 +369,10 @@ fun HistoryScreenContent(
     hasActiveFilters: Boolean,
     onLoadMore: () -> Unit,
     onItemClick: (NotificationModel) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onClearSearch: () -> Unit,
+    onClearFilters: () -> Unit,
+    onManageApps: () -> Unit
 ) {
     val listState = rememberLazyListState()
     val isInitialLoading = isRefreshing && packages.isEmpty()
@@ -378,12 +404,27 @@ fun HistoryScreenContent(
                     if (isInitialLoading) {
                         HistoryLoadingState(Modifier.fillMaxSize())
                     } else {
-                        val message = when {
-                            searchQuery.isNotBlank() -> stringResource(R.string.history_empty_search)
-                            hasActiveFilters -> stringResource(R.string.history_empty_filters)
-                            else -> stringResource(R.string.history_empty)
+                        when {
+                            searchQuery.isNotBlank() -> EmptyState(
+                                title = stringResource(R.string.history_empty_search),
+                                modifier = Modifier.fillMaxSize(),
+                                actionLabel = stringResource(R.string.content_description_clear_search),
+                                onAction = onClearSearch
+                            )
+                            hasActiveFilters -> EmptyState(
+                                title = stringResource(R.string.history_empty_filters),
+                                modifier = Modifier.fillMaxSize(),
+                                actionLabel = stringResource(R.string.history_clear_filters),
+                                onAction = onClearFilters
+                            )
+                            else -> EmptyState(
+                                title = stringResource(R.string.history_empty),
+                                modifier = Modifier.fillMaxSize(),
+                                description = stringResource(R.string.history_empty_description),
+                                actionLabel = stringResource(R.string.home_manage_apps),
+                                onAction = onManageApps
+                            )
                         }
-                        HistoryEmptyState(message, Modifier.fillMaxSize())
                     }
                 }
             } else {
@@ -659,6 +700,7 @@ fun AppHistoryContent(
     packages: List<NotificationModel>,
     onAppClick: (String) -> Unit,
     onRefresh: () -> Unit,
+    onManageApps: () -> Unit
 ) {
 
     PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, modifier = modifier) {
@@ -668,7 +710,13 @@ fun AppHistoryContent(
                     if (isRefreshing) {
                         HistoryLoadingState(Modifier.fillMaxSize())
                     } else {
-                        HistoryEmptyState(stringResource(R.string.history_empty), Modifier.fillMaxSize())
+                        EmptyState(
+                            title = stringResource(R.string.history_empty),
+                            modifier = Modifier.fillMaxSize(),
+                            description = stringResource(R.string.history_empty_description),
+                            actionLabel = stringResource(R.string.home_manage_apps),
+                            onAction = onManageApps
+                        )
                     }
                 }
             } else {

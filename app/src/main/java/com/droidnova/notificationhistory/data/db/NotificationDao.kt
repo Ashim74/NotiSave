@@ -127,6 +127,10 @@ interface NotificationDao {
     @Query("DELETE FROM apps WHERE isTrashed = 1")
     suspend fun emptyTrash(): Int
 
+    /** Auto-purge: rows moved to Trash before [threshold] are gone for good. */
+    @Query("DELETE FROM apps WHERE isTrashed = 1 AND trashedAt IS NOT NULL AND trashedAt < :threshold")
+    suspend fun deleteTrashedBefore(threshold: Long): Int
+
     // Observe all rows, newest first
     @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC")
     fun observeAll(): Flow<List<NotificationEntity>>

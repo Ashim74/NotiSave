@@ -11,5 +11,7 @@ data class SettingState (
     ) {
     companion object {
         const val DEFAULT_HISTORY_RETENTION_DAYS = 7
+        /** Trashed rows are purged after this many days regardless of the history retention. */
+        const val TRASH_RETENTION_DAYS = 30
     }
 }

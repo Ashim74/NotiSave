@@ -2,8 +2,11 @@ package com.droidnova.notificationhistory.service
 
 import android.app.Notification
 import android.content.ComponentName
+import android.os.Handler
+import android.os.Looper
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.db.NotificationDao
@@ -36,6 +39,19 @@ class NotificationListener : NotificationListenerService() {
     private val prefsPrimed = CompletableDeferred<Unit>()
 
     private lateinit var prefs: UserPreferences
+
+    // Posted on the main looper so it outlives this service instance: if the binding is still
+    // dead when it fires (and the user still expects capture), tell them instead of failing silently.
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val disconnectAlert = Runnable {
+        val context = applicationContext
+        if (!isConnected &&
+            trackingEnabledSnapshot &&
+            NotificationAccessChecker.hasNotificationAccessPermission(context)
+        ) {
+            ListenerAlerts.showDisconnected(context)
+        }
+    }
 
     @Volatile private var allowedCache: Set<String> = emptySet()
     @Volatile private var trackingEnabled: Boolean = false
@@ -70,6 +86,7 @@ class NotificationListener : NotificationListenerService() {
         serviceScope.launch {
             prefs.settingFlow.collect { state ->
                 trackingEnabled = state.userToggleTracking
+                trackingEnabledSnapshot = state.userToggleTracking
                 historyRetentionDays = state.historyRetentionDays.coerceAtLeast(0)
                 CrashReporter.setCustomKey("tracking_enabled", state.userToggleTracking)
             }
@@ -84,6 +101,8 @@ class NotificationListener : NotificationListenerService() {
         super.onListenerConnected()
         isConnected = true
         ListenerReconnector.notifyConnected()
+        mainHandler.removeCallbacks(disconnectAlert)
+        ListenerAlerts.cancel(applicationContext)
         CrashReporter.setCustomKey("listener_connected", true)
         persistConnectedState(true)
     }
@@ -97,6 +116,8 @@ class NotificationListener : NotificationListenerService() {
         runCatching {
             requestRebind(ComponentName(this, NotificationListener::class.java))
         }.onFailure(CrashReporter::record)
+        mainHandler.removeCallbacks(disconnectAlert)
+        mainHandler.postDelayed(disconnectAlert, DISCONNECT_ALERT_DELAY_MS)
     }
 
     private fun persistConnectedState(connected: Boolean) {
@@ -212,12 +233,16 @@ class NotificationListener : NotificationListenerService() {
         dao: NotificationDao,
         now: Long = System.currentTimeMillis()
     ) {
-        val retention = historyRetentionDays
-        if (retention <= 0) return
         if (!retentionGate.tryAcquire(now)) return
 
-        val threshold = now - TimeUnit.DAYS.toMillis(retention.toLong())
-        dao.deleteActiveNotificationsOlderThan(threshold)
+        val retention = historyRetentionDays
+        if (retention > 0) {
+            dao.deleteActiveNotificationsOlderThan(now - TimeUnit.DAYS.toMillis(retention.toLong()))
+        }
+        // Trash purges on its own fixed schedule, even when history is kept forever.
+        dao.deleteTrashedBefore(
+            now - TimeUnit.DAYS.toMillis(SettingState.TRASH_RETENTION_DAYS.toLong())
+        )
     }
 
     companion object {
@@ -228,8 +253,12 @@ class NotificationListener : NotificationListenerService() {
         @Volatile var isConnected: Boolean = false
             private set
 
+        /** Last known user toggle, readable by the delayed alert after the instance is gone. */
+        @Volatile private var trackingEnabledSnapshot: Boolean = true
+
         private val PERSISTENT_DEDUPE_WINDOW_MS = TimeUnit.MINUTES.toMillis(5)
         private val RETENTION_CLEANUP_INTERVAL_MS = TimeUnit.HOURS.toMillis(6)
+        private val DISCONNECT_ALERT_DELAY_MS = TimeUnit.SECONDS.toMillis(45)
     }
 }
 

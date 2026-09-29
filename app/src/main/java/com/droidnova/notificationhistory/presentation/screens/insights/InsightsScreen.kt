@@ -58,8 +58,9 @@ import com.droidnova.notificationhistory.data.insights.BucketUnit
 import com.droidnova.notificationhistory.data.insights.ChartBucket
 import com.droidnova.notificationhistory.data.insights.InsightsData
 import com.droidnova.notificationhistory.data.insights.InsightsRange
-import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
+import com.droidnova.notificationhistory.presentation.components.EmptyState
 import com.droidnova.notificationhistory.presentation.components.PackageAppIcon
+import com.droidnova.notificationhistory.utils.Analytics
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.presentation.navigation.navigateToTab
 
@@ -74,6 +75,7 @@ fun InsightsScreen(
     // Day boundaries can move while the app is in the background; re-plan on every resume.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
+        Analytics.log(Analytics.INSIGHTS_OPEN)
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
         }
@@ -115,9 +117,10 @@ fun InsightsScreen(
                     item(key = "summary") { SummaryCards(data) }
                     if (data.totalNotifications == 0) {
                         item(key = "empty") {
-                            HistoryEmptyState(
-                                message = stringResource(R.string.insights_empty),
-                                modifier = Modifier.fillMaxWidth()
+                            EmptyState(
+                                title = stringResource(R.string.insights_empty),
+                                modifier = Modifier.fillMaxWidth(),
+                                description = stringResource(R.string.insights_empty_description)
                             )
                         }
                     } else {

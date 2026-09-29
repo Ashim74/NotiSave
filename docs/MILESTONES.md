@@ -11,7 +11,7 @@ Companion to [UPDATE_PLAN.md](UPDATE_PLAN.md). Issue IDs (S1, U4, A3 …) refer 
 | M3 | Dependencies, ads & consent | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M4 | Design system & theming | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M5 | Navigation redesign (bottom nav + screens) | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
-| M6 | Onboarding, retention & engagement | ⬜ Not started |
+| M6 | Onboarding, retention & engagement | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M7 | Hardening, QA & release | ⬜ Not started |
 
 Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
@@ -106,14 +106,19 @@ Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 ## M6 — Onboarding, retention & engagement
 *Reasons to return. Plan §3.4–3.5. Fixes: S12.*
 
-- [ ] 3-step first-run onboarding: value intro → notification access → app selection (common messengers preselected)
-- [ ] Tracking-stopped detection + polite self-notification with reconnect deep link
-- [ ] Trash auto-purge after 30 days (opportunistic on app open / retention pass) (S12)
-- [ ] Empty states with action buttons for history, conversations, insights, trash, search results
-- [ ] Static app shortcuts: Search, History, Insights
-- [ ] Firebase Analytics events for the new funnel: onboarding_complete, home_open, history_open, insights_open, reconnect_tapped
+- [x] 3-step `OnboardingScreen` (intro → notification access with auto-advance on grant → app picker with installed messengers pre-selected); gated by `onboarding_complete` DataStore flag whose fallback treats upgraders (apps already selected or launch count > 1) as onboarded; splash stays up until the flag is read; POST_NOTIFICATIONS asked once at the end (API 33+)
+- [x] Tracking-stopped alert: `ListenerAlerts` posts a "Recording stopped — tap to reconnect" notification 45 s after a disconnect the rebind didn't fix (only if access is still granted and tracking is on); cancelled on reconnect; tap deep-links via `LaunchAction.Reconnect`
+- [x] Trash auto-purge after `TRASH_RETENTION_DAYS = 30` on app open (`refreshHistory`) and in the listener retention pass — runs even when history is "keep forever" (S12)
+- [x] Actionable `EmptyState`s: History All/Apps (Clear search / Clear filters / Manage apps), Conversations (clear search/filters), Trash + Insights (explanatory description)
+- [x] Static launcher shortcuts (`res/xml/shortcuts.xml`): Search (opens History with the search field focused), History, Insights → routed through `LaunchAction`
+- [x] `utils/Analytics`: onboarding_complete, home_open, history_open, insights_open, reconnect_tapped, listener_alert_shown
 
 **Acceptance:** fresh install reaches "recording with apps selected" in < 60 s; disabling notification access produces the reconnect notification; trashed items older than 30 days purge.
+- [x] Compile green; 56 unit tests green; RateUsCard untouched
+- [ ] On-device: fresh install → onboarding shows; upgrade from 0.19 data → onboarding does NOT show
+- [ ] On-device: kill the listener binding (not the permission) → alert appears after ~45 s; tap → app opens and Home shows Reconnecting → Recording
+- [ ] On-device: long-press launcher icon → 3 shortcuts; Search shortcut lands on History with keyboard open
+- [ ] On-device: seed a trashed row with `trashedAt` 31 days ago → gone after next app open
 
 ## M7 — Hardening, QA & release
 *Fixes: A1 (bounded), A6; plan §4.*

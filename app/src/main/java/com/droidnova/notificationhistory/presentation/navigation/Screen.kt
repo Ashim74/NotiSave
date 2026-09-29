@@ -3,6 +3,7 @@ package com.droidnova.notificationhistory.presentation.navigation
 import android.net.Uri
 
 sealed class Screens(val route: String) {
+   data object Onboarding : Screens("onboarding")
    data object Home : Screens("home")
    data object History : Screens("History") {
       const val PACKAGE_ARG = "packageName"

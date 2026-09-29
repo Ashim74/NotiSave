@@ -81,6 +81,7 @@ import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDial
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.presentation.navigation.navigateToTab
 import com.droidnova.notificationhistory.service.ListenerReconnector
+import com.droidnova.notificationhistory.utils.Analytics
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import kotlinx.coroutines.launch
 
@@ -123,7 +124,10 @@ fun HomeScreen(
         confirmValueChange = { it != SheetValue.PartiallyExpanded }
     )
 
-    LaunchedEffect(Unit) { viewmodel.getAllInstalledApps(context) }
+    LaunchedEffect(Unit) {
+        viewmodel.getAllInstalledApps(context)
+        Analytics.log(context, Analytics.HOME_OPEN)
+    }
     LaunchedEffect(billingManager) {
         billingManager?.errors?.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
     }

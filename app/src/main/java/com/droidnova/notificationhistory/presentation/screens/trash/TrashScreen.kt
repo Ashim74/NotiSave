@@ -37,7 +37,8 @@ import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.mapper.toReadableTime
 import com.droidnova.notificationhistory.data.model.NotificationModel
-import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
+import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.presentation.components.EmptyState
 import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.NotificationHistoryCard
 
@@ -86,9 +87,13 @@ fun TrashScreen(mainViewModel: MainViewModel, navController: NavController) {
         ) {
             when {
                 isLoading -> HistoryLoadingState(Modifier.fillMaxSize())
-                notifications.isEmpty() -> HistoryEmptyState(
-                    message = stringResource(R.string.trash_empty),
-                    modifier = Modifier.fillMaxSize()
+                notifications.isEmpty() -> EmptyState(
+                    title = stringResource(R.string.trash_empty),
+                    modifier = Modifier.fillMaxSize(),
+                    description = stringResource(
+                        R.string.trash_empty_description,
+                        SettingState.TRASH_RETENTION_DAYS
+                    )
                 )
                 else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(notifications, key = { it.id }) { notification ->
