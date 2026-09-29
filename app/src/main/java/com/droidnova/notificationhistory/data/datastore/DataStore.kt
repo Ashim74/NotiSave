@@ -12,6 +12,7 @@ import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.KEY_USER_W
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LAUNCH_COUNT
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HISTORY_RETENTION_DAYS
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.IS_PREMIUM
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LISTENER_CONNECTED
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
 import com.droidnova.notificationhistory.data_shared.SettingState
 import kotlinx.coroutines.flow.Flow
@@ -76,6 +77,17 @@ class UserPreferences(private val context: Context) {
     suspend fun setPremium(isPremium: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[IS_PREMIUM] = isPremium
+        }
+    }
+
+    // Written by the notification listener; lets the UI show a reconnect state.
+    val listenerConnected: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[LISTENER_CONNECTED] ?: false
+    }
+
+    suspend fun setListenerConnected(connected: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[LISTENER_CONNECTED] = connected
         }
     }
 

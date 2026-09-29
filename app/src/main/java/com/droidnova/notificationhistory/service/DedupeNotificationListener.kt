@@ -1,32 +1,39 @@
 package com.droidnova.notificationhistory.service
 
 import android.app.Notification
+import android.content.ComponentName
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.db.NotificationDao
 import com.droidnova.notificationhistory.data.db.NotificationEntity
 import com.droidnova.notificationhistory.data.mapper.fetchAppName
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.utils.CrashReporter
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 class NotificationListener : NotificationListenerService() {
 
     private val cache = DedupeCache(ttlMs = 2000L)
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val lastRetentionCleanupAt = AtomicLong(0L)
+    private val crashHandler = CoroutineExceptionHandler { _, throwable ->
+        CrashReporter.record(throwable)
+    }
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + crashHandler)
+    private val retentionGate = RetentionGate(RETENTION_CLEANUP_INTERVAL_MS)
+
+    // Completed once the preference caches hold real values; capture coroutines
+    // await it so notifications arriving during startup are never dropped.
+    private val prefsPrimed = CompletableDeferred<Unit>()
 
     private lateinit var prefs: UserPreferences
 
@@ -39,22 +46,32 @@ class NotificationListener : NotificationListenerService() {
         super.onCreate()
         prefs = UserPreferences(applicationContext)
 
-        runBlocking {
-            allowedCache = prefs.allowedApps.first()
-            val state = prefs.settingFlow.first()
-            trackingEnabled = state.userToggleTracking
-            historyRetentionDays = state.historyRetentionDays.coerceAtLeast(0)
-            titleFilters = prefs.allTitleFilters.first()
+        serviceScope.launch {
+            try {
+                allowedCache = prefs.allowedApps.first()
+                val state = prefs.settingFlow.first()
+                trackingEnabled = state.userToggleTracking
+                historyRetentionDays = state.historyRetentionDays.coerceAtLeast(0)
+                titleFilters = prefs.allTitleFilters.first()
+            } catch (t: Throwable) {
+                CrashReporter.record(t)
+            } finally {
+                prefsPrimed.complete(Unit)
+            }
         }
 
         serviceScope.launch {
-            prefs.allowedApps.collect { allowedCache = it }
+            prefs.allowedApps.collect {
+                allowedCache = it
+                CrashReporter.setCustomKey("allowed_app_count", it.size)
+            }
         }
 
         serviceScope.launch {
             prefs.settingFlow.collect { state ->
                 trackingEnabled = state.userToggleTracking
                 historyRetentionDays = state.historyRetentionDays.coerceAtLeast(0)
+                CrashReporter.setCustomKey("tracking_enabled", state.userToggleTracking)
             }
         }
 
@@ -63,18 +80,46 @@ class NotificationListener : NotificationListenerService() {
         }
     }
 
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        isConnected = true
+        ListenerReconnector.notifyConnected()
+        CrashReporter.setCustomKey("listener_connected", true)
+        persistConnectedState(true)
+    }
+
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        isConnected = false
+        CrashReporter.setCustomKey("listener_connected", false)
+        persistConnectedState(false)
+        // Gentle recovery attempt; ListenerReconnector escalates from the UI if this fails.
+        runCatching {
+            requestRebind(ComponentName(this, NotificationListener::class.java))
+        }.onFailure(CrashReporter::record)
+    }
+
+    private fun persistConnectedState(connected: Boolean) {
+        serviceScope.launch {
+            runCatching { prefs.setListenerConnected(connected) }
+                .onFailure(CrashReporter::record)
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        isConnected = false
         serviceScope.cancel()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val packageName = sbn.packageName ?: return
 
-        // Preserve M1: permission, user tracking, and explicit package selection are all required.
-        if (!shouldCaptureNotification(
-                hasNotificationAccess = NotificationAccessChecker
-                    .hasNotificationAccessPermission(applicationContext),
+        // Preserve M1: permission, user tracking, and explicit package selection are all
+        // required. This fast path only drops on cached state after priming; before that,
+        // the IO coroutine below re-evaluates once real values are loaded.
+        if (prefsPrimed.isCompleted && !shouldCaptureNotification(
+                hasNotificationAccess = isConnected,
                 trackingEnabled = trackingEnabled,
                 allowedPackages = allowedCache,
                 packageName = packageName
@@ -86,12 +131,15 @@ class NotificationListener : NotificationListenerService() {
 
         // The system key is stable for updates; the fallback is not package-only.
         val notificationKey = sbn.key ?: "$packageName:${sbn.id}:${sbn.tag.orEmpty()}"
+        val postTime = sbn.postTime
+        val notification = sbn.notification
 
         serviceScope.launch {
+            prefsPrimed.await()
+
             // Recheck immediately before persistence in case settings changed after the callback.
             if (!shouldCaptureNotification(
-                    hasNotificationAccess = NotificationAccessChecker
-                        .hasNotificationAccessPermission(applicationContext),
+                    hasNotificationAccess = isConnected,
                     trackingEnabled = trackingEnabled,
                     allowedPackages = allowedCache,
                     packageName = packageName
@@ -108,34 +156,41 @@ class NotificationListener : NotificationListenerService() {
 
             val conversation = NotificationConversationDetector.detect(
                 packageName = packageName,
-                notification = sbn.notification,
+                notification = notification,
                 appLabel = fetchAppName(packageManager, packageName)
             )
-            val dao = AppDatabase.getInstance(applicationContext).notificationDao()
-            val contentFingerprint = content.contentFingerprint()
-            val duplicateCheckAt = System.currentTimeMillis()
-            if (dao.hasRecentDuplicate(
-                    notificationKey = notificationKey,
-                    contentFingerprint = contentFingerprint,
-                    since = duplicateCheckAt - PERSISTENT_DEDUPE_WINDOW_MS,
-                    until = duplicateCheckAt
-                )
-            ) return@launch
 
-            dao.insertApp(
-                NotificationEntity(
-                    packageName = packageName,
-                    title = content.title,
-                    message = content.message,
-                    receivedAt = sbn.postTime,
-                    notificationKey = notificationKey,
-                    contentFingerprint = contentFingerprint,
-                    conversationTitle = content.conversationTitle,
-                    conversationKey = conversation?.key,
-                    conversationName = conversation?.displayName
+            try {
+                val dao = AppDatabase.getInstance(applicationContext).notificationDao()
+                val contentFingerprint = content.contentFingerprint()
+                val duplicateCheckAt = System.currentTimeMillis()
+                if (dao.hasRecentDuplicate(
+                        notificationKey = notificationKey,
+                        contentFingerprint = contentFingerprint,
+                        since = duplicateCheckAt - PERSISTENT_DEDUPE_WINDOW_MS,
+                        until = duplicateCheckAt
+                    )
+                ) return@launch
+
+                dao.insertApp(
+                    NotificationEntity(
+                        packageName = packageName,
+                        title = content.title,
+                        message = content.message,
+                        receivedAt = postTime,
+                        notificationKey = notificationKey,
+                        contentFingerprint = contentFingerprint,
+                        conversationTitle = content.conversationTitle,
+                        conversationKey = conversation?.key,
+                        conversationName = conversation?.displayName
+                    )
                 )
-            )
-            enforceRetentionIfDue(dao)
+                enforceRetentionIfDue(dao)
+            } catch (t: Throwable) {
+                // A failing disk/DB (full, locked, mid-migration) must never crash the
+                // listener process; losing one notification beats losing the listener.
+                CrashReporter.record(t)
+            }
         }
     }
 
@@ -159,23 +214,22 @@ class NotificationListener : NotificationListenerService() {
     ) {
         val retention = historyRetentionDays
         if (retention <= 0) return
-
-        while (true) {
-            val lastCleanup = lastRetentionCleanupAt.get()
-            val elapsed = now - lastCleanup
-            if (lastCleanup != 0L && elapsed >= 0 && elapsed < RETENTION_CLEANUP_INTERVAL_MS) {
-                return
-            }
-            if (lastRetentionCleanupAt.compareAndSet(lastCleanup, now)) break
-        }
+        if (!retentionGate.tryAcquire(now)) return
 
         val threshold = now - TimeUnit.DAYS.toMillis(retention.toLong())
         dao.deleteActiveNotificationsOlderThan(threshold)
     }
 
-    private companion object {
-        val PERSISTENT_DEDUPE_WINDOW_MS = TimeUnit.MINUTES.toMillis(5)
-        val RETENTION_CLEANUP_INTERVAL_MS = TimeUnit.HOURS.toMillis(6)
+    companion object {
+        /**
+         * Live binding state, readable from the UI process (the listener runs in the
+         * default app process). False also while the service has never been created.
+         */
+        @Volatile var isConnected: Boolean = false
+            private set
+
+        private val PERSISTENT_DEDUPE_WINDOW_MS = TimeUnit.MINUTES.toMillis(5)
+        private val RETENTION_CLEANUP_INTERVAL_MS = TimeUnit.HOURS.toMillis(6)
     }
 }
 

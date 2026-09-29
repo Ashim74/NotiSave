@@ -16,6 +16,7 @@ import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.billing.PremiumBillingManager
 import com.droidnova.notificationhistory.presentation.navigation.AppNavGraph
 import com.droidnova.notificationhistory.presentation.ui.theme.AppTheme
+import com.droidnova.notificationhistory.service.ListenerReconnector
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -53,6 +54,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Recover a listener binding the system dropped; no-op while healthy.
+        ListenerReconnector.ensureConnected(applicationContext)
     }
 
     override fun onDestroy() {

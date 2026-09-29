@@ -11,6 +11,7 @@ object DataStoreKeys {
     val SHOW_RATE_US_CARD = booleanPreferencesKey("show_us_rate_card")
     val HISTORY_RETENTION_DAYS = intPreferencesKey("history_retention_days")
     val IS_PREMIUM = booleanPreferencesKey("is_premium")
+    val LISTENER_CONNECTED = booleanPreferencesKey("listener_connected")
     const val FILTERS_PREFIX = "filters_"
 
 }

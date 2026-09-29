@@ -6,7 +6,7 @@ Companion to [UPDATE_PLAN.md](UPDATE_PLAN.md). Issue IDs (S1, U4, A3 …) refer 
 
 | Milestone | Theme | Status |
 |-----------|-------|--------|
-| M1 | Listener & service stability | ⬜ Not started |
+| M1 | Listener & service stability | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M2 | Performance & memory | ⬜ Not started |
 | M3 | Dependencies, ads & consent | ⬜ Not started |
 | M4 | Design system & theming | ⬜ Not started |
@@ -21,15 +21,18 @@ Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 ## M1 — Listener & service stability
 *The capture pipeline must survive anything. Fixes: S1–S4, S11 (service part), S14.*
 
-- [ ] Remove `runBlocking` from `NotificationListener.onCreate`; prime allowed-apps/tracking/retention/filters asynchronously with safe defaults until first emission (S1)
-- [ ] Add `CoroutineExceptionHandler` to `serviceScope`; wrap `hasRecentDuplicate` / `insertApp` / retention delete in try/catch with Crashlytics non-fatal recording (S2)
-- [ ] Override `onListenerConnected` / `onListenerDisconnected`; persist connected-state; add `requestRebind` + component-toggle recovery (S3)
-- [ ] Cache notification-access check; stop reading `Settings.Secure` per posted notification (S4)
-- [ ] Align `SettingState.userWantsTracking` default with DataStore default (S14)
-- [ ] Add Crashlytics custom keys: listener_connected, tracking_enabled, allowed_app_count (S11)
-- [ ] Unit tests for the new capture-gate/caching logic; keep all 42 existing unit tests green
+- [x] Remove `runBlocking` from `NotificationListener.onCreate`; prime allowed-apps/tracking/retention/filters asynchronously — capture coroutines `await` a `prefsPrimed` deferred so startup notifications are never dropped (S1)
+- [x] Add `CoroutineExceptionHandler` to `serviceScope`; wrap `hasRecentDuplicate` / `insertApp` / retention delete in try/catch with Crashlytics non-fatal recording via new `utils/CrashReporter` (S2)
+- [x] Override `onListenerConnected` / `onListenerDisconnected`; live `NotificationListener.isConnected` + persisted `listener_connected` DataStore key; `requestRebind` on disconnect + `service/ListenerReconnector` escalating to component toggle from `MainActivity.onResume` (S3)
+- [x] Cache notification-access check; hot path now uses binding state instead of `Settings.Secure` (S4)
+- [x] Align `SettingState.userToggleTracking` default with DataStore default (S14)
+- [x] Add Crashlytics custom keys: listener_connected, tracking_enabled, allowed_app_count (S11)
+- [x] Unit tests: `RetentionGateTest` (5) + `ListenerReconnectorTest` (6); all 53 unit tests green
 
 **Acceptance:** kill the listener via `adb shell am crash` / revoke-regrant access → capture resumes without app open; no `runBlocking` anywhere in service; forced SQLite failure logs a non-fatal instead of crashing.
+- [x] No `runBlocking` in service (verified by grep)
+- [ ] On-device: revoke → regrant notification access, confirm capture resumes and Crashlytics key `listener_connected` flips (needs a physical device / emulator)
+- [ ] On-device: force-stop app, post notifications from a tracked app, confirm capture resumes after `MainActivity.onResume`
 
 ## M2 — Performance & memory
 *No main-thread I/O, bounded memory. Fixes: S5–S8, S10, S13.*
