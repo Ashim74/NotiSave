@@ -12,11 +12,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
+import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.billing.PremiumBillingManager
+import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.presentation.navigation.AppNavGraph
 import com.droidnova.notificationhistory.presentation.ui.theme.AppTheme
 import com.droidnova.notificationhistory.service.ListenerReconnector
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -42,6 +47,12 @@ class MainActivity : ComponentActivity() {
         viewModel.incrementLaunchCount()
         billingManager.queryActivePurchases()
         billingManager.queryProductDetails()
+        lifecycleScope.launch {
+            // Premium users never see ads, so they are never asked for ad consent.
+            if (!UserPreferences(applicationContext).isPremium.first()) {
+                AdsConsentManager.getInstance(applicationContext).gatherConsent(this@MainActivity)
+            }
+        }
         setContent {
             CompositionLocalProvider(LocalPremiumBillingManager provides billingManager) {
                 AppTheme {

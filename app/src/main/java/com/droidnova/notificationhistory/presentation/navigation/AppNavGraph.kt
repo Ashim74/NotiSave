@@ -3,19 +3,15 @@ package com.droidnova.notificationhistory.presentation.navigation
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
@@ -35,7 +31,6 @@ import com.droidnova.notificationhistory.presentation.screens.insights.InsightsV
 import com.droidnova.notificationhistory.presentation.screens.select_app.SelectAppScreen
 import com.droidnova.notificationhistory.presentation.screens.setting.SettingScreen
 import com.droidnova.notificationhistory.presentation.screens.trash.TrashScreen
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
 @Composable
 fun AppNavGraph() {

@@ -16,16 +16,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -354,7 +351,7 @@ fun HistoryScreen(
 
 
 
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreenContent(
     modifier: Modifier,
@@ -369,10 +366,6 @@ fun HistoryScreenContent(
     onRefresh: () -> Unit
 ) {
     val listState = rememberLazyListState()
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = onRefresh
-    )
     val isInitialLoading = isRefreshing && packages.isEmpty()
 
     LaunchedEffect(packages, listState, canLoadMore, isLoadingMore) {
@@ -395,7 +388,7 @@ fun HistoryScreenContent(
         Instant.ofEpochMilli(it.receivedAtEpoch).atZone(zoneId).toLocalDate()
     }
 
-    Box(modifier = modifier.pullRefresh(pullRefreshState)) {
+    PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, modifier = modifier) {
         LazyColumn(state = listState) {
             if (packages.isEmpty()) {
                 item {
@@ -446,11 +439,6 @@ fun HistoryScreenContent(
                 }
             }
         }
-        PullRefreshIndicator(
-            refreshing = isRefreshing,
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
     }
 }
 
@@ -661,7 +649,7 @@ private fun HistoryDateFilter.displayName(): String = when (this) {
     HistoryDateFilter.Custom -> "Custom range"
 }
 
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppHistoryContent(
     modifier: Modifier,
@@ -670,12 +658,8 @@ fun AppHistoryContent(
     onAppClick: (String) -> Unit,
     onRefresh: () -> Unit,
 ) {
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = onRefresh
-    )
 
-    Box(modifier = modifier.pullRefresh(pullRefreshState)) {
+    PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, modifier = modifier) {
         LazyColumn {
             if (packages.isEmpty()) {
                 item {
@@ -725,10 +709,5 @@ fun AppHistoryContent(
                 }
             }
         }
-        PullRefreshIndicator(
-            refreshing = isRefreshing,
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
     }
 }

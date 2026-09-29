@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
@@ -57,6 +58,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.presentation.components.isBatteryOptimizationIgnored
 import com.droidnova.notificationhistory.presentation.components.openBatteryOptimizationSettings
@@ -85,6 +87,8 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     var batteryIgnored by remember { mutableStateOf(isBatteryOptimizationIgnored(context)) }
     var showClearConfirmation by remember { mutableStateOf(false) }
     var showPurchaseSheet by remember { mutableStateOf(false) }
+    val consentManager = remember { AdsConsentManager.getInstance(context) }
+    val privacyOptionsRequired by consentManager.privacyOptionsRequired.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -243,6 +247,17 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                         }
                     }
                 )
+            }
+            // UMP mandates a privacy-options entry point while consent is revocable (EEA/UK/US states).
+            if (privacyOptionsRequired) {
+                item {
+                    SettingsRow(
+                        icon = Icons.Default.Lock,
+                        title = stringResource(R.string.settings_privacy_options),
+                        supportingText = stringResource(R.string.settings_privacy_options_description),
+                        onClick = { activity?.let { consentManager.showPrivacyOptionsForm(it) } }
+                    )
+                }
             }
             item {
                 SettingsRow(

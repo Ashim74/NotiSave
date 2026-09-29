@@ -31,6 +31,8 @@
     <string name="premium_menu_already_unlocked">Premium unlocked</string>
     <string name="premium_menu_unlocked_subtitle">Thanks for supporting us!</string>
     <string name="premium_menu_remove_ads_subtitle">Enjoy the app without ads and support development.</string>
+    <string name="settings_privacy_options">Privacy options</string>
+    <string name="settings_privacy_options_description">Review or change your ad consent choices.</string>
 
     <!-- About screen -->
     <string name="about_title">About</string>

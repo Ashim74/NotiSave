@@ -53,6 +53,7 @@ Today premium = ad removal only. A second value layer increases conversion witho
 
 ## Platform & quality (ongoing, slot into any release)
 
+- **Toolchain upgrade (compileSdk 37 / AGP 9.x / Gradle 9.6)**: required to move past Compose BOM 2026.06.01 (Compose 1.12+ compiles against API 37). AGP 9 changes Kotlin plugin handling and Gradle 9 drops deprecated APIs, so this needs its own branch and a full regression pass — do it right after v0.20 ships, not inside it.
 - **Localization**: strings are extracted in v0.20 (M4) — add top Play-market languages (hi, pt-BR, es, id, de, ar) with per-locale store listings.
 - **Baseline Profiles + Macrobenchmark** module for startup/scroll performance.
 - **Paging 3** migration if windowed paging from M2 shows limits.

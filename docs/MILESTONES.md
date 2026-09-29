@@ -8,7 +8,7 @@ Companion to [UPDATE_PLAN.md](UPDATE_PLAN.md). Issue IDs (S1, U4, A3 …) refer 
 |-----------|-------|--------|
 | M1 | Listener & service stability | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M2 | Performance & memory | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
-| M3 | Dependencies, ads & consent | ⬜ Not started |
+| M3 | Dependencies, ads & consent | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M4 | Design system & theming | ⬜ Not started |
 | M5 | Navigation redesign (bottom nav + screens) | ⬜ Not started |
 | M6 | Onboarding, retention & engagement | ⬜ Not started |
@@ -53,15 +53,20 @@ Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 ## M3 — Dependencies, ads & consent
 *Modern stack, policy-safe monetization. Fixes: S9, A2, A3.*
 
-- [ ] Update Compose BOM to current; remove pinned `ui-text-google-fonts` / `animation` overrides; resolve API changes (A3)
-- [ ] Remove: M2 `material` dependency (after M5 pull-refresh migration lands — coordinate), accompanist-systemuicontroller, gson (unused), duplicate Room declarations (A2)
-- [ ] `MobileAds.initialize()` on background thread at app start (S9)
-- [ ] UMP consent flow (Google User Messaging Platform) before ad requests; EEA-compliant (S9)
-- [ ] Destroy AdView in `onDispose`; pause/resume with lifecycle (S9)
-- [ ] Debug builds use Google test ad unit IDs (S9)
-- [ ] Move hardcoded ad unit ID to BuildConfig
+- [x] Compose BOM 2024.09.00 → **2026.06.01** (Compose 1.11.4, Material3 1.4.0); pinned `ui-text-google-fonts` / `animation` overrides removed; all deps moved into the version catalog (A3). *Decision:* BOM 2026.08.00+ (Compose 1.12) requires compileSdk 37 → AGP 9.x → Gradle 9.6; that toolchain jump is tracked separately (see FUTURE_FEATURES → Platform).
+- [x] Removed M2 `material` (pull-to-refresh migrated to M3 `PullToRefreshBox` in History, Apps tab and AppHistory — pulled forward from M5), accompanist-systemuicontroller, gson, duplicate Room/animation declarations; added explicit `material-icons-core` (previously transitive via M2) (A2)
+- [x] `MobileAds.initialize()` on `Dispatchers.IO`, gated on consent, guarded so it runs once (S9)
+- [x] UMP 4.0.0 consent flow (`ads/AdsConsentManager`): `requestConsentInfoUpdate` + `loadAndShowConsentFormIfRequired` on every launch for non-premium users; "Privacy options" row in Settings appears when UMP reports it as required (S9)
+- [x] `CollapsibleAdBanner` renders nothing until `adsReady`; AdView pauses/resumes with lifecycle and is destroyed in `onDispose` (S9)
+- [x] Debug builds use Google's collapsible-banner test unit (S9)
+- [x] Ad unit ID in `BuildConfig.BANNER_AD_UNIT_ID` per build type
+- [x] Bonus: play-services-ads 24.9.0 → 25.5.0; `kotlinOptions.jvmTarget` → `compilerOptions` DSL; `lifecycle-runtime-compose` added
 
 **Acceptance:** release build compiles minified; ads load with consent flow on a fresh EEA-locale install; LeakCanary (debug) shows no AdView/Activity leaks.
+- [x] Debug + release Kotlin compile green; 56 unit tests green
+- [ ] On-device: fresh install with an EEA test geography (UMP `ConsentDebugSettings`) → consent form shows before any ad; "Privacy options" row appears in Settings
+- [ ] On-device: navigate Home ↔ History repeatedly, confirm no AdView leak (LeakCanary or `dumpsys meminfo`)
+- [ ] Known deprecation to revisit: `AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize` (warning only)
 
 ## M4 — Design system & theming
 *One visual language before screens are rebuilt. Fixes: U2, U3, U6, U7, A4 (partial).*
@@ -82,7 +87,7 @@ Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 - [ ] Bottom navigation: Home / History / Insights / Settings; secondary screens as pushed routes (U5)
 - [ ] Home rebuild: hero status card, today-at-a-glance stats, recent-notifications preview (last 5), contextual warnings, RateUsCard (plan §3.2)
 - [ ] History simplification: one segmented control `All | Conversations | Apps` replacing TabRow + nested selector; unified filter bar (U4)
-- [ ] Migrate pull-to-refresh to M3 `PullToRefreshBox` in History + AppHistory; then drop M2 dep (with M3) (U1)
+- [x] Migrate pull-to-refresh to M3 `PullToRefreshBox` in History + AppHistory; drop M2 dep (U1) — *done early in M3*
 - [ ] URI-encode `app_notifications/{packageName}` route arg (A5)
 - [ ] Naming consistency: "Manage apps" everywhere; unified search placeholders/content descriptions (U7)
 - [ ] Settings tab: add retention-days control (wire up existing `updateHistoryRetentionDays`) and theme picker
