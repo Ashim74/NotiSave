@@ -12,10 +12,10 @@ fun DeleteConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete Notification") },
-        text = { Text("Are you sure you want to delete this notification?") },
+        title = { Text("Move to Trash?") },
+        text = { Text("You can restore this notification later from Trash.") },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text("Delete") }
+            TextButton(onClick = onConfirm) { Text("Move to Trash") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }

@@ -53,7 +53,7 @@ fun NotificationActionSheet(
                 onClick = onShare
             )
             NotificationActionRow(
-                label = "Delete",
+                label = "Move to Trash",
                 icon = { Icon(imageVector = Icons.Default.Delete, contentDescription = null) },
                 onClick = onDelete
             )

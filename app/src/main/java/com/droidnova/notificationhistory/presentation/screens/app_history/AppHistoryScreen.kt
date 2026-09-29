@@ -1,29 +1,22 @@
 package com.droidnova.notificationhistory.presentation.screens.app_history
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +33,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -48,19 +42,17 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
+import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
+import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
+import com.droidnova.notificationhistory.presentation.components.NotificationHistoryCard
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.toReadableShareText
 
@@ -80,7 +72,9 @@ fun AppHistoryScreen(
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<NotificationModel?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable(packageName) {
+        mutableStateOf(appHistoryState.searchQuery)
+    }
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
@@ -90,13 +84,6 @@ fun AppHistoryScreen(
         refreshing = isRefreshing,
         onRefresh = { mainViewModel.refreshAppHistory(packageName) }
     )
-
-    val filteredNotifications = notifications.filter {
-        it.title.contains(searchQuery, ignoreCase = true) || it.text.contains(
-            searchQuery,
-            ignoreCase = true
-        )
-    }
 
     LaunchedEffect(packageName) {
         mainViewModel.ensureAppHistoryLoaded(packageName)
@@ -110,13 +97,12 @@ fun AppHistoryScreen(
         }
     }
 
-    LaunchedEffect(filteredNotifications, listState, canLoadMore, isLoadingMore, searchQuery) {
+    LaunchedEffect(notifications, listState, canLoadMore, isLoadingMore) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { index ->
                 if (
                     index != null &&
-                    searchQuery.isBlank() &&
-                    index >= filteredNotifications.size - 1 &&
+                    index >= notifications.size - 1 &&
                     canLoadMore &&
                     !isLoadingMore
                 ) {
@@ -132,7 +118,10 @@ fun AppHistoryScreen(
                     title = {
                         TextField(
                             value = searchQuery,
-                            onValueChange = { searchQuery = it },
+                            onValueChange = {
+                                searchQuery = it
+                                mainViewModel.updateAppHistorySearchQuery(packageName, it)
+                            },
                             placeholder = { Text("Search notifications") },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -152,13 +141,17 @@ fun AppHistoryScreen(
                         IconButton(onClick = {
                             isSearchActive = false
                             searchQuery = ""
+                            mainViewModel.updateAppHistorySearchQuery(packageName, "")
                         }) {
-                            Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Close search")
+                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close search")
                         }
                     },
                     actions = {
                         if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
+                            IconButton(onClick = {
+                                searchQuery = ""
+                                mainViewModel.updateAppHistorySearchQuery(packageName, "")
+                            }) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
                                     contentDescription = "Clear search"
@@ -175,7 +168,7 @@ fun AppHistoryScreen(
                     title = { Text(title, fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     },
                     actions = {
@@ -203,24 +196,28 @@ fun AppHistoryScreen(
                     modifier = Modifier.fillMaxSize(),
                     state = listState
                 ) {
-                    if (filteredNotifications.isEmpty()) {
+                    if (notifications.isEmpty()) {
                         item {
                             if (isRefreshing) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(24.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-//                                    CircularProgressIndicator()
-                                }
+                                HistoryLoadingState(Modifier.fillMaxSize())
                             } else {
-                                EmptyAppHistoryState()
+                                HistoryEmptyState(
+                                    message = if (searchQuery.isNotBlank()) {
+                                        "No search results."
+                                    } else {
+                                        "No notification history."
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
                             }
                         }
                     } else {
-                        items(filteredNotifications, key = { it.id }) { item ->
-                            HistoryCard(item, searchQuery = searchQuery, onClick = { selectedNotification = it })
+                        items(notifications, key = { it.id }) { item ->
+                            NotificationHistoryCard(
+                                notification = item,
+                                searchQuery = searchQuery,
+                                onClick = { selectedNotification = item }
+                            )
                         }
                         if (isLoadingMore) {
                             item {
@@ -255,7 +252,7 @@ fun AppHistoryScreen(
     if (showDeleteConfirmDialog != null) {
         DeleteConfirmationDialog(
             onConfirm = {
-                mainViewModel.deleteNotification(showDeleteConfirmDialog!!)
+                mainViewModel.moveNotificationToTrash(showDeleteConfirmDialog!!)
                 showDeleteConfirmDialog = null
             },
             onDismiss = { showDeleteConfirmDialog = null }
@@ -294,82 +291,5 @@ fun AppHistoryScreen(
             },
             onDismiss = { selectedNotification = null }
         )
-    }
-}
-
-@Composable
-fun HistoryCard(model: NotificationModel, searchQuery: String, onClick: (NotificationModel) -> Unit) {
-    Card(
-        modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .fillMaxWidth()
-            .clickable { onClick(model) },
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = model.receivedAt.substringAfter(", "),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options"
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-
-
-            Text(
-                text = buildHighlightedText(text = model.title, query = searchQuery),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.W800
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = buildHighlightedText(text = model.text, query = searchQuery),
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-private fun EmptyAppHistoryState() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "No notifications found.",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.W700
-        )
-    }
-}
-
-private fun buildHighlightedText(text: String, query: String): AnnotatedString {
-    if (query.isBlank()) {
-        return buildAnnotatedString { append(text) }
-    }
-    return buildAnnotatedString {
-        var startIndex = 0
-        while (startIndex < text.length) {
-            val index = text.indexOf(query, startIndex, ignoreCase = true)
-            if (index == -1) {
-                append(text.substring(startIndex))
-                break
-            }
-            append(text.substring(startIndex, index))
-            withStyle(style = SpanStyle(color = Color.Black, background = Color(0xFFFFF9C4))) {
-                append(text.substring(index, index + query.length))
-            }
-            startIndex = index + query.length
-        }
     }
 }
