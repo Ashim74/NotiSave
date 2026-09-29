@@ -24,6 +24,17 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = DataStoreKeys.PREF_NAME)
 
+/**
+ * An explicit flag always wins. Without one (every install older than 0.20), a user who has
+ * selected apps or launched more than once is an upgrader and must not see the intro again.
+ * The launch counter increments before the first frame, so a brand-new install reads 1.
+ */
+internal fun resolveOnboardingComplete(
+    storedFlag: Boolean?,
+    hasAllowedApps: Boolean,
+    launchCount: Int
+): Boolean = storedFlag ?: (hasAllowedApps || launchCount > 1)
+
 class UserPreferences(private val context: Context) {
 
     private val allowedAppsKey = stringSetPreferencesKey(ALLOWED_APPS_KEY)
@@ -100,8 +111,11 @@ class UserPreferences(private val context: Context) {
      * more than once is treated as onboarded instead of being shown the intro.
      */
     val onboardingComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[ONBOARDING_COMPLETE]
-            ?: ((prefs[allowedAppsKey]?.isNotEmpty() == true) || (prefs[LAUNCH_COUNT] ?: 0) > 1)
+        resolveOnboardingComplete(
+            storedFlag = prefs[ONBOARDING_COMPLETE],
+            hasAllowedApps = prefs[allowedAppsKey]?.isNotEmpty() == true,
+            launchCount = prefs[LAUNCH_COUNT] ?: 0
+        )
     }
 
     suspend fun setOnboardingComplete() {

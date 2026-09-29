@@ -59,7 +59,8 @@ Today premium = ad removal only. A second value layer increases conversion witho
 - **Paging 3** migration if windowed paging from M2 shows limits.
 - **Predictive back** gesture support.
 - **In-App Review API** consideration: the current intent-based rating flow is kept per product decision; if Play policy ever forces a change, `ReviewManager` is the sanctioned path — revisit only then.
-- **Finish MainViewModel split** (whatever M7 left) + adopt lightweight DI if ViewModel count grows past ~6.
+- **Finish MainViewModel split** + adopt lightweight DI if ViewModel count grows past ~6. Status after 0.20: Home data moved to `HomeViewModel` (M5); History / Trash / AppSelection extraction was deliberately **not** done in 0.20 — trash restore, history paging, per-app history and the conversation controller all invalidate each other through shared state, so splitting them safely needs a shared repository layer first and on-device regression we couldn't run. Do it as: (1) `NotificationRepository` owning the DAO + change signals, (2) move Trash, (3) move per-app history, (4) move main history + conversations.
+- **Rate-card logic tests** — the card is frozen by product decision, so its trigger (`launchCount >= 3 && showRateUsCard`) stays inline in `HomeScreen`; if it's ever allowed to change, extract it to a pure function and unit-test the three paths.
 - **CI**: GitHub Actions running unit tests + lint on PRs (repo already uses PR flow).
 
 ## Explicit non-goals (revisit only with strong evidence)

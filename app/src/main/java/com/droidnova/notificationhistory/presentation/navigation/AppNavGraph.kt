@@ -78,9 +78,9 @@ fun NavController.navigateToTab(route: String, restoreState: Boolean = true) {
 
 private enum class TopLevelDestination(
     val route: String,
-    @StringRes val labelRes: Int,
+    @param:StringRes val labelRes: Int,
     val iconVector: ImageVector? = null,
-    @DrawableRes val iconRes: Int? = null
+    @param:DrawableRes val iconRes: Int? = null
 ) {
     Home(Screens.Home.route, R.string.nav_home, iconVector = Icons.Default.Home),
     History(Screens.History.ROUTE_PATTERN, R.string.history_title, iconRes = R.drawable.ic_history),

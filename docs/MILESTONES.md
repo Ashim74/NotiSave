@@ -12,7 +12,7 @@ Companion to [UPDATE_PLAN.md](UPDATE_PLAN.md). Issue IDs (S1, U4, A3 …) refer 
 | M4 | Design system & theming | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M5 | Navigation redesign (bottom nav + screens) | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M6 | Onboarding, retention & engagement | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
-| M7 | Hardening, QA & release | ⬜ Not started |
+| M7 | Hardening, QA & release | 🟨 Code complete (2026-09-29) — device regression + Play Console steps pending |
 
 Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 
@@ -123,16 +123,19 @@ Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 ## M7 — Hardening, QA & release
 *Fixes: A1 (bounded), A6; plan §4.*
 
-- [ ] Split `MainViewModel`: extract History/Trash/AppSelection ViewModels behind existing state shapes (A1 — stop when risk outweighs benefit; log leftovers in FUTURE_FEATURES tech-debt section)
-- [ ] Tests: launch-count/rating-trigger unit tests, DAO paging tests, Compose smoke tests for the 4 tabs (A6)
-- [ ] Proguard/R8 pass on release build: full manual regression on minified build
+- [x] `MainViewModel` split — **stopped by the risk rule**: Home moved to `HomeViewModel` in M5; History/Trash/AppSelection share invalidation state and need a repository layer + device regression first. Plan recorded in FUTURE_FEATURES → Platform (A1)
+- [x] Tests (A6): unit `OnboardingResolutionTest` (5, upgrade-safety of onboarding); instrumented `NotificationDaoTest` (5: cursor paging with tied timestamps, filters, trash purge, retention vs trash, recent preview) and `ComponentSmokeTest` (3: EmptyState action, StatusCard dark, StatCard). Rate-trigger test intentionally skipped — card is frozen (see FUTURE_FEATURES)
+- [x] R8: `proguard-rules.pro` keeps line numbers for Crashlytics; `minifyReleaseWithR8` passes, mapping generated
+- [ ] Manual regression on the minified build — needs a device
 - [ ] Manual regression matrix: Android 8 (minSdk 26), 12 (dynamic color), 14/15/16; light/dark; rotation; process death; multi-profile (work apps)
-- [ ] versionCode 20 / versionName "0.20"; release notes; Play listing screenshots of new UI
-- [ ] Data-safety form re-review (consent/UMP changes)
+- [x] versionCode 20 / versionName "0.20"; `docs/RELEASE_NOTES_0.20.md` (Play "What's new" 426/500 chars + internal changelog + Play Console checklist)
+- [ ] Play listing screenshots of the new UI — needs a device
+- [ ] Data-safety form re-review (consent/UMP changes) — Play Console, owner action
 - [ ] Internal → closed testing → staged rollout 10% / 50% / 100% gated on crash-free ≥ 99.5%
+- [x] Warning cleanup: `ClickableText` → `LinkAnnotation.Url`, Insights auto-mirrored arrow, nav annotation targets. Remaining 5 are pre-existing (deprecated ads/Parcelable APIs, one always-false check)
 
 ### Pre-release checklist
-- [ ] All 42+ unit tests and instrumented migration tests pass
+- [x] All unit tests pass (61) — [ ] instrumented tests (`connectedDebugAndroidTest`: 4 migration + 5 DAO + 3 Compose) on a device
 - [ ] Upgrade-in-place test: install v0.19 build with data → update to v0.20 → history, trash, settings, premium all intact
 - [ ] Premium flow: purchase, restore on reinstall, ads hidden
 - [ ] Rating card: appears at launch #3, all three paths behave exactly as v0.19
