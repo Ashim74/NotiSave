@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Star
@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.presentation.components.SectionHeader
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.about_utils.getRandomOtherApps
 
@@ -65,7 +66,7 @@ fun AboutScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.content_description_back)
                         )
                     }
@@ -136,13 +137,7 @@ fun AboutScreen(
             )
             SpacerHeight(8.dp)
 
-            Text(
-                text = stringResource(R.string.checkout_other_apps),
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Gray
-                )
-            )
+            SectionHeader(text = stringResource(R.string.checkout_other_apps))
             SpacerHeight(8.dp)
 
             otherApps.forEach { app ->
@@ -186,7 +181,7 @@ private fun AppHeader() {
         Text(
             text = stringResource(R.string.app_about_description),
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -225,7 +220,7 @@ private fun AppCard(
                         text = description,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Medium,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     )
                 }
@@ -288,7 +283,7 @@ private fun Items(
             Text(
                 text = labelText,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

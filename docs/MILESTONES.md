@@ -9,7 +9,7 @@ Companion to [UPDATE_PLAN.md](UPDATE_PLAN.md). Issue IDs (S1, U4, A3 …) refer 
 | M1 | Listener & service stability | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M2 | Performance & memory | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M3 | Dependencies, ads & consent | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
-| M4 | Design system & theming | ⬜ Not started |
+| M4 | Design system & theming | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M5 | Navigation redesign (bottom nav + screens) | ⬜ Not started |
 | M6 | Onboarding, retention & engagement | ⬜ Not started |
 | M7 | Hardening, QA & release | ⬜ Not started |
@@ -71,15 +71,20 @@ Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 ## M4 — Design system & theming
 *One visual language before screens are rebuilt. Fixes: U2, U3, U6, U7, A4 (partial).*
 
-- [ ] SplashScreen API + DayNight XML theme; purge template `colors.xml` (U3)
-- [ ] In-app theme setting: System / Light / Dark (new DataStore key) (U3)
-- [ ] Remove every hardcoded `Color(...)` in SettingScreen, SelectAppScreen, AboutScreen, search highlight → `colorScheme` roles (U2)
-- [ ] Delete unused contrast schemes, `ColorFamily`, unused imports (U6)
-- [ ] Shared component kit: `StatusCard`, `StatCard`, `EmptyState`, `SectionHeader`, `AppListItem` in `presentation/components/` (U7)
-- [ ] RateUsCard restyle: typography scale, tokens, strings → `strings.xml` — *logic untouched* (U7, 3.6)
-- [ ] Extract all ~60 hardcoded UI strings to `strings.xml` (A4)
+- [x] `core-splashscreen` 1.0.1 with `Theme.NotificationHistory.Starting` (launcher foreground icon on the surface color); base theme now light/dark via `values-night/themes.xml` with `window_background` matching the Compose surface; template purple/teal colors removed (U3)
+- [x] In-app theme setting System / Light / Dark: `ThemeMode` enum, `theme_mode` DataStore key, `MainViewModel.themeMode` (eager), `AppTheme(darkTheme = themeMode.isDark())`, system-bar icon contrast follows the in-app choice; "Appearance → Theme" row + radio dialog in Settings (U3)
+- [x] Hardcoded colors purged: SettingScreen warning card → `tertiaryContainer`, SelectApp/About `Color.Gray` → `onSurfaceVariant`, SelectApp search highlight now shares `highlightedText()` (theme roles). Only `Color(0x…)` literals left are the token definitions in `Color.kt` (U2)
+- [x] Deleted medium/high-contrast schemes, `ColorFamily`, `unspecified_scheme`; `Color.kt` 219 → 78 lines (U6)
+- [x] Component kit in `presentation/components/`: `SectionHeader` (adopted in Settings + About), `EmptyState` (`HistoryEmptyState` now delegates to it), `AppListItem` (adopted in History → Apps tab), `StatusCard` + `StatCard` (ready for the M5 Home rebuild) (U7)
+- [x] ~~RateUsCard restyle~~ — **dropped by product decision (2026-09-29): RateUsCard is frozen; no visual, string or logic changes.** Its hardcoded strings/raw `TextStyle` stay as-is.
+- [x] Hardcoded UI strings extracted in History, AppHistory, Conversations, SelectApp, DeleteConfirmationDialog, NotificationDetailsDialog, IntentUtil (+ ~45 new `strings.xml` entries); "Choose App" title unified to "Manage Apps" (A4, U7). RateUsCard intentionally excluded.
+- [x] Bonus: deprecated `Divider` → `HorizontalDivider`, non-mirrored `ArrowBack`/`KeyboardArrowRight` fixed in About/Settings/History (compiler warnings 24 → 8; remaining are Home/Insights/TabRow, owned by M5)
 
 **Acceptance:** every screen correct in light/dark/dynamic-color; zero literal `Color(0x…)` in screen code; strings lint check passes.
+- [x] Compile green; 56 unit tests green; grep confirms no `Color(0x…)`/`Color.Gray` outside `Color.kt` and no hardcoded `Text("…")`/`contentDescription` outside RateUsCard
+- [ ] On-device: cold start shows splash with app icon on both light and dark; no white flash before the first Compose frame
+- [ ] On-device: Settings → Theme → Dark while the OS is light: every screen (incl. per-app filter warning card, About, Manage Apps highlight) renders dark; status-bar icons flip to light
+- [ ] On-device: Android 12+ dynamic color still applies in all three theme modes
 
 ## M5 — Navigation redesign
 *The visible redesign. Fixes: U1, U4, U5, A5; plan §3.1–3.3.*

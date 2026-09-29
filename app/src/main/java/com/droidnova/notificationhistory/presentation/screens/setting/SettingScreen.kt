@@ -27,7 +27,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
@@ -36,7 +36,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -122,7 +121,7 @@ fun SettingScreenContent(innerPaddingValues: PaddingValues, packageName: String,
             }
         }
 
-        Divider()
+        HorizontalDivider()
 
         Text(
             text = stringResource(id = R.string.label_current_filters),
@@ -171,8 +170,8 @@ private fun WarningCard(message: String) {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFF3E0),
-            contentColor = Color(0xFF7A4E00)
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
         )
     ) {
         Row(
@@ -189,7 +188,6 @@ private fun WarningCard(message: String) {
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Black,
                 modifier = Modifier
                     .padding(start = 8.dp)
             )

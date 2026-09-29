@@ -14,7 +14,9 @@ import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HISTORY_RE
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.IS_PREMIUM
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LISTENER_CONNECTED
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.THEME_MODE
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.data_shared.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -88,6 +90,16 @@ class UserPreferences(private val context: Context) {
     suspend fun setListenerConnected(connected: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[LISTENER_CONNECTED] = connected
+        }
+    }
+
+    val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
+        ThemeMode.fromStorageKey(prefs[THEME_MODE])
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { prefs ->
+            prefs[THEME_MODE] = mode.storageKey
         }
     }
 

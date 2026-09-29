@@ -37,12 +37,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.ConversationModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
@@ -96,9 +98,9 @@ fun ConversationListContent(
                     HistoryLoadingState(Modifier.fillMaxSize())
                 } else {
                     val message = when {
-                        searchQuery.isNotBlank() -> "No conversations match your search."
-                        hasActiveFilters -> "No conversations match these filters."
-                        else -> "No conversations yet.\nNew chat messages will be grouped here."
+                        searchQuery.isNotBlank() -> stringResource(R.string.conversations_empty_search)
+                        hasActiveFilters -> stringResource(R.string.conversations_empty_filters)
+                        else -> stringResource(R.string.conversations_empty)
                     }
                     HistoryEmptyState(message, Modifier.fillMaxSize())
                 }
@@ -125,8 +127,9 @@ fun ConversationListContent(
 
 @Composable
 private fun ConversationRow(conversation: ConversationModel, onClick: () -> Unit) {
-    val time = remember(conversation.latestReceivedAtEpoch) {
-        formatConversationTime(conversation.latestReceivedAtEpoch)
+    val yesterdayLabel = stringResource(R.string.date_yesterday)
+    val time = remember(conversation.latestReceivedAtEpoch, yesterdayLabel) {
+        formatConversationTime(conversation.latestReceivedAtEpoch, yesterdayLabel)
     }
     Card(
         onClick = onClick,
@@ -296,7 +299,7 @@ fun ConversationDetailScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 }
@@ -312,7 +315,7 @@ fun ConversationDetailScreen(
             when {
                 !state.hasLoaded -> HistoryLoadingState(Modifier.fillMaxSize())
                 rows.isEmpty() -> HistoryEmptyState(
-                    message = "No messages in this conversation.",
+                    message = stringResource(R.string.conversation_empty_messages),
                     modifier = Modifier.fillMaxSize()
                 )
                 else -> LazyColumn(
@@ -374,7 +377,7 @@ fun ConversationDetailScreen(
             onCopy = {
                 IntentUtil.copyToClipboard(
                     context,
-                    "Notification",
+                    context.getString(R.string.notification_fallback_title),
                     notification.toReadableShareText()
                 )
                 selectedNotification = null
@@ -382,7 +385,7 @@ fun ConversationDetailScreen(
             onShare = {
                 IntentUtil.shareText(
                     context,
-                    "Share notification",
+                    context.getString(R.string.share_notification_chooser),
                     notification.toReadableShareText()
                 )
                 selectedNotification = null
@@ -398,7 +401,12 @@ fun ConversationDetailScreen(
 
 @Composable
 private fun TimelineDateHeader(date: LocalDate) {
-    val label = remember(date) { formatDateLabel(date, LocalDate.now()) }
+    val today = LocalDate.now()
+    val label = when (date) {
+        today -> stringResource(R.string.date_today)
+        today.minusDays(1) -> stringResource(R.string.date_yesterday)
+        else -> remember(date) { date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) }
+    }
     Text(
         text = label,
         modifier = Modifier
@@ -461,20 +469,14 @@ private fun TimelineMessage(
 private fun Long.toLocalDate(zoneId: ZoneId): LocalDate =
     Instant.ofEpochMilli(this).atZone(zoneId).toLocalDate()
 
-private fun formatDateLabel(date: LocalDate, today: LocalDate): String = when (date) {
-    today -> "Today"
-    today.minusDays(1) -> "Yesterday"
-    else -> date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
-}
-
-/** Time for today's messages, "Yesterday", otherwise a short date. */
-private fun formatConversationTime(epochMillis: Long): String {
+/** Time for today's messages, [yesterdayLabel] for yesterday, otherwise a short date. */
+private fun formatConversationTime(epochMillis: Long, yesterdayLabel: String): String {
     val zoneId = ZoneId.systemDefault()
     val dateTime = Instant.ofEpochMilli(epochMillis).atZone(zoneId)
     val today = LocalDate.now(zoneId)
     return when (dateTime.toLocalDate()) {
         today -> dateTime.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
-        today.minusDays(1) -> "Yesterday"
+        today.minusDays(1) -> yesterdayLabel
         else -> dateTime.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT))
     }
 }

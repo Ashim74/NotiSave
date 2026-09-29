@@ -170,6 +170,62 @@ Find “Notification History” → Turn ON access.
     <string name="trash_empty_question">Empty Trash?</string>
     <string name="trash_empty_confirmation">All notifications in Trash will be permanently deleted and cannot be recovered.</string>
 
+    <!-- Appearance -->
+    <string name="settings_appearance_section">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_dialog_title">Choose theme</string>
+    <string name="theme_system">System default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+
+    <!-- Shared -->
+    <string name="close">Close</string>
+    <string name="notification_fallback_title">Notification</string>
+    <string name="share_notification_chooser">Share notification</string>
+    <string name="unable_to_open_app">Unable to open this app</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="content_description_clear_search">Clear search</string>
+    <string name="date_today">Today</string>
+    <string name="date_yesterday">Yesterday</string>
+    <string name="delete_confirmation_title">Move to Trash?</string>
+    <string name="delete_confirmation_message">You can restore this notification later from Trash.</string>
+
+    <!-- History -->
+    <string name="history_title">Notification History</string>
+    <string name="search_notifications_hint">Search notifications</string>
+    <string name="history_tab_messages">Messages</string>
+    <string name="history_tab_apps">Apps</string>
+    <string name="history_mode_all">All</string>
+    <string name="history_mode_conversations">Conversations</string>
+    <string name="history_filter_all_apps">All apps</string>
+    <string name="history_clear_filters">Clear filters</string>
+    <string name="history_empty">No notification history.</string>
+    <string name="history_empty_search">No search results.</string>
+    <string name="history_empty_filters">No notifications match these filters.</string>
+    <string name="history_custom_date_range">Custom date range</string>
+    <string name="history_date_start">Start: %1$s</string>
+    <string name="history_date_end">End: %1$s</string>
+    <string name="history_date_range_error">Start date must not be after end date.</string>
+    <string name="date_filter_all_time">All time</string>
+    <string name="date_filter_last_7_days">Last 7 days</string>
+    <string name="date_filter_last_30_days">Last 30 days</string>
+    <string name="date_filter_custom">Custom range</string>
+
+    <!-- Conversations -->
+    <string name="conversations_empty">No conversations yet.\nNew chat messages will be grouped here.</string>
+    <string name="conversations_empty_search">No conversations match your search.</string>
+    <string name="conversations_empty_filters">No conversations match these filters.</string>
+    <string name="conversation_empty_messages">No messages in this conversation.</string>
+
+    <!-- Manage apps -->
+    <string name="search_apps_hint">Search apps</string>
+    <string name="select_apps_description">Select the apps whose notifications you want to save.</string>
+    <string name="select_all">Select All</string>
+    <string name="all_apps">All Apps</string>
+    <string name="loading_apps">Loading apps…</string>
+    <string name="select_apps_bulk_selecting">Selecting apps…</string>
+    <string name="select_apps_bulk_removing">Removing apps…</string>
+
 
     <!-- Insights (M7) -->
     <string name="insights_title">Insights</string>

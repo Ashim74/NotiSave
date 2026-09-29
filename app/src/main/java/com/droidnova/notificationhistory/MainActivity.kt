@@ -11,7 +11,11 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
@@ -19,6 +23,7 @@ import com.droidnova.notificationhistory.billing.PremiumBillingManager
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.presentation.navigation.AppNavGraph
 import com.droidnova.notificationhistory.presentation.ui.theme.AppTheme
+import com.droidnova.notificationhistory.presentation.ui.theme.isDark
 import com.droidnova.notificationhistory.service.ListenerReconnector
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -28,17 +33,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var billingManager: PremiumBillingManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.auto(
-                Color.TRANSPARENT,
-                Color.TRANSPARENT
-            ),
-            navigationBarStyle = SystemBarStyle.auto(
-                Color.TRANSPARENT,
-                Color.TRANSPARENT
-            )
-        )
+        applyEdgeToEdge(darkTheme = null)
         billingManager = PremiumBillingManager(
             context = applicationContext,
             onPremiumStatusChanged = { isPremium -> viewModel.setPremiumPurchased(isPremium) },
@@ -54,8 +51,13 @@ class MainActivity : ComponentActivity() {
             }
         }
         setContent {
+            val themeMode by viewModel.themeMode.collectAsState()
+            val darkTheme = themeMode.isDark()
+            // System bar icon contrast must follow the in-app theme, not only the OS setting.
+            LaunchedEffect(darkTheme) { applyEdgeToEdge(darkTheme) }
+
             CompositionLocalProvider(LocalPremiumBillingManager provides billingManager) {
-                AppTheme {
+                AppTheme(darkTheme = darkTheme) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -65,6 +67,21 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /** [darkTheme] null → follow the system (used before the preference is known). */
+    private fun applyEdgeToEdge(darkTheme: Boolean?) {
+        val statusBarStyle = if (darkTheme == null) {
+            SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
+        } else {
+            SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkTheme }
+        }
+        val navigationBarStyle = if (darkTheme == null) {
+            SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
+        } else {
+            SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkTheme }
+        }
+        enableEdgeToEdge(statusBarStyle = statusBarStyle, navigationBarStyle = navigationBarStyle)
     }
 
     override fun onResume() {

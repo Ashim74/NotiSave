@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -145,25 +143,7 @@ fun PackageAppIcon(packageName: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun HistoryEmptyState(message: String, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier.padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Default.Notifications,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = message,
-                modifier = Modifier.padding(top = 10.dp),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+    EmptyState(title = message, modifier = modifier)
 }
 
 @Composable
@@ -173,8 +153,9 @@ fun HistoryLoadingState(modifier: Modifier = Modifier) {
     }
 }
 
+/** Highlights case-insensitive matches of [query] using theme roles (readable in dark mode). */
 @Composable
-private fun highlightedText(text: String, query: String): AnnotatedString {
+fun highlightedText(text: String, query: String): AnnotatedString {
     if (query.isBlank()) return buildAnnotatedString { append(text) }
     val highlightColor = MaterialTheme.colorScheme.secondaryContainer
     val highlightContentColor = MaterialTheme.colorScheme.onSecondaryContainer

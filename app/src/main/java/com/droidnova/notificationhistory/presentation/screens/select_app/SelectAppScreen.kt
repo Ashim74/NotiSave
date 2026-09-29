@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -47,11 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.Lifecycle
@@ -59,7 +54,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
+import com.droidnova.notificationhistory.presentation.components.highlightedText
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import kotlinx.coroutines.launch
 
@@ -75,7 +72,7 @@ fun SelectAppScreen(
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     var isSelectingAll by remember { mutableStateOf(false) }
-    var bulkActionLabel by remember { mutableStateOf("Selecting apps...") }
+    var bulkActionIsSelect by remember { mutableStateOf(true) }
     val coroutineScope = rememberCoroutineScope()
     val latestApps by rememberUpdatedState(allInstalledApps)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -96,8 +93,8 @@ fun SelectAppScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 uiList = latestApps.sortedWith(
-                    compareByDescending<AppInfo> { it.isAllowed } // NEW
-                        .thenBy { it.appName.lowercase() }        // NEW
+                    compareByDescending<AppInfo> { it.isAllowed }
+                        .thenBy { it.appName.lowercase() }
                 )
             }
         }
@@ -123,7 +120,7 @@ fun SelectAppScreen(
                         TextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search apps") },
+                            placeholder = { Text(stringResource(R.string.search_apps_hint)) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(focusRequester),
@@ -145,7 +142,7 @@ fun SelectAppScreen(
                         }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Close search"
+                                contentDescription = stringResource(R.string.content_description_close_search)
                             )
                         }
                     },
@@ -154,7 +151,7 @@ fun SelectAppScreen(
                             IconButton(onClick = { searchQuery = "" }) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
-                                    contentDescription = "Clear search"
+                                    contentDescription = stringResource(R.string.content_description_clear_search)
                                 )
                             }
                         }
@@ -164,18 +161,27 @@ fun SelectAppScreen(
                     focusRequester.requestFocus()
                 }
             } else {
-                TopAppBar(title = { Text("Choose App", style = MaterialTheme.typography.titleLarge) },
+                TopAppBar(
+                    title = {
+                        Text(
+                            stringResource(R.string.home_manage_apps),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+                                contentDescription = stringResource(R.string.back)
                             )
                         }
                     },
                     actions = {
                         IconButton(onClick = { isSearchActive = true }) {
-                            Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.content_description_search)
+                            )
                         }
                     }
                 )
@@ -192,9 +198,9 @@ fun SelectAppScreen(
         ) {
             item {
                 Text(
-                    text = "Select the apps for which you want to track notification",
+                    text = stringResource(R.string.select_apps_description),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (searchQuery.isBlank()) {
@@ -205,7 +211,7 @@ fun SelectAppScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Select All",
+                            text = stringResource(R.string.select_all),
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.weight(1f)
                         )
@@ -215,8 +221,7 @@ fun SelectAppScreen(
                             onCheckedChange = { checked ->
                                 if (filteredApps.isNotEmpty()) {
                                     coroutineScope.launch {
-                                        bulkActionLabel =
-                                            if (checked) "Selecting apps..." else "Removing apps..."
+                                        bulkActionIsSelect = checked
                                         isSelectingAll = true
                                         mainViewModel.setAllowedAppsForPackages(
                                             filteredApps.map { it.packageName },
@@ -233,11 +238,11 @@ fun SelectAppScreen(
             item {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "All Apps",
+                    text = stringResource(R.string.all_apps),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
-            }//item
+            }
 
             if (uiList.isEmpty()) {
                 item {
@@ -245,8 +250,9 @@ fun SelectAppScreen(
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Searching... Please wait",
-                            style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray),
+                            text = stringResource(R.string.loading_apps),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 16.dp)
                         )
                     }
@@ -268,8 +274,8 @@ fun SelectAppScreen(
                     )
                 }
             }
-        }//lazy
-    }//sc
+        }
+    }
 
     if (isSelectingAll) {
         Dialog(onDismissRequest = {}) {
@@ -286,7 +292,10 @@ fun SelectAppScreen(
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = bulkActionLabel,
+                        text = stringResource(
+                            if (bulkActionIsSelect) R.string.select_apps_bulk_selecting
+                            else R.string.select_apps_bulk_removing
+                        ),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -318,7 +327,7 @@ fun AppCard(
             Spacer(modifier = Modifier.width(16.dp))
 
             Text(
-                text = buildHighlightedText(text = apps.appName, query = searchQuery),
+                text = highlightedText(text = apps.appName, query = searchQuery),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f)
             )
@@ -343,33 +352,12 @@ fun AppCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings"
+                        contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Settings")
+                    Text(stringResource(R.string.settings_title))
                 }
             }
-        }//if
-    }
-}
-
-private fun buildHighlightedText(text: String, query: String): AnnotatedString {
-    if (query.isBlank()) {
-        return buildAnnotatedString { append(text) }
-    }
-    return buildAnnotatedString {
-        var startIndex = 0
-        while (startIndex < text.length) {
-            val index = text.indexOf(query, startIndex, ignoreCase = true)
-            if (index == -1) {
-                append(text.substring(startIndex))
-                break
-            }
-            append(text.substring(startIndex, index))
-            withStyle(style = SpanStyle(color = Color.Black, background = Color(0xFFFFF9C4))) {
-                append(text.substring(index, index + query.length))
-            }
-            startIndex = index + query.length
         }
     }
 }

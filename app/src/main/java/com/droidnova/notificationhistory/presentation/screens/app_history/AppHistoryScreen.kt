@@ -40,10 +40,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
 import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
@@ -119,7 +121,7 @@ fun AppHistoryScreen(
                                 searchQuery = it
                                 mainViewModel.updateAppHistorySearchQuery(packageName, it)
                             },
-                            placeholder = { Text("Search notifications") },
+                            placeholder = { Text(stringResource(R.string.search_notifications_hint)) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(focusRequester),
@@ -140,7 +142,10 @@ fun AppHistoryScreen(
                             searchQuery = ""
                             mainViewModel.updateAppHistorySearchQuery(packageName, "")
                         }) {
-                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close search")
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.content_description_close_search)
+                            )
                         }
                     },
                     actions = {
@@ -151,7 +156,7 @@ fun AppHistoryScreen(
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
-                                    contentDescription = "Clear search"
+                                    contentDescription = stringResource(R.string.content_description_clear_search)
                                 )
                             }
                         }
@@ -165,12 +170,18 @@ fun AppHistoryScreen(
                     title = { Text(title, fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
                         }
                     },
                     actions = {
                         IconButton(onClick = { isSearchActive = true }) {
-                            Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.content_description_search)
+                            )
                         }
                     }
                 )
@@ -201,9 +212,9 @@ fun AppHistoryScreen(
                             } else {
                                 HistoryEmptyState(
                                     message = if (searchQuery.isNotBlank()) {
-                                        "No search results."
+                                        stringResource(R.string.history_empty_search)
                                     } else {
-                                        "No notification history."
+                                        stringResource(R.string.history_empty)
                                     },
                                     modifier = Modifier.fillMaxSize()
                                 )
@@ -265,7 +276,7 @@ fun AppHistoryScreen(
             onCopy = {
                 IntentUtil.copyToClipboard(
                     context,
-                    "Notification",
+                    context.getString(R.string.notification_fallback_title),
                     notification.toReadableShareText()
                 )
                 selectedNotification = null
@@ -273,7 +284,7 @@ fun AppHistoryScreen(
             onShare = {
                 IntentUtil.shareText(
                     context,
-                    "Share notification",
+                    context.getString(R.string.share_notification_chooser),
                     notification.toReadableShareText()
                 )
                 selectedNotification = null

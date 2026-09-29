@@ -138,9 +138,7 @@ Preserved behavior (per current `HomeScreen.kt` + `RateUsCard.kt`):
 - <5 stars → "Give Feedback" → support email + counter reset (card returns after 3 launches).
 - "Rate Later" → counter reset (card returns after 3 launches).
 
-Allowed changes (non-behavioral):
-- Restyle card to the new design system; move hardcoded strings to `strings.xml`.
-- Fix the atomic-increment bug (S10) so the *count* is correct — threshold and flow unchanged.
+**Frozen (product decision, 2026-09-29):** `RateUsCard.kt` and its Home wiring are not to be changed in any way — no restyle, no string extraction, no relocation, no behavior change. The only related fix was the launch-counter accuracy bug (S10, done in M2), which lives in `MainViewModel`/`UserPreferences`, not in the card; threshold and flow are unchanged. In the M5 Home rebuild the card keeps rendering in the same slot with the same trigger.
 
 ### 3.7 Stability engineering (the invisible half of the update)
 

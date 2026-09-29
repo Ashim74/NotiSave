@@ -2,6 +2,8 @@ package com.droidnova.notificationhistory.presentation.screens.app_settings
 
 import android.app.Activity
 import android.widget.Toast
+import androidx.annotation.StringRes
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,9 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
@@ -32,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -50,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -60,6 +64,8 @@ import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
+import com.droidnova.notificationhistory.data_shared.ThemeMode
+import com.droidnova.notificationhistory.presentation.components.SectionHeader
 import com.droidnova.notificationhistory.presentation.components.isBatteryOptimizationIgnored
 import com.droidnova.notificationhistory.presentation.components.openBatteryOptimizationSettings
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
@@ -89,6 +95,8 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     var showPurchaseSheet by remember { mutableStateOf(false) }
     val consentManager = remember { AdsConsentManager.getInstance(context) }
     val privacyOptionsRequired by consentManager.privacyOptionsRequired.collectAsState()
+    val themeMode by mainViewModel.themeMode.collectAsState()
+    var showThemeDialog by remember { mutableStateOf(false) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -128,7 +136,7 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item { SettingsSectionTitle(stringResource(R.string.settings_tracking_section)) }
+            item { SectionHeader(stringResource(R.string.settings_tracking_section)) }
             item {
                 TrackingSettingsCard(
                     checked = state.userToggleTracking && hasPermission,
@@ -174,7 +182,7 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                 )
             }
 
-            item { SettingsSectionTitle(stringResource(R.string.settings_history_section)) }
+            item { SectionHeader(stringResource(R.string.settings_history_section)) }
             item {
                 SettingsRow(
                     icon = Icons.Default.Notifications,
@@ -201,7 +209,7 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                 )
             }
 
-            item { SettingsSectionTitle(stringResource(R.string.settings_reliability_section)) }
+            item { SectionHeader(stringResource(R.string.settings_reliability_section)) }
             item {
                 SettingsRow(
                     icon = if (batteryIgnored) Icons.Default.CheckCircle else Icons.Default.Warning,
@@ -217,7 +225,17 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                 )
             }
 
-            item { SettingsSectionTitle(stringResource(R.string.settings_premium_app_section)) }
+            item { SectionHeader(stringResource(R.string.settings_appearance_section)) }
+            item {
+                SettingsRow(
+                    icon = ImageVector.vectorResource(R.drawable.ic_theme),
+                    title = stringResource(R.string.settings_theme),
+                    supportingText = stringResource(themeMode.labelRes()),
+                    onClick = { showThemeDialog = true }
+                )
+            }
+
+            item { SectionHeader(stringResource(R.string.settings_premium_app_section)) }
             item {
                 SettingsRow(
                     icon = Icons.Default.Star,
@@ -298,6 +316,43 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
             }
         )
     }
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            title = { Text(stringResource(R.string.settings_theme_dialog_title)) },
+            text = {
+                Column {
+                    ThemeMode.entries.forEach { mode ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    mainViewModel.setThemeMode(mode)
+                                    showThemeDialog = false
+                                }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = mode == themeMode,
+                                onClick = {
+                                    mainViewModel.setThemeMode(mode)
+                                    showThemeDialog = false
+                                }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(mode.labelRes()))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
     if (showPurchaseSheet && !isPremium) {
         PremiumPurchaseBottomSheet(
             priceLabel = priceLabel,
@@ -321,15 +376,11 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     }
 }
 
-@Composable
-private fun SettingsSectionTitle(text: String) {
-    Text(
-        text = text,
-        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 2.dp),
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
-    )
+@StringRes
+private fun ThemeMode.labelRes(): Int = when (this) {
+    ThemeMode.System -> R.string.theme_system
+    ThemeMode.Light -> R.string.theme_light
+    ThemeMode.Dark -> R.string.theme_dark
 }
 
 @Composable
@@ -406,7 +457,7 @@ private fun SettingsRow(
             }
             if (onClick != null) {
                 Icon(
-                    Icons.Default.KeyboardArrowRight,
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )

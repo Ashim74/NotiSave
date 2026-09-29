@@ -19,11 +19,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import java.util.regex.Pattern
 
@@ -85,7 +87,7 @@ fun NotificationDetailsDialog(
         title = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = notification.title.ifBlank { "Notification" },
+                    text = notification.title.ifBlank { stringResource(R.string.notification_fallback_title) },
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -128,7 +130,7 @@ fun NotificationDetailsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
         }
     )
 }

@@ -14,6 +14,7 @@ import com.droidnova.notificationhistory.data.model.HistoryFilterState
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data.model.toDateBounds
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.data_shared.ThemeMode
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationDetailUiState
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationHistoryController
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationListUiState
@@ -92,6 +93,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             SharingStarted.WhileSubscribed(5_000),
             false
         )
+
+    // Eager so the Activity applies the saved theme on its very first frame.
+    val themeMode: StateFlow<ThemeMode> =
+        userPrefs.themeMode.stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.System)
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { userPrefs.setThemeMode(mode) }
+    }
 
     private val _showPremiumWelcome = MutableStateFlow(false)
     val showPremiumWelcome: StateFlow<Boolean> = _showPremiumWelcome.asStateFlow()
