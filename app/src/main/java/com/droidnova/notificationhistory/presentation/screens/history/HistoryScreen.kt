@@ -500,7 +500,7 @@ private fun HistoryFilterBar(
                 appSummaries.forEach { app ->
                     val label = app.appName.ifBlank { app.packageName }
                     DropdownMenuItem(
-                        leadingIcon = { HistoryAppIcon(app.appIcon) },
+                        leadingIcon = { HistoryAppIcon(packageName = app.packageName) },
                         text = {
                             Column {
                                 Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -700,7 +700,7 @@ fun AppHistoryContent(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            HistoryAppIcon(drawable = latest.appIcon)
+                            HistoryAppIcon(packageName = latest.packageName)
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 text = latest.appName.ifBlank { latest.packageName },

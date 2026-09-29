@@ -1,11 +1,9 @@
 package com.droidnova.notificationhistory.data.model
 
-import android.graphics.drawable.Drawable
-
+/** App icons are resolved at render time via AppInfoCache, never held per row. */
 data class NotificationModel(
     val id: Long,
     val packageName: String,
-    val appIcon: Drawable?,
     val appName: String,
     val title: String,
     val text: String,

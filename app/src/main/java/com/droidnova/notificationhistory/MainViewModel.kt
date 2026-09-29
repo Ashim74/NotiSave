@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.droidnova.notificationhistory.core.apps.AppInfoCache
 import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
@@ -59,7 +60,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     data class HistoryLoadState(
         val isLoadingMore: Boolean = false,
-        val endReached: Boolean = false
+        val endReached: Boolean = false,
+        /** True when the list stopped at [MAX_LOADED_HISTORY] rows rather than at the real end. */
+        val isCapped: Boolean = false
     )
 
     private val _historyLoadState = MutableStateFlow(HistoryLoadState())
@@ -126,6 +129,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var allowedPackagesSet = emptySet<String>()
     private var awaitingGrant = false
+    private var launchCounted = false
 
     data class AppHistoryUiState(
         val notifications: List<NotificationModel> = emptyList(),
@@ -200,8 +204,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             dao.observeLatestNotificationsByApp().collectLatest { entities ->
-                _appSummaries.value = entities.map {
-                    convertEntityToModel(getApplication(), it)
+                _appSummaries.value = withContext(Dispatchers.IO) {
+                    entities.map { convertEntityToModel(getApplication(), it) }
                 }
             }
         }
@@ -266,16 +270,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshListenerGranted() = onResume()
 
+    /**
+     * Counts one launch per ViewModel lifetime. The ViewModel survives configuration changes,
+     * so rotation / theme switches no longer inflate the count that gates the rate-us card.
+     */
     fun incrementLaunchCount() {
+        if (launchCounted) return
+        launchCounted = true
         viewModelScope.launch {
-            val setting = userPrefs.settingFlow.first()
-            userPrefs.updateLaunchCount(setting.launchCount + 1)
+            userPrefs.incrementLaunchCount()
         }
     }
 
     fun getAllInstalledApps(context: Context) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
+                AppInfoCache.invalidateMisses()
                 val allApps = getInstalledApps(context, allowedPackagesSet)
                 _allInstalledApps.value = allApps
             }
@@ -437,9 +447,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         current + models.filterNot { it.id in existingIds }
                     }
                 }
-                if (models.size < pageSize) {
+                val capped = _history.value.size >= MAX_LOADED_HISTORY
+                if (models.size < pageSize || capped) {
                     endReached = true
-                    _historyLoadState.update { it.copy(endReached = true) }
+                    _historyLoadState.update { it.copy(endReached = true, isCapped = capped) }
                 }
             } finally {
                 if (activeHistoryLoadGeneration == generation) {
@@ -512,6 +523,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val stateFlow = getAppHistoryState(packageName)
         resetAppHistory(packageName, stateFlow.value.searchQuery)
     }
+
+    /** Called when AppHistoryScreen leaves composition; the state is rebuilt on next visit. */
+    fun releaseAppHistory(packageName: String) {
+        appHistorySearchJobs.remove(packageName)?.cancel()
+        appHistoryStates.remove(packageName)
+    }
+
+    fun releaseConversationDetail(conversationKey: String) =
+        conversations.releaseDetail(conversationKey)
 
     fun updateAppHistorySearchQuery(packageName: String, query: String) {
         appHistorySearchJobs.remove(packageName)?.cancel()
@@ -730,6 +750,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val SEARCH_DEBOUNCE_MS = 300L
+        /** Upper bound on rows held in memory for the flat history list (30 pages of 100). */
+        const val MAX_LOADED_HISTORY = 3_000
         val SEARCH_WHITESPACE = Regex("\\s+")
 
         fun normalizeSearchQuery(query: String): String =

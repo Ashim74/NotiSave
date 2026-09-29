@@ -44,6 +44,14 @@ android {
         buildConfig = true
         compose = true
     }
+    sourceSets {
+        // Exported Room schemas become androidTest assets for MigrationTestHelper.
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -76,6 +84,7 @@ dependencies {
     implementation ("com.google.code.gson:gson:2.13.1")
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.runtime)
+    androidTestImplementation("androidx.room:room-testing:2.7.1")
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
 
     implementation("com.google.android.gms:play-services-ads:24.9.0")

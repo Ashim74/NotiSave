@@ -28,6 +28,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -87,6 +88,9 @@ fun AppHistoryScreen(
 
     LaunchedEffect(packageName) {
         mainViewModel.ensureAppHistoryLoaded(packageName)
+    }
+    DisposableEffect(packageName) {
+        onDispose { mainViewModel.releaseAppHistory(packageName) }
     }
 
     LaunchedEffect(notifications) {

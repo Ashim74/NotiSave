@@ -1,0 +1,158 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "138a3439dcffce452181a23b7c5f5baa",
+    "entities": [
+      {
+        "tableName": "apps",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `title` TEXT NOT NULL, `message` TEXT NOT NULL, `receivedAt` INTEGER NOT NULL, `notificationKey` TEXT, `contentFingerprint` TEXT, `conversationTitle` TEXT, `isTrashed` INTEGER NOT NULL DEFAULT 0, `trashedAt` INTEGER, `conversationKey` TEXT, `conversationName` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "packageName",
+            "columnName": "packageName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "message",
+            "columnName": "message",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "receivedAt",
+            "columnName": "receivedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notificationKey",
+            "columnName": "notificationKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "contentFingerprint",
+            "columnName": "contentFingerprint",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "conversationTitle",
+            "columnName": "conversationTitle",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isTrashed",
+            "columnName": "isTrashed",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "trashedAt",
+            "columnName": "trashedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "conversationKey",
+            "columnName": "conversationKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "conversationName",
+            "columnName": "conversationName",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_apps_receivedAt",
+            "unique": false,
+            "columnNames": [
+              "receivedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_apps_receivedAt` ON `${TABLE_NAME}` (`receivedAt`)"
+          },
+          {
+            "name": "index_apps_packageName_receivedAt",
+            "unique": false,
+            "columnNames": [
+              "packageName",
+              "receivedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_apps_packageName_receivedAt` ON `${TABLE_NAME}` (`packageName`, `receivedAt`)"
+          },
+          {
+            "name": "index_apps_notificationKey_contentFingerprint_receivedAt",
+            "unique": false,
+            "columnNames": [
+              "notificationKey",
+              "contentFingerprint",
+              "receivedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_apps_notificationKey_contentFingerprint_receivedAt` ON `${TABLE_NAME}` (`notificationKey`, `contentFingerprint`, `receivedAt`)"
+          },
+          {
+            "name": "index_apps_isTrashed_receivedAt_id",
+            "unique": false,
+            "columnNames": [
+              "isTrashed",
+              "receivedAt",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_apps_isTrashed_receivedAt_id` ON `${TABLE_NAME}` (`isTrashed`, `receivedAt`, `id`)"
+          },
+          {
+            "name": "index_apps_isTrashed_trashedAt_id",
+            "unique": false,
+            "columnNames": [
+              "isTrashed",
+              "trashedAt",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_apps_isTrashed_trashedAt_id` ON `${TABLE_NAME}` (`isTrashed`, `trashedAt`, `id`)"
+          },
+          {
+            "name": "index_apps_conversationKey_isTrashed_receivedAt_id",
+            "unique": false,
+            "columnNames": [
+              "conversationKey",
+              "isTrashed",
+              "receivedAt",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_apps_conversationKey_isTrashed_receivedAt_id` ON `${TABLE_NAME}` (`conversationKey`, `isTrashed`, `receivedAt`, `id`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '138a3439dcffce452181a23b7c5f5baa')"
+    ]
+  }
+}

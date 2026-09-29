@@ -7,7 +7,7 @@ Companion to [UPDATE_PLAN.md](UPDATE_PLAN.md). Issue IDs (S1, U4, A3 …) refer 
 | Milestone | Theme | Status |
 |-----------|-------|--------|
 | M1 | Listener & service stability | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
-| M2 | Performance & memory | ⬜ Not started |
+| M2 | Performance & memory | 🟨 Code complete (2026-09-29) — on-device acceptance pending |
 | M3 | Dependencies, ads & consent | ⬜ Not started |
 | M4 | Design system & theming | ⬜ Not started |
 | M5 | Navigation redesign (bottom nav + screens) | ⬜ Not started |
@@ -37,15 +37,18 @@ Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 ## M2 — Performance & memory
 *No main-thread I/O, bounded memory. Fixes: S5–S8, S10, S13.*
 
-- [ ] Central `AppIconCache` (LRU, package → ImageBitmap, background loading); adopt in Mapper, SelectApp, HistoryUiComponents, conversation controller (S6, S7)
-- [ ] `NotificationModel`: replace `Drawable appIcon` with package reference resolved via cache (S7)
-- [ ] Move per-app latest-notification mapping off Main dispatcher (S5)
-- [ ] Hoist `DateTimeFormatter` to a singleton (S7)
-- [ ] Bound in-memory history (windowed pages) and evict `appHistoryStates` map entries on back-navigation (S8)
-- [ ] Atomic `edit {}` launch-count increment; count once per process launch, not per Activity recreation (S10) — *rating threshold/flow unchanged*
-- [ ] Export Room schemas (`room.schemaLocation`); add `MigrationTestHelper` tests incl. missing 2→3 (S13)
+- [x] Central `core/apps/AppInfoCache` (byte-bounded LRU of 96 px `ImageBitmap`s + label cache + negative cache, IO loading); adopted in Mapper, SelectApp, HistoryUiComponents (`HistoryAppIcon(packageName)`), conversation controller, and the listener's app-label lookup (S6, S7)
+- [x] `NotificationModel` / `ConversationModel` / `ConversationDetailUiState`: `Drawable appIcon` removed; icons resolve at render time from the cache (S7)
+- [x] Per-app latest-notification mapping moved to `Dispatchers.IO` (S5)
+- [x] `DateTimeFormatter` hoisted to `ReadableTimeFormatter` (one instance per locale) (S7)
+- [x] History list capped at `MAX_LOADED_HISTORY = 3000` rows (`HistoryLoadState.isCapped` exposed for the M5 UI hint); `releaseAppHistory` / `releaseConversationDetail` evict state — and the conversation detail's live observer coroutine — when their screens leave composition (S8)
+- [x] Atomic `UserPreferences.incrementLaunchCount()`; counted once per ViewModel lifetime so rotation / theme change no longer counts (S10) — *rating threshold (3) and flow unchanged*
+- [x] Room schemas exported to `app/schemas` (`4.json`); `room-testing` dependency + androidTest assets wired; missing 2→3 migration test added in the existing raw-SQL style (S13). Note: historical 1–3 schema JSONs don't exist, so `MigrationTestHelper` becomes usable from 4→5 onward.
 
 **Acceptance:** no dropped frames scrolling 1k+ history rows on a mid-range device; StrictMode clean for disk/network on main; rotation does not increment launch count.
+- [x] Unit: `ReadableTimeFormatterTest` (3); 56 unit tests green; androidTest sources compile
+- [ ] On-device: run instrumented migration tests (`connectedDebugAndroidTest`), now 4 migration/DAO tests
+- [ ] On-device: scroll 1k+ rows with GPU profiling; rotate on Home and confirm launch count unchanged
 
 ## M3 — Dependencies, ads & consent
 *Modern stack, policy-safe monetization. Fixes: S9, A2, A3.*

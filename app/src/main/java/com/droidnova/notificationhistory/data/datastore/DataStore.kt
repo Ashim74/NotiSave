@@ -143,6 +143,13 @@ class UserPreferences(private val context: Context) {
         }
     }
 
+    /** Atomic read-modify-write; the previous read-then-write could lose concurrent increments. */
+    suspend fun incrementLaunchCount() {
+        context.dataStore.edit { preference ->
+            preference[LAUNCH_COUNT] = (preference[LAUNCH_COUNT] ?: 0) + 1
+        }
+    }
+
     suspend fun hideRateUsCard(){
         context.dataStore.edit {
             it[SHOW_RATE_US_CARD] = false

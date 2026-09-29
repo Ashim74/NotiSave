@@ -1,6 +1,5 @@
 package com.droidnova.notificationhistory.presentation.components
 
-import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -32,13 +31,11 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import com.droidnova.notificationhistory.R
-import com.droidnova.notificationhistory.data.mapper.fetchAppIcon
+import com.droidnova.notificationhistory.core.apps.AppInfoCache
 import com.droidnova.notificationhistory.data.model.NotificationModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @Composable
 fun NotificationHistoryCard(
@@ -59,7 +56,7 @@ fun NotificationHistoryCard(
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                HistoryAppIcon(notification.appIcon)
+                HistoryAppIcon(packageName = notification.packageName)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = notification.appName.ifBlank { notification.packageName },
@@ -108,35 +105,42 @@ fun NotificationHistoryCard(
     }
 }
 
+/**
+ * Shows the launcher icon for [packageName] from [AppInfoCache]: cached icons render on the
+ * first frame, uncached ones load off the main thread. A null package (or an uninstalled one)
+ * falls back to the generic icon.
+ */
 @Composable
-fun HistoryAppIcon(drawable: Drawable?, modifier: Modifier = Modifier) {
-    if (drawable != null) {
+fun HistoryAppIcon(packageName: String?, modifier: Modifier = Modifier, size: Dp = 24.dp) {
+    val icon = if (packageName != null) rememberAppIcon(packageName) else null
+    if (icon != null) {
         Image(
-            bitmap = drawable.toBitmap().asImageBitmap(),
+            bitmap = icon,
             contentDescription = null,
-            modifier = modifier.size(24.dp)
+            modifier = modifier.size(size)
         )
     } else {
         Icon(
             painter = painterResource(R.drawable.ic_apps),
             contentDescription = null,
-            modifier = modifier.size(24.dp),
+            modifier = modifier.size(size),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
-/**
- * Resolves and shows an app icon for [packageName] off the main thread, falling back to the
- * generic icon while loading or when the package is not installed.
- */
+@Composable
+fun rememberAppIcon(packageName: String): ImageBitmap? {
+    val context = LocalContext.current
+    val icon by produceState(initialValue = AppInfoCache.peekIcon(packageName), packageName) {
+        if (value == null) value = AppInfoCache.icon(context, packageName)
+    }
+    return icon
+}
+
 @Composable
 fun PackageAppIcon(packageName: String, modifier: Modifier = Modifier) {
-    val packageManager = LocalContext.current.packageManager
-    val icon by produceState<Drawable?>(initialValue = null, packageName) {
-        value = withContext(Dispatchers.IO) { fetchAppIcon(packageManager, packageName) }
-    }
-    HistoryAppIcon(drawable = icon, modifier = modifier)
+    HistoryAppIcon(packageName = packageName, modifier = modifier)
 }
 
 @Composable

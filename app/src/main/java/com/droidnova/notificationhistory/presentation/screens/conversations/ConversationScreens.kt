@@ -26,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -140,7 +141,7 @@ private fun ConversationRow(conversation: ConversationModel, onClick: () -> Unit
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            HistoryAppIcon(drawable = conversation.appIcon)
+            HistoryAppIcon(packageName = conversation.packageName)
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -231,6 +232,9 @@ fun ConversationDetailScreen(
     val state by remember(conversationKey) {
         mainViewModel.conversationDetailState(conversationKey)
     }.collectAsStateWithLifecycle()
+    DisposableEffect(conversationKey) {
+        onDispose { mainViewModel.releaseConversationDetail(conversationKey) }
+    }
     val listState = rememberLazyListState()
     val zoneId = remember { ZoneId.systemDefault() }
     val rows = remember(state.messages) { buildTimelineRows(state.messages, zoneId) }
@@ -266,7 +270,7 @@ fun ConversationDetailScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        HistoryAppIcon(drawable = state.appIcon)
+                        HistoryAppIcon(packageName = state.packageName.ifBlank { null })
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(

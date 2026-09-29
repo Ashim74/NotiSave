@@ -7,7 +7,9 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [NotificationEntity::class], version = 4)
+// Schemas export to app/schemas (see room.schemaLocation in build.gradle.kts) so future
+// migrations can be verified with MigrationTestHelper against the real historical schema.
+@Database(entities = [NotificationEntity::class], version = 4, exportSchema = true)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
 

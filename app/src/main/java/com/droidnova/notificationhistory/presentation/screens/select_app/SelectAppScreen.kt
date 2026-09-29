@@ -1,6 +1,5 @@
 package com.droidnova.notificationhistory.presentation.screens.select_app
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -56,12 +54,12 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import kotlinx.coroutines.launch
 
@@ -315,7 +313,7 @@ fun AppCard(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            AppIcon1(packageName = apps.packageName)
+            HistoryAppIcon(packageName = apps.packageName)
 
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -352,19 +350,6 @@ fun AppCard(
                 }
             }
         }//if
-    }
-}
-
-@Composable
-private fun AppIcon1(packageName: String) {
-    val context = LocalContext.current
-    val bitmap = remember(packageName) {
-        runCatching { context.packageManager.getApplicationIcon(packageName).toBitmap() }
-            .getOrNull()
-    }?.asImageBitmap()
-
-    if (bitmap != null) {
-        Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.size(24.dp))
     }
 }
 

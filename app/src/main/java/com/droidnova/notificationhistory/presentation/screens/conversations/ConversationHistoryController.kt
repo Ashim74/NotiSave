@@ -1,19 +1,18 @@
 package com.droidnova.notificationhistory.presentation.screens.conversations
 
 import android.content.Context
-import android.graphics.drawable.Drawable
 import android.util.Log
+import com.droidnova.notificationhistory.core.apps.AppInfoCache
 import com.droidnova.notificationhistory.data.db.NotificationDao
 import com.droidnova.notificationhistory.data.mapper.convertConversationRowToModel
 import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
-import com.droidnova.notificationhistory.data.mapper.fetchAppIcon
-import com.droidnova.notificationhistory.data.mapper.fetchAppName
 import com.droidnova.notificationhistory.data.model.ConversationModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,7 +48,6 @@ data class ConversationDetailUiState(
     val title: String = "",
     val packageName: String = "",
     val appName: String = "",
-    val appIcon: Drawable? = null,
     /** Newest first; the screen renders them reversed for chronological reading. */
     val messages: List<NotificationModel> = emptyList(),
     val hasLoaded: Boolean = false,
@@ -79,6 +77,7 @@ internal class ConversationHistoryController(
 
     private val detailStates = mutableMapOf<String, MutableStateFlow<ConversationDetailUiState>>()
     private val detailMutexes = mutableMapOf<String, Mutex>()
+    private val detailJobs = mutableMapOf<String, Job>()
 
     init {
         scope.launch {
@@ -180,10 +179,9 @@ internal class ConversationHistoryController(
             cursorId = cursorId,
             limit = limit
         )
-        val appInfo = AppInfoLookup(context)
+        val pm = context.packageManager
         rows.map { row ->
-            val (name, icon) = appInfo[row.packageName]
-            convertConversationRowToModel(row, name, icon)
+            convertConversationRowToModel(row, AppInfoCache.label(pm, row.packageName))
         }
     }
 
@@ -237,11 +235,22 @@ internal class ConversationHistoryController(
     private fun detailMutex(conversationKey: String): Mutex =
         detailMutexes.getOrPut(conversationKey) { Mutex() }
 
+    /**
+     * Drops the detail state and its signature observer once the screen leaves composition.
+     * Without this every opened conversation stayed resident (with a live collector) for the
+     * lifetime of the ViewModel.
+     */
+    fun releaseDetail(conversationKey: String) {
+        detailJobs.remove(conversationKey)?.cancel()
+        detailStates.remove(conversationKey)
+        detailMutexes.remove(conversationKey)
+    }
+
     private fun observeDetail(
         conversationKey: String,
         stateFlow: MutableStateFlow<ConversationDetailUiState>
     ) {
-        scope.launch {
+        detailJobs[conversationKey] = scope.launch {
             stateFlow.subscriptionCount
                 .map { it > 0 }
                 .distinctUntilChanged()
@@ -268,7 +277,6 @@ internal class ConversationHistoryController(
                             ?: state.title.ifBlank { newest?.appName.orEmpty() },
                         packageName = newest?.packageName ?: state.packageName,
                         appName = newest?.appName ?: state.appName,
-                        appIcon = newest?.appIcon ?: state.appIcon,
                         messages = page.messages,
                         hasLoaded = true,
                         endReached = page.messages.size < limit
@@ -300,11 +308,10 @@ internal class ConversationHistoryController(
             cursorId = cursorId,
             limit = limit
         )
-        val appInfo = AppInfoLookup(context)
+        val pm = context.packageManager
         MessagesPage(
             messages = entities.map { entity ->
-                val (name, icon) = appInfo[entity.packageName]
-                convertEntityToModel(entity, name, icon)
+                convertEntityToModel(entity, AppInfoCache.label(pm, entity.packageName))
             },
             newestConversationName = entities.firstOrNull()?.conversationName?.ifBlank { null }
         )
@@ -333,18 +340,6 @@ internal class ConversationHistoryController(
         detailStates.values.forEach { stateFlow ->
             stateFlow.update { it.copy(messages = emptyList(), endReached = true) }
         }
-    }
-
-    /** Resolves app name/icon once per package for a page, avoiding repeated PackageManager calls. */
-    private class AppInfoLookup(context: Context) {
-        private val packageManager = context.packageManager
-        private val cache = mutableMapOf<String, Pair<String, Drawable?>>()
-
-        operator fun get(packageName: String): Pair<String, Drawable?> =
-            cache.getOrPut(packageName) {
-                fetchAppName(packageManager, packageName) to
-                    fetchAppIcon(packageManager, packageName)
-            }
     }
 
     private companion object {
