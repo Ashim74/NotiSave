@@ -22,12 +22,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class NotificationListener : NotificationListenerService() {
 
     private val cache = DedupeCache(ttlMs = 2000L)
+    private val activeContent = ActiveContentTracker()
+    private val persistMutex = Mutex()
     private val crashHandler = CoroutineExceptionHandler { _, throwable ->
         CrashReporter.record(throwable)
     }
@@ -175,37 +180,46 @@ class NotificationListener : NotificationListenerService() {
                 return@launch
             }
 
+            val contentFingerprint = content.contentFingerprint()
+            val verdict = activeContent.onPosted(notificationKey, contentFingerprint)
+            if (verdict == ActiveContentTracker.Verdict.Unchanged) return@launch
+
+            // A summary repeats what its children already say; save the children only.
+            // Apps often post the summary a moment before its children, so let them land.
+            if (isGroupSummary(notification)) {
+                delay(SUMMARY_SETTLE_MS)
+                if (hasActiveGroupChildren(sbn)) return@launch
+            }
+
             val conversation = NotificationConversationDetector.detect(
                 packageName = packageName,
                 notification = notification,
                 appLabel = fetchAppName(packageManager, packageName)
             )
+            val row = NotificationEntity(
+                packageName = packageName,
+                title = content.title,
+                message = content.message,
+                receivedAt = postTime,
+                notificationKey = notificationKey,
+                contentFingerprint = contentFingerprint,
+                conversationTitle = content.conversationTitle,
+                conversationKey = conversation?.key,
+                conversationName = conversation?.displayName
+            )
+            val messages = NotificationContentExtractor.extractMessages(notification)
 
             try {
                 val dao = AppDatabase.getInstance(applicationContext).notificationDao()
-                val contentFingerprint = content.contentFingerprint()
-                val duplicateCheckAt = System.currentTimeMillis()
-                if (dao.hasRecentDuplicate(
-                        notificationKey = notificationKey,
-                        contentFingerprint = contentFingerprint,
-                        since = duplicateCheckAt - PERSISTENT_DEDUPE_WINDOW_MS,
-                        until = duplicateCheckAt
-                    )
-                ) return@launch
-
-                dao.insertApp(
-                    NotificationEntity(
-                        packageName = packageName,
-                        title = content.title,
-                        message = content.message,
-                        receivedAt = postTime,
-                        notificationKey = notificationKey,
-                        contentFingerprint = contentFingerprint,
-                        conversationTitle = content.conversationTitle,
-                        conversationKey = conversation?.key,
-                        conversationName = conversation?.displayName
-                    )
-                )
+                // Apps fire several posts per message within milliseconds; checking and
+                // inserting under one lock stops parallel posts from each saving a copy.
+                persistMutex.withLock {
+                    if (messages.isNotEmpty()) {
+                        saveNewMessages(dao, row, messages)
+                    } else {
+                        saveNotification(dao, row, verdict)
+                    }
+                }
                 enforceRetentionIfDue(dao)
             } catch (t: Throwable) {
                 // A failing disk/DB (full, locked, mid-migration) must never crash the
@@ -214,6 +228,83 @@ class NotificationListener : NotificationListenerService() {
             }
         }
     }
+
+    /**
+     * Chat apps re-post the whole unread thread on every new message ("hi", then "hi / how are
+     * you", ...). Saving the combined text would repeat older messages, so each message becomes
+     * its own row and only messages not saved before are inserted.
+     */
+    private suspend fun saveNewMessages(
+        dao: NotificationDao,
+        row: NotificationEntity,
+        messages: List<ExtractedMessage>
+    ) {
+        val latestSaved = row.notificationKey?.let {
+            dao.latestReceivedAtForKey(it, since = row.receivedAt - KEY_DEDUPE_WINDOW_MS)
+        }
+        messages.forEach { message ->
+            // Message times come from the sender's clock; never place a message in the future.
+            val receivedAt = message.timestamp
+                .takeIf { it > 0 && it <= row.receivedAt }
+                ?: row.receivedAt
+            // Anything at or before the newest saved row of this thread was already captured.
+            if (latestSaved != null && receivedAt <= latestSaved) return@forEach
+            val fingerprint = message.fingerprint()
+            if (dao.hasSameContentBetween(
+                    packageName = row.packageName,
+                    contentFingerprint = fingerprint,
+                    from = receivedAt - CONTENT_DEDUPE_WINDOW_MS,
+                    to = receivedAt + CONTENT_DEDUPE_WINDOW_MS
+                )
+            ) return@forEach
+            dao.insertApp(
+                row.copy(
+                    message = message.displayText(row.title),
+                    receivedAt = receivedAt,
+                    contentFingerprint = fingerprint
+                )
+            )
+        }
+    }
+
+    private suspend fun saveNotification(
+        dao: NotificationDao,
+        row: NotificationEntity,
+        verdict: ActiveContentTracker.Verdict
+    ) {
+        val key = row.notificationKey ?: return
+        val fingerprint = row.contentFingerprint ?: return
+        val now = System.currentTimeMillis()
+        // After a listener restart the tracker is empty: a re-post of a still-shown
+        // notification then matches the newest row saved under its key.
+        if (verdict == ActiveContentTracker.Verdict.Unknown &&
+            dao.latestFingerprintForKey(key, since = now - KEY_DEDUPE_WINDOW_MS) == fingerprint
+        ) return
+        if (dao.hasSameContentBetween(
+                packageName = row.packageName,
+                contentFingerprint = fingerprint,
+                from = now - CONTENT_DEDUPE_WINDOW_MS,
+                to = Long.MAX_VALUE
+            )
+        ) return
+        dao.insertApp(row)
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        sbn.key?.let(activeContent::onRemoved)
+    }
+
+    private fun isGroupSummary(notification: Notification): Boolean =
+        (notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0
+
+    private fun hasActiveGroupChildren(summary: StatusBarNotification): Boolean = runCatching {
+        activeNotifications.orEmpty().any {
+            it.packageName == summary.packageName &&
+                it.groupKey == summary.groupKey &&
+                it.key != summary.key &&
+                !isGroupSummary(it.notification)
+        }
+    }.getOrDefault(false)
 
     private fun shouldSkip(
         notification: Notification,
@@ -256,7 +347,9 @@ class NotificationListener : NotificationListenerService() {
         /** Last known user toggle, readable by the delayed alert after the instance is gone. */
         @Volatile private var trackingEnabledSnapshot: Boolean = true
 
-        private val PERSISTENT_DEDUPE_WINDOW_MS = TimeUnit.MINUTES.toMillis(5)
+        private val KEY_DEDUPE_WINDOW_MS = TimeUnit.HOURS.toMillis(24)
+        private val CONTENT_DEDUPE_WINDOW_MS = TimeUnit.MINUTES.toMillis(5)
+        private val SUMMARY_SETTLE_MS = TimeUnit.SECONDS.toMillis(2)
         private val RETENTION_CLEANUP_INTERVAL_MS = TimeUnit.HOURS.toMillis(6)
         private val DISCONNECT_ALERT_DELAY_MS = TimeUnit.SECONDS.toMillis(45)
     }

@@ -73,8 +73,7 @@ import com.droidnova.notificationhistory.presentation.components.SectionHeader
 import com.droidnova.notificationhistory.presentation.components.StatCard
 import com.droidnova.notificationhistory.presentation.components.StatusCard
 import com.droidnova.notificationhistory.presentation.components.StatusTone
-import com.droidnova.notificationhistory.presentation.components.isBatteryOptimizationIgnored
-import com.droidnova.notificationhistory.presentation.components.openBatteryOptimizationSettings
+import com.droidnova.notificationhistory.presentation.components.rememberBatteryOptimizationState
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDialog
@@ -116,7 +115,7 @@ fun HomeScreen(
     var showPurchaseSheet by remember { mutableStateOf(false) }
     var showPermissionSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
-    var batteryIgnored by remember { mutableStateOf(isBatteryOptimizationIgnored(context)) }
+    val batteryOptimization = rememberBatteryOptimizationState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val permissionSheetState = rememberModalBottomSheetState(
@@ -157,7 +156,6 @@ fun HomeScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewmodel.onResume()
                 homeViewModel.refresh()
-                batteryIgnored = isBatteryOptimizationIgnored(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -199,7 +197,7 @@ fun HomeScreen(
             listenerConnected = listenerConnected,
             todaySummary = todaySummary,
             recentNotifications = recentNotifications,
-            showBatteryWarning = !batteryIgnored,
+            showBatteryWarning = !batteryOptimization.isIgnored,
             showRateCard = state.launchCount >= RATE_US_LAUNCH_THRESHOLD && state.showRateUsCard,
             onTrackingChanged = { enabled ->
                 when {
@@ -213,7 +211,7 @@ fun HomeScreen(
             onSeeAllHistory = { navController.navigateToTab(Screens.History.route) },
             onManageApps = { navController.navigate(Screens.ManageNotifications.route) },
             onInsights = { navController.navigateToTab(Screens.Insights.route) },
-            onBatteryAction = { openBatteryOptimizationSettings(context) },
+            onBatteryAction = batteryOptimization.requestExemption,
             onNotificationClick = { showDetailsDialog = it },
             onRateCancel = viewmodel::resetLaunchCount,
             onRateConfirmed = {

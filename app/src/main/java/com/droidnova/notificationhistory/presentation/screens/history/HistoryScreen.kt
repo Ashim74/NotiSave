@@ -1,6 +1,7 @@
 package com.droidnova.notificationhistory.presentation.screens.history
 
 import android.app.DatePickerDialog
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -57,6 +60,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -116,8 +120,22 @@ fun HistoryScreen(
     var searchQuery by rememberSaveable { mutableStateOf(historyFilters.searchQuery) }
     var isSearchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    // Long-press selection on the All list; ids that leave the list drop out of the selection.
+    var selectedIds by remember { mutableStateOf(emptySet<Long>()) }
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
+    val isSelecting = selectedIds.isNotEmpty()
+    val toggleSelection = { id: Long ->
+        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+    }
+
+    LaunchedEffect(packages.value) {
+        val loadedIds = packages.value.mapTo(HashSet()) { it.id }
+        selectedIds = selectedIds.filterTo(HashSet()) { it in loadedIds }
+    }
+    BackHandler(enabled = isSelecting) { selectedIds = emptySet() }
 
     LaunchedEffect(view) {
+        selectedIds = emptySet()
         if (view == HistoryView.Apps) {
             isSearchActive = false
             searchQuery = ""
@@ -144,7 +162,40 @@ fun HistoryScreen(
     Scaffold(
         topBar = {
             Column {
-                if (isSearchActive) {
+                if (isSelecting) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.history_selected_count,
+                                selectedIds.size,
+                                selectedIds.size
+                            )
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { selectedIds = emptySet() }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.content_description_cancel_selection)
+                            )
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = {
+                            selectedIds = packages.value.mapTo(HashSet()) { it.id }
+                        }) {
+                            Text(stringResource(R.string.history_select_all))
+                        }
+                        IconButton(onClick = { showBulkDeleteConfirm = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.move_to_trash)
+                            )
+                        }
+                    }
+                )
+                } else if (isSearchActive) {
                 TopAppBar(
                     title = {
                         TextField(
@@ -255,8 +306,12 @@ fun HistoryScreen(
                     packages = packages.value,
                     searchQuery = searchQuery,
                     hasActiveFilters = historyFilters.hasActiveFilters,
+                    selectedIds = selectedIds,
                     onLoadMore = { mainViewmodel.loadMoreHistory() },
-                    onItemClick = { selectedNotification = it },
+                    onItemClick = {
+                        if (isSelecting) toggleSelection(it.id) else selectedNotification = it
+                    },
+                    onItemLongClick = { toggleSelection(it.id) },
                     onRefresh = { mainViewmodel.refreshHistory() },
                     onClearSearch = clearSearch,
                     onClearFilters = mainViewmodel::clearHistoryFilters,
@@ -319,6 +374,22 @@ fun HistoryScreen(
         )
     }
 
+    if (showBulkDeleteConfirm && isSelecting) {
+        DeleteConfirmationDialog(
+            message = pluralStringResource(
+                R.plurals.delete_selected_confirmation_message,
+                selectedIds.size,
+                selectedIds.size
+            ),
+            onConfirm = {
+                mainViewmodel.moveNotificationsToTrash(selectedIds)
+                selectedIds = emptySet()
+                showBulkDeleteConfirm = false
+            },
+            onDismiss = { showBulkDeleteConfirm = false }
+        )
+    }
+
     selectedNotification?.let { notification ->
         NotificationActionSheet(
             onViewDetails = {
@@ -367,8 +438,10 @@ fun HistoryScreenContent(
     packages: List<NotificationModel>,
     searchQuery: String,
     hasActiveFilters: Boolean,
+    selectedIds: Set<Long>,
     onLoadMore: () -> Unit,
     onItemClick: (NotificationModel) -> Unit,
+    onItemLongClick: (NotificationModel) -> Unit,
     onRefresh: () -> Unit,
     onClearSearch: () -> Unit,
     onClearFilters: () -> Unit,
@@ -445,7 +518,9 @@ fun HistoryScreenContent(
                         NotificationHistoryCard(
                             notification = item,
                             searchQuery = searchQuery,
-                            onClick = { onItemClick(item) }
+                            onClick = { onItemClick(item) },
+                            onLongClick = { onItemLongClick(item) },
+                            selected = item.id in selectedIds
                         )
                     }
                 }

@@ -66,8 +66,7 @@ import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 import com.droidnova.notificationhistory.presentation.components.SectionHeader
-import com.droidnova.notificationhistory.presentation.components.isBatteryOptimizationIgnored
-import com.droidnova.notificationhistory.presentation.components.openBatteryOptimizationSettings
+import com.droidnova.notificationhistory.presentation.components.rememberBatteryOptimizationState
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDialog
@@ -91,7 +90,7 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     val priceLabel = productDetails?.oneTimePurchaseOfferDetailsList
         ?.firstOrNull()
         ?.formattedPrice
-    var batteryIgnored by remember { mutableStateOf(isBatteryOptimizationIgnored(context)) }
+    val batteryOptimization = rememberBatteryOptimizationState()
     var showClearConfirmation by remember { mutableStateOf(false) }
     var showPurchaseSheet by remember { mutableStateOf(false) }
     val consentManager = remember { AdsConsentManager.getInstance(context) }
@@ -105,7 +104,6 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 mainViewModel.onResume()
-                batteryIgnored = isBatteryOptimizationIgnored(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -212,16 +210,14 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
             item { SectionHeader(stringResource(R.string.settings_reliability_section)) }
             item {
                 SettingsRow(
-                    icon = if (batteryIgnored) Icons.Default.CheckCircle else Icons.Default.Warning,
+                    icon = if (batteryOptimization.isIgnored) Icons.Default.CheckCircle else Icons.Default.Warning,
                     title = stringResource(R.string.settings_battery_optimization),
-                    supportingText = if (batteryIgnored) {
+                    supportingText = if (batteryOptimization.isIgnored) {
                         stringResource(R.string.settings_battery_ready)
                     } else {
                         stringResource(R.string.settings_battery_action)
                     },
-                    onClick = if (batteryIgnored) null else {
-                        { openBatteryOptimizationSettings(context) }
-                    }
+                    onClick = if (batteryOptimization.isIgnored) null else batteryOptimization.requestExemption
                 )
             }
 

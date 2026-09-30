@@ -10,12 +10,13 @@ import com.droidnova.notificationhistory.R
 @Composable
 fun DeleteConfirmationDialog(
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    message: String = stringResource(R.string.delete_confirmation_message)
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.delete_confirmation_title)) },
-        text = { Text(stringResource(R.string.delete_confirmation_message)) },
+        text = { Text(message) },
         confirmButton = {
             TextButton(onClick = onConfirm) { Text(stringResource(R.string.move_to_trash)) }
         },

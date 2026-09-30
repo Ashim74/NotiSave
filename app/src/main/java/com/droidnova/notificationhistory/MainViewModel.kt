@@ -664,6 +664,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun moveNotificationsToTrash(notificationIds: Set<Long>) {
+        if (notificationIds.isEmpty()) return
+        removeTrashedNotificationsFromActiveUi(notificationIds)
+        viewModelScope.launch(Dispatchers.IO) {
+            val trashedAt = System.currentTimeMillis()
+            notificationIds.chunked(TRASH_BATCH_SIZE).forEach { batch ->
+                dao.moveNotificationsToTrash(batch, trashedAt)
+            }
+        }
+    }
+
     fun restoreNotification(notification: NotificationModel) {
         _trash.update { current -> current.filterNot { it.id == notification.id } }
         viewModelScope.launch(Dispatchers.IO) {
@@ -809,6 +820,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         const val SEARCH_DEBOUNCE_MS = 300L
         /** Upper bound on rows held in memory for the flat history list (30 pages of 100). */
         const val MAX_LOADED_HISTORY = 3_000
+
+        /** Stays well under SQLite's 999 bound-variable limit. */
+        const val TRASH_BATCH_SIZE = 500
 
         /** Messengers most users want saved; pre-selected during onboarding when installed. */
         val COMMON_MESSAGING_APPS = listOf(

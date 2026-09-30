@@ -18,6 +18,21 @@ internal data class ExtractedNotificationContent(
     fun contentFingerprint(): String = sha256(normalizedForDedupe())
 }
 
+/** One chat message inside a MessagingStyle notification. */
+internal data class ExtractedMessage(
+    val sender: String,
+    val text: String,
+    val timestamp: Long
+) {
+    /** Identity of the message itself, independent of how the app re-renders the thread. */
+    fun fingerprint(): String = sha256("${comparisonKey(sender)}\u0000${comparisonKey(text)}")
+
+    /** Group chats name the sender; 1:1 chats already show the contact as the title. */
+    fun displayText(title: String): String =
+        if (sender.isEmpty() || comparisonKey(sender) == comparisonKey(title)) text
+        else "$sender: $text"
+}
+
 internal fun sha256(value: String): String {
     val bytes = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
     val result = CharArray(bytes.size * 2)
@@ -121,7 +136,7 @@ private fun isPreviewOf(possiblePreview: String, completeText: String): Boolean 
     return completeText.contains(preview)
 }
 
-private fun comparisonKey(value: String): String {
+internal fun comparisonKey(value: String): String {
     val normalized = runCatching {
         Normalizer.normalize(value, Normalizer.Form.NFKC)
     }.getOrDefault(value)

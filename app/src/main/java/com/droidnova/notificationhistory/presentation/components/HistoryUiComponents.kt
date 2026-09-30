@@ -1,6 +1,11 @@
 package com.droidnova.notificationhistory.presentation.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,20 +46,38 @@ fun NotificationHistoryCard(
     searchQuery: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    footerText: String? = null
+    footerText: String? = null,
+    onLongClick: (() -> Unit)? = null,
+    selected: Boolean = false
 ) {
+    val shape = CardDefaults.shape
     Card(
-        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(shape)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = shape,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
+            }
         )
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                HistoryAppIcon(packageName = notification.packageName)
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = stringResource(R.string.content_description_selected),
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    HistoryAppIcon(packageName = notification.packageName)
+                }
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = notification.appName.ifBlank { notification.packageName },

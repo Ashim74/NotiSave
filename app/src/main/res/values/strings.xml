@@ -323,4 +323,17 @@ Find “Notification History” → Turn ON access.
     <string name="insights_empty">No notifications in this range.</string>
     <string name="insights_error">Insights could not be loaded.</string>
     <string name="insights_retry">Retry</string>
+
+    <!-- History multi-select -->
+    <string name="content_description_selected">Selected</string>
+    <string name="content_description_cancel_selection">Cancel selection</string>
+    <string name="history_select_all">Select all</string>
+    <plurals name="history_selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <plurals name="delete_selected_confirmation_message">
+        <item quantity="one">%1$d notification will be moved to Trash. You can restore it later.</item>
+        <item quantity="other">%1$d notifications will be moved to Trash. You can restore them later.</item>
+    </plurals>
 </resources>
