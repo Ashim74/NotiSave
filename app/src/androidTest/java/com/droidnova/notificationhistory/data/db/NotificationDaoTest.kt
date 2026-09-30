@@ -106,6 +106,19 @@ class NotificationDaoTest {
     }
 
     @Test
+    fun deleteAllRemovesActiveAndTrashedRows() = runBlocking {
+        insert("com.a", "active", 100)
+        insert("com.b", "trashed", 200)
+        val trashed = dao.getAllApps().first { it.title == "trashed" }
+        dao.moveNotificationToTrash(trashed.id, trashedAt = 300)
+
+        assertEquals(2, dao.deleteAllNotifications())
+
+        assertTrue(dao.getAllApps().isEmpty())
+        assertTrue(dao.observeTrash().first().isEmpty())
+    }
+
+    @Test
     fun recentActiveIsNewestFirstAndBounded() = runBlocking {
         repeat(8) { i -> insert("com.a", "n$i", receivedAt = i.toLong()) }
         val recent = dao.observeRecentActive(limit = 5).first()

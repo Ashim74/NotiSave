@@ -15,7 +15,7 @@ Most-requested category for notification-history apps; also the strongest premiu
 | **Export history** (CSV / JSON / plain text; share sheet) | M | Free: last 7 days; Premium: full range. Natural upsell. |
 | **Local backup & restore** (DB + settings to a user-picked SAF folder) | M | Protects against reinstall data loss — top uninstall regret. |
 | **Auto-backup schedule** (WorkManager, daily/weekly) | S | Builds on manual backup. |
-| **App lock** (biometric / device credential on app open) | M | Notification history is sensitive; big trust win. Free feature. |
+| **App lock** (PIN / password + biometric, forgot-password recovery) | M | Notification history is sensitive; big trust win. Free feature. **Planned in detail as M8 in [MILESTONES.md](MILESTONES.md).** |
 | **Private apps** (hide chosen apps' history behind biometric re-auth) | M | Pairs with app lock. |
 | **Sensitive-content redaction** (per-app "save titles only, not message bodies") | S | Extends the existing per-app title-filter framework. |
 
@@ -25,7 +25,7 @@ Frequency-of-use drivers; every widget impression is a brand impression.
 
 | Feature | Effort | Notes |
 |---------|--------|-------|
-| **Home-screen widget: recent notifications** (Glance API) | M | The single biggest "frequently used" lever available. |
+| **Home-screen widget: recent notifications** (Glance API) | M | The single biggest "frequently used" lever available. **Must honour the M8 app lock** (hide content while the lock is on). |
 | **Widget: today's stats** (count + top app mini chart) | S | Reuses Insights queries. |
 | **Quick Settings tile** (tracking on/off + open app) | S | Cheap, power-user favorite. |
 | **Daily digest notification** (opt-in, quiet: "Yesterday: 312 notifications, top: WhatsApp") | M | Careful: opt-in only, easy off — a notification app must respect notifications. |

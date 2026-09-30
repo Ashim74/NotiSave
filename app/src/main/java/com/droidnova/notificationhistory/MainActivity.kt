@@ -1,9 +1,10 @@
 package com.droidnova.notificationhistory
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
+import android.view.WindowManager
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,10 +17,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.billing.PremiumBillingManager
+import com.droidnova.notificationhistory.core.lock.AppLock
+import com.droidnova.notificationhistory.core.lock.AppLockController
+import com.droidnova.notificationhistory.core.lock.BiometricGate
+import com.droidnova.notificationhistory.core.lock.LocalBiometricGate
+import com.droidnova.notificationhistory.presentation.screens.lock.AppLockGate
+import com.droidnova.notificationhistory.presentation.screens.lock.LockScreen
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.presentation.navigation.AppNavGraph
 import com.droidnova.notificationhistory.presentation.navigation.LaunchAction
@@ -30,17 +38,33 @@ import com.droidnova.notificationhistory.utils.Analytics
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+// FragmentActivity (not ComponentActivity) because BiometricPrompt needs a fragment host.
+class MainActivity : FragmentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private lateinit var billingManager: PremiumBillingManager
+    private val appLock by lazy { AppLock.get(applicationContext) }
+    private lateinit var biometricGate: BiometricGate
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
         Analytics.init(applicationContext)
-        // Hold the splash until we know whether to show onboarding or Home; avoids a flash of
-        // the wrong screen on cold start.
-        splash.setKeepOnScreenCondition { viewModel.onboardingComplete.value == null }
+        // Hold the splash until we know whether to show onboarding or Home, and whether the
+        // app is locked; avoids a flash of the wrong screen (or of history) on cold start.
+        splash.setKeepOnScreenCondition {
+            viewModel.onboardingComplete.value == null ||
+                appLock.controller.gate.value == AppLockController.Gate.Loading
+        }
+        biometricGate = BiometricGate(this, onHandoff = appLock.controller::beginHandoff)
+        lifecycleScope.launch {
+            appLock.secureWindow.collect { secure ->
+                if (secure) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+        }
         val launchAction = LaunchAction.from(intent)
         if (launchAction == LaunchAction.Reconnect) Analytics.log(Analytics.RECONNECT_TAPPED)
         applyEdgeToEdge(darkTheme = null)
@@ -64,13 +88,24 @@ class MainActivity : ComponentActivity() {
             // System bar icon contrast must follow the in-app theme, not only the OS setting.
             LaunchedEffect(darkTheme) { applyEdgeToEdge(darkTheme) }
 
-            CompositionLocalProvider(LocalPremiumBillingManager provides billingManager) {
+            val gate by appLock.controller.gate.collectAsState()
+
+            CompositionLocalProvider(
+                LocalPremiumBillingManager provides billingManager,
+                LocalBiometricGate provides biometricGate
+            ) {
                 AppTheme(darkTheme = darkTheme) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                     ) {
-                        AppNavGraph(launchAction = launchAction)
+                        // The launch action waits behind the lock: AppNavGraph only composes
+                        // (and routes the shortcut / alert) once unlocked.
+                        AppLockGate(
+                            gate = gate,
+                            lockContent = { LockScreen(onHistoryErased = viewModel::onHistoryErased) },
+                            appContent = { AppNavGraph(launchAction = launchAction) }
+                        )
                     }
                 }
             }
@@ -92,8 +127,37 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge(statusBarStyle = statusBarStyle, navigationBarStyle = navigationBarStyle)
     }
 
+    override fun onStart() {
+        super.onStart()
+        appLock.controller.onAppStarted()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Rotation / theme change recreate the activity; that is not leaving the app.
+        if (!isChangingConfigurations) appLock.controller.onAppStopped()
+    }
+
+    /**
+     * Every in-app launch of another screen (system settings, share sheet, mail, Play billing,
+     * battery exemption, screen-lock check) funnels through here — `startActivity` included —
+     * so returning from it doesn't ask for the PIN again.
+     */
+    @Deprecated("Deprecated in Java")
+    override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) {
+        appLock.controller.beginHandoff()
+        try {
+            @Suppress("DEPRECATION")
+            super.startActivityForResult(intent, requestCode, options)
+        } catch (error: RuntimeException) {
+            appLock.controller.onAppResumed()
+            throw error
+        }
+    }
+
     override fun onResume() {
         super.onResume()
+        appLock.controller.onAppResumed()
         // Recover a listener binding the system dropped; no-op while healthy.
         ListenerReconnector.ensureConnected(applicationContext)
     }

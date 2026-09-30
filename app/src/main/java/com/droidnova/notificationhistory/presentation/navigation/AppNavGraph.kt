@@ -56,6 +56,7 @@ import com.droidnova.notificationhistory.presentation.screens.home.HomeScreen
 import com.droidnova.notificationhistory.presentation.screens.home.HomeViewModel
 import com.droidnova.notificationhistory.presentation.screens.insights.InsightsScreen
 import com.droidnova.notificationhistory.presentation.screens.insights.InsightsViewModel
+import com.droidnova.notificationhistory.presentation.screens.lock.AppLockSettingsScreen
 import com.droidnova.notificationhistory.presentation.screens.onboarding.OnboardingScreen
 import com.droidnova.notificationhistory.presentation.screens.select_app.SelectAppScreen
 import com.droidnova.notificationhistory.presentation.screens.setting.SettingScreen
@@ -211,6 +212,9 @@ private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) 
                 }
                 composable(Screens.AboutScreen.route) {
                     AboutScreen(navController)
+                }
+                composable(Screens.AppLock.route) {
+                    AppLockSettingsScreen(navController)
                 }
                 composable(
                     route = Screens.AppsNotificationListScreen.route,

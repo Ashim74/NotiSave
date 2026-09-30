@@ -165,6 +165,10 @@ interface NotificationDao {
     @Query("DELETE FROM apps WHERE id = :notificationId AND isTrashed = 1")
     suspend fun permanentlyDeleteNotification(notificationId: Long): Int
 
+    // App-lock "erase and reset": active history and trash, everything.
+    @Query("DELETE FROM apps")
+    suspend fun deleteAllNotifications(): Int
+
     @Query("DELETE FROM apps WHERE isTrashed = 1")
     suspend fun emptyTrash(): Int
 

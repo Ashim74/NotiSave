@@ -17,6 +17,7 @@ sealed class Screens(val route: String) {
    data object AppSettings : Screens("AppSettings")
    data object Trash : Screens("Trash")
    data object AboutScreen : Screens("AboutScreen")
+   data object AppLock : Screens("AppLock")
 
    // Package names are dotted identifiers today, but encoding keeps the path segment safe
    // against any future arg (and matches how conversation keys are handled).

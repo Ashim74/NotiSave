@@ -64,6 +64,7 @@ import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
+import com.droidnova.notificationhistory.core.lock.AppLock
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 import com.droidnova.notificationhistory.presentation.components.SectionHeader
 import com.droidnova.notificationhistory.presentation.components.rememberBatteryOptimizationState
@@ -98,6 +99,7 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     val themeMode by mainViewModel.themeMode.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showRetentionDialog by remember { mutableStateOf(false) }
+    val appLockEnabled by remember { AppLock.get(context).isEnabled }.collectAsState(initial = false)
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -228,6 +230,20 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                     title = stringResource(R.string.settings_theme),
                     supportingText = stringResource(themeMode.labelRes()),
                     onClick = { showThemeDialog = true }
+                )
+            }
+
+            item { SectionHeader(stringResource(R.string.settings_privacy_section)) }
+            item {
+                SettingsRow(
+                    icon = Icons.Default.Lock,
+                    title = stringResource(R.string.settings_app_lock),
+                    supportingText = if (appLockEnabled) {
+                        stringResource(R.string.app_lock_status_on)
+                    } else {
+                        stringResource(R.string.settings_app_lock_off)
+                    },
+                    onClick = { navController.navigate(Screens.AppLock.route) }
                 )
             }
 
