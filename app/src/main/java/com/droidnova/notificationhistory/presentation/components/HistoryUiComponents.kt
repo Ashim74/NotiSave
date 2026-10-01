@@ -1,7 +1,12 @@
 package com.droidnova.notificationhistory.presentation.components
 
-import android.graphics.drawable.Drawable
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,20 +15,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -32,134 +36,155 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import com.droidnova.notificationhistory.R
-import com.droidnova.notificationhistory.data.mapper.fetchAppIcon
+import com.droidnova.notificationhistory.core.apps.AppInfoCache
 import com.droidnova.notificationhistory.data.model.NotificationModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 
+/**
+ * Compact two-line notification row: app icon, title + time, then the body. The app's name
+ * lives in the icon (and its TalkBack label), or becomes the title when the notification has
+ * none. Pass [shape] from [groupedShape] and a small [spacing] to stack rows as one block.
+ */
 @Composable
 fun NotificationHistoryCard(
     notification: NotificationModel,
     searchQuery: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    footerText: String? = null
+    footerText: String? = null,
+    onLongClick: (() -> Unit)? = null,
+    selected: Boolean = false,
+    shape: Shape = MaterialTheme.shapes.medium,
+    spacing: Dp = 8.dp
 ) {
-    Card(
-        onClick = onClick,
+    val appName = notification.appName.ifBlank { notification.packageName }
+    val title = notification.title.ifBlank { appName }
+    val body = notification.text.replace('\n', ' ')
+    val containerColor by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.secondaryContainer else AppCardDefaults.containerColor(),
+        label = "notificationSelected"
+    )
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
-        )
+            .padding(horizontal = Dimens.ScreenHorizontal, vertical = spacing / 2)
+            .clip(shape)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = shape,
+        color = containerColor
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                HistoryAppIcon(notification.appIcon)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = notification.appName.ifBlank { notification.packageName },
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = notification.receivedAt.substringAfter(", "),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Crossfade(targetState = selected, label = "notificationIcon") { isSelected ->
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = stringResource(R.string.content_description_selected),
+                        modifier = Modifier.size(36.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    HistoryAppIcon(
+                        packageName = notification.packageName,
+                        size = 36.dp,
+                        contentDescription = appName
+                    )
+                }
             }
-
-            if (notification.title.isNotBlank()) {
-                Text(
-                    text = highlightedText(notification.title, searchQuery),
-                    modifier = Modifier.padding(top = 8.dp),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            if (notification.text.isNotBlank()) {
-                Text(
-                    text = highlightedText(notification.text, searchQuery),
-                    modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            if (!footerText.isNullOrBlank()) {
-                Text(
-                    text = footerText,
-                    modifier = Modifier.padding(top = 6.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = highlightedText(title, searchQuery),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = notification.receivedAt.substringAfter(", "),
+                        modifier = Modifier.padding(start = 8.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+                if (body.isNotBlank()) {
+                    Text(
+                        text = highlightedText(body, searchQuery),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (!footerText.isNullOrBlank()) {
+                    Text(
+                        text = footerText,
+                        modifier = Modifier.padding(top = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
 }
 
+/**
+ * Shows the launcher icon for [packageName] from [AppInfoCache]: cached icons render on the
+ * first frame, uncached ones load off the main thread. A null package (or an uninstalled one)
+ * falls back to the generic icon.
+ */
 @Composable
-fun HistoryAppIcon(drawable: Drawable?, modifier: Modifier = Modifier) {
-    if (drawable != null) {
+fun HistoryAppIcon(
+    packageName: String?,
+    modifier: Modifier = Modifier,
+    size: Dp = 24.dp,
+    contentDescription: String? = null
+) {
+    val icon = if (packageName != null) rememberAppIcon(packageName) else null
+    if (icon != null) {
         Image(
-            bitmap = drawable.toBitmap().asImageBitmap(),
-            contentDescription = null,
-            modifier = modifier.size(24.dp)
+            bitmap = icon,
+            contentDescription = contentDescription,
+            modifier = modifier.size(size)
         )
     } else {
         Icon(
             painter = painterResource(R.drawable.ic_apps),
-            contentDescription = null,
-            modifier = modifier.size(24.dp),
+            contentDescription = contentDescription,
+            modifier = modifier.size(size),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
-/**
- * Resolves and shows an app icon for [packageName] off the main thread, falling back to the
- * generic icon while loading or when the package is not installed.
- */
+@Composable
+fun rememberAppIcon(packageName: String): ImageBitmap? {
+    val context = LocalContext.current
+    val icon by produceState(initialValue = AppInfoCache.peekIcon(packageName), packageName) {
+        if (value == null) value = AppInfoCache.icon(context, packageName)
+    }
+    return icon
+}
+
 @Composable
 fun PackageAppIcon(packageName: String, modifier: Modifier = Modifier) {
-    val packageManager = LocalContext.current.packageManager
-    val icon by produceState<Drawable?>(initialValue = null, packageName) {
-        value = withContext(Dispatchers.IO) { fetchAppIcon(packageManager, packageName) }
-    }
-    HistoryAppIcon(drawable = icon, modifier = modifier)
+    HistoryAppIcon(packageName = packageName, modifier = modifier)
 }
 
 @Composable
 fun HistoryEmptyState(message: String, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier.padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Default.Notifications,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = message,
-                modifier = Modifier.padding(top = 10.dp),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+    EmptyState(title = message, modifier = modifier)
 }
 
 @Composable
@@ -169,8 +194,9 @@ fun HistoryLoadingState(modifier: Modifier = Modifier) {
     }
 }
 
+/** Highlights case-insensitive matches of [query] using theme roles (readable in dark mode). */
 @Composable
-private fun highlightedText(text: String, query: String): AnnotatedString {
+fun highlightedText(text: String, query: String): AnnotatedString {
     if (query.isBlank()) return buildAnnotatedString { append(text) }
     val highlightColor = MaterialTheme.colorScheme.secondaryContainer
     val highlightContentColor = MaterialTheme.colorScheme.onSecondaryContainer

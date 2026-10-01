@@ -2,7 +2,7 @@ package com.droidnova.notificationhistory.data.mapper
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
+import com.droidnova.notificationhistory.core.apps.AppInfoCache
 import com.droidnova.notificationhistory.data.db.ConversationSummaryRow
 import com.droidnova.notificationhistory.data.db.NotificationEntity
 import com.droidnova.notificationhistory.data.model.ConversationModel
@@ -12,40 +12,34 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-fun convertEntityToModel(context: Context, notificationEntity: NotificationEntity):NotificationModel{
-    val pm = context.packageManager
-    val appIcon = fetchAppIcon(pm,notificationEntity.packageName)
-    val appName = fetchAppName(pm,notificationEntity.packageName)
-    return convertEntityToModel(notificationEntity, appName, appIcon)
-}
+/** Resolves the app label through [AppInfoCache]; call off the main thread for uncached packages. */
+fun convertEntityToModel(context: Context, notificationEntity: NotificationEntity): NotificationModel =
+    convertEntityToModel(
+        notificationEntity,
+        AppInfoCache.label(context.packageManager, notificationEntity.packageName)
+    )
 
 fun convertEntityToModel(
     notificationEntity: NotificationEntity,
-    appName: String,
-    appIcon: Drawable?
-): NotificationModel {
-    val notificationModel =NotificationModel(
-        id = notificationEntity.id,
-        packageName = notificationEntity.packageName,
-        appIcon = appIcon,
-        appName = appName,
-        title = notificationEntity.title,
-        text = notificationEntity.message,
-        receivedAt = notificationEntity.receivedAt.toReadableTime(),
-        receivedAtEpoch = notificationEntity.receivedAt,
-        isTrashed = notificationEntity.isTrashed,
-        trashedAtEpoch = notificationEntity.trashedAt
-    )
-    return notificationModel
-}
+    appName: String
+): NotificationModel = NotificationModel(
+    id = notificationEntity.id,
+    packageName = notificationEntity.packageName,
+    appName = appName,
+    title = notificationEntity.title,
+    text = notificationEntity.message,
+    receivedAt = notificationEntity.receivedAt.toReadableTime(),
+    receivedAtEpoch = notificationEntity.receivedAt,
+    isTrashed = notificationEntity.isTrashed,
+    trashedAtEpoch = notificationEntity.trashedAt
+)
+
 fun convertConversationRowToModel(
     row: ConversationSummaryRow,
-    appName: String,
-    appIcon: Drawable?
+    appName: String
 ): ConversationModel = ConversationModel(
     conversationKey = row.conversationKey,
     packageName = row.packageName,
-    appIcon = appIcon,
     appName = appName,
     title = row.conversationName?.takeIf { it.isNotBlank() }
         ?: row.latestTitle.ifBlank { appName },
@@ -57,18 +51,25 @@ fun convertConversationRowToModel(
 )
 
 fun fetchAppName(pm: PackageManager, packageName: String): String =
-    runCatching {
-        val ai = pm.getApplicationInfo(packageName, 0)
-        pm.getApplicationLabel(ai).toString()
-    }.getOrElse { packageName }
+    AppInfoCache.label(pm, packageName)
 
-fun fetchAppIcon(pm: PackageManager, packageName: String): Drawable? =
-    runCatching { pm.getApplicationIcon(packageName) }.getOrNull()
-
-
-fun Long.toReadableTime(): String {
-    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", Locale.getDefault())
-    return Instant.ofEpochMilli(this)
+fun Long.toReadableTime(): String =
+    Instant.ofEpochMilli(this)
         .atZone(ZoneId.systemDefault())
-        .format(formatter)
+        .format(ReadableTimeFormatter.current())
+
+/**
+ * One formatter per locale instead of one per row. Rebuilt only when the default locale changes.
+ */
+internal object ReadableTimeFormatter {
+    private const val PATTERN = "dd MMM yyyy, hh:mm a"
+
+    @Volatile
+    private var cached: Pair<Locale, DateTimeFormatter>? = null
+
+    fun current(): DateTimeFormatter {
+        val locale = Locale.getDefault()
+        cached?.takeIf { it.first == locale }?.let { return it.second }
+        return DateTimeFormatter.ofPattern(PATTERN, locale).also { cached = locale to it }
+    }
 }

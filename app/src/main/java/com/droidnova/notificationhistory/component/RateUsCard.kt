@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -25,6 +25,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -61,9 +63,10 @@ fun RateUsCard(
             .fillMaxWidth()
             .border(
                 width = 0.5.dp,
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.primary
-            )
+            ),
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(
             modifier = Modifier
@@ -82,7 +85,7 @@ fun RateUsCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
-                modifier = modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 repeat(5) { index ->
@@ -96,18 +99,25 @@ fun RateUsCard(
                         }
                     )
 
+                    // 32 dp star inside a 48 dp touch target, announced as "N stars".
                     Icon(
                         painter = painterResource(if (isFilled) R.drawable.ic_star_filled else R.drawable.ic_star_outline),
-                        contentDescription = null,
+                        contentDescription = pluralStringResource(
+                            R.plurals.rate_us_star_description,
+                            index + 1,
+                            index + 1
+                        ),
                         modifier = Modifier
-                            .size(32.dp)
-                            .graphicsLayer(scaleX = scale, scaleY = scale)
+                            .size(48.dp)
+                            .clip(CircleShape)
                             .clickable {
                                 selectedStars = index + 1
                                 onRated(selectedStars)
                                 popupStarIndex = index
                                 showPopup = true
-                            },
+                            }
+                            .padding(8.dp)
+                            .graphicsLayer(scaleX = scale, scaleY = scale),
                     )
                 }
             }

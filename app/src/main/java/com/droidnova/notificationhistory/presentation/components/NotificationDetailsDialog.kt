@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -19,11 +18,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import java.util.regex.Pattern
 
@@ -51,30 +54,28 @@ fun NotificationDetailsDialog(
     }
 
     val annotatedText = remember(notification.text, linkColor) {
+        val linkStyles = TextLinkStyles(
+            style = SpanStyle(
+                color = linkColor,
+                fontWeight = FontWeight.SemiBold,
+                textDecoration = TextDecoration.Underline
+            )
+        )
         buildAnnotatedString {
             append(notification.text)
 
             val matcher = urlPattern.matcher(notification.text)
             while (matcher.find()) {
-                val start = matcher.start()
-                val end = matcher.end()
-                val url = matcher.group()
-
-                addStyle(
-                    style = SpanStyle(
-                        color = linkColor,
-                        fontWeight = FontWeight.SemiBold,
-                        textDecoration = TextDecoration.Underline
-                    ),
-                    start = start,
-                    end = end
-                )
-
-                addStringAnnotation(
-                    tag = "URL",
-                    annotation = url,
-                    start = start,
-                    end = end
+                val raw = matcher.group()
+                val url = if (raw.startsWith("www.", ignoreCase = true)) "https://$raw" else raw
+                addLink(
+                    LinkAnnotation.Url(url, linkStyles) {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        }
+                    },
+                    start = matcher.start(),
+                    end = matcher.end()
                 )
             }
         }
@@ -85,7 +86,7 @@ fun NotificationDetailsDialog(
         title = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = notification.title.ifBlank { "Notification" },
+                    text = notification.title.ifBlank { stringResource(R.string.notification_fallback_title) },
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -98,7 +99,7 @@ fun NotificationDetailsDialog(
         text = {
             // SelectionContainer makes text copyable (long-press to select/copy)
             SelectionContainer {
-                ClickableText(
+                Text(
                     text = annotatedText,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -106,29 +107,12 @@ fun NotificationDetailsDialog(
                         .verticalScroll(rememberScrollState()),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    onClick = { offset ->
-                        annotatedText
-                            .getStringAnnotations(tag = "URL", start = offset, end = offset)
-                            .firstOrNull()
-                            ?.let { annotation ->
-                                val raw = annotation.item
-                                val fixedUrl = if (raw.startsWith("www.", ignoreCase = true)) {
-                                    "https://$raw"
-                                } else raw
-
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(fixedUrl))
-                                    )
-                                }
-                            }
-                    }
+                    )
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
         }
     )
 }

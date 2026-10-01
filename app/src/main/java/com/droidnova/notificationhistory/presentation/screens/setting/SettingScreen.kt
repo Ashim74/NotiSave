@@ -1,52 +1,55 @@
 package com.droidnova.notificationhistory.presentation.screens.setting
 
-import android.util.Log
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Divider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.MainViewModel
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.text.font.FontWeight
+import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.presentation.components.EmptyState
+import com.droidnova.notificationhistory.presentation.components.GroupRowGap
+import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
+import com.droidnova.notificationhistory.presentation.components.ListRow
+import com.droidnova.notificationhistory.presentation.components.groupedShape
+import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 
+/** Per-app title filters: one field to add, a list to remove, "clear all" in the top bar. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingScreen(navController: NavHostController, packageName: String, mainViewModel: MainViewModel) {
@@ -54,145 +57,126 @@ fun SettingScreen(navController: NavHostController, packageName: String, mainVie
     val appLabel = remember(packageName) {
         runCatching {
             val pm = context.packageManager
-            val ai = pm.getApplicationInfo(packageName, 0)
-            pm.getApplicationLabel(ai).toString()
+            pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
         }.getOrDefault(packageName)
     }
+    val filtersMap by mainViewModel.titleFilters.collectAsState()
+    val filters = filtersMap[packageName].orEmpty().toList().asReversed()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = appLabel) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        HistoryAppIcon(packageName = packageName, size = 28.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Text(appLabel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(id = R.string.back)
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
-                }
-            )
-        }
-
-    ) {innerPadding->
-        SettingScreenContent(
-            innerPaddingValues = innerPadding,
-            packageName = packageName,
-            mainViewModel = mainViewModel
-        )
-    }
-}
-
-@Composable
-fun SettingScreenContent(innerPaddingValues: PaddingValues, packageName: String, mainViewModel: MainViewModel) {
-    val filtersMap by mainViewModel.titleFilters.collectAsState()
-    val filters = filtersMap[packageName] ?: emptySet()
-
-    var input by remember { mutableStateOf("") }
-    Column(
-        modifier = Modifier
-            .padding(innerPaddingValues)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        WarningCard(
-            message = stringResource(id = R.string.warning_only_matching_titles)
-        )
-        OutlinedTextField(
-            value = input,
-            onValueChange = { input = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(text = stringResource(id = R.string.label_add_title_filter),
-                fontWeight = FontWeight.Bold
-            ) }
-        )
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = {
-                if (input.isNotBlank()) {
-                    mainViewModel.addTitleFilter(packageName, input)
-                    input = ""
-                }
-            })
-            { Text(stringResource(id = R.string.btn_add)) }
-            Spacer(modifier = Modifier.weight(1f))
-            OutlinedButton(onClick = { mainViewModel.clearTitleFilters(packageName) }) {
-                Icon(imageVector = Icons.Filled.Delete, contentDescription = null)
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(stringResource(id = R.string.btn_clear_all_filters))
-            }
-        }
-
-        Divider()
-
-        Text(
-            text = stringResource(id = R.string.label_current_filters),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.W900
-        )
-        Box(
-            modifier = Modifier
-                .weight(1f) // Take up all remaining space for scrollable content
-                .fillMaxWidth()
-        ) {
-            if (filters.isEmpty()) {
-                Text(text = stringResource(id = R.string.label_no_filters))
-            } else {
-                LazyColumn {
-                    items(filters.toList().asReversed()) { title ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = title, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                            IconButton(onClick = {
-                                mainViewModel.removeTitleFilter(
-                                    packageName,
-                                    title
-                                )
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Filled.Delete,
-                                    contentDescription = stringResource(id = R.string.remove)
-                                )
-                            }
+                },
+                actions = {
+                    if (filters.isNotEmpty()) {
+                        IconButton(onClick = { mainViewModel.clearTitleFilters(packageName) }) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.btn_clear_all_filters)
+                            )
                         }
                     }
-                }//lazy
-            }
-        } // <-- Box
-    }// <-- Column
-}
-
-@Composable
-private fun WarningCard(message: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFF3E0),
-            contentColor = Color(0xFF7A4E00)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Info,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Black,
-                modifier = Modifier
-                    .padding(start = 8.dp)
+                }
             )
         }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp)
+        ) {
+            item(key = "add") {
+                AddFilterField(
+                    onAdd = { mainViewModel.addTitleFilter(packageName, it) },
+                    modifier = Modifier.padding(horizontal = Dimens.ScreenHorizontal)
+                )
+            }
+            item(key = "hint") {
+                Row(
+                    modifier = Modifier.padding(
+                        start = Dimens.ScreenHorizontal + 4.dp,
+                        end = Dimens.ScreenHorizontal,
+                        top = 6.dp,
+                        bottom = 16.dp
+                    ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(R.string.warning_only_matching_titles),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (filters.isEmpty()) {
+                item(key = "empty") {
+                    EmptyState(title = stringResource(R.string.label_no_filters))
+                }
+            } else {
+                itemsIndexed(filters, key = { _, title -> title }) { index, title ->
+                    ListRow(
+                        modifier = Modifier
+                            .animateItem()
+                            .padding(horizontal = Dimens.ScreenHorizontal, vertical = GroupRowGap / 2),
+                        shape = groupedShape(index, filters.size),
+                        title = title,
+                        trailing = {
+                            IconButton(onClick = { mainViewModel.removeTitleFilter(packageName, title) }) {
+                                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.remove))
+                            }
+                        }
+                    )
+                }
+            }
+        }
     }
+}
+
+/** A single field with its own "add" button; Enter on the keyboard adds too. */
+@Composable
+private fun AddFilterField(onAdd: (String) -> Unit, modifier: Modifier = Modifier) {
+    var input by remember { mutableStateOf("") }
+    val submit = {
+        if (input.isNotBlank()) {
+            onAdd(input.trim())
+            input = ""
+        }
+    }
+    OutlinedTextField(
+        value = input,
+        onValueChange = { input = it },
+        modifier = modifier.fillMaxWidth(),
+        singleLine = true,
+        shape = MaterialTheme.shapes.medium,
+        label = { Text(stringResource(R.string.label_add_title_filter)) },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { submit() }),
+        trailingIcon = {
+            IconButton(onClick = submit, enabled = input.isNotBlank()) {
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.btn_add))
+            }
+        }
+    )
 }

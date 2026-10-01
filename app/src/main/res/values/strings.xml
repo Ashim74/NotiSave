@@ -2,11 +2,10 @@
 <resources>
     <string name="app_name">Notification History</string>
     <string name="warning_only_matching_titles">Only notifications matching added titles will be saved</string>
-    <string name="label_add_title_filter">Add title filter</string>
+    <string name="label_add_title_filter">Save only titles containing…</string>
     <string name="btn_add">Add</string>
-    <string name="btn_clear_all_filters">Clear All Filters</string>
-    <string name="label_current_filters">Current Filters</string>
-    <string name="label_no_filters">No filters added yet</string>
+    <string name="btn_clear_all_filters">Clear all filters</string>
+    <string name="label_no_filters">No filters — every notification is saved</string>
     <string name="btn_save">Save</string>
     <string name="btn_apply">Apply</string>
     <string name="remove">Remove</string>
@@ -29,25 +28,23 @@
     <string name="premium_welcome_later_button">Later</string>
     <string name="premium_menu_remove_ads">Remove Ads</string>
     <string name="premium_menu_already_unlocked">Premium unlocked</string>
-    <string name="premium_menu_unlocked_subtitle">Thanks for supporting us!</string>
-    <string name="premium_menu_remove_ads_subtitle">Enjoy the app without ads and support development.</string>
+    <string name="settings_privacy_options">Privacy options</string>
 
     <!-- About screen -->
     <string name="about_title">About</string>
     <string name="rate_us">Rate Us</string>
-    <string name="rate_us_desc">Enjoying the app? Leave a review.</string>
+    <plurals name="rate_us_star_description">
+        <item quantity="one">%d star</item>
+        <item quantity="other">%d stars</item>
+    </plurals>
     <string name="share_us">Share Us</string>
-    <string name="share_us_desc">Invite friends to try Notification History.</string>
     <string name="report_bugs">Report Bugs</string>
-    <string name="report_bugs_desc">Report any bugs or issues you encounter.</string>
     <string name="follow_instagram">Follow us on Instagram</string>
-    <string name="follow_instagram_desc">Get updates, tips, and new releases.</string>
     <string name="join_whatsapp">Join our WhatsApp Community</string>
-    <string name="join_whatsapp_desc">Ask questions and get quick support.</string>
-    <string name="app_version">App Version</string>
+    <string name="about_version">Version %1$s</string>
     <string name="checkout_other_apps">Check Out Other Apps</string>
     <string name="check_more_apps_playstore">Check more apps on Play Store</string>
-    <string name="app_about_description">Notification History stores your recent alerts so you can revisit them anytime.</string>    <string name="other_app_clipboard_title">Clipboard History</string>
+    <string name="other_app_clipboard_title">Clipboard History</string>
     <string name="other_app_clipboard_description">Save your latest copied text so you can paste it quickly.</string>
     <string name="other_app_flash_alert_title">Flash Alert</string>
     <string name="other_app_flash_alert_description">Get flash alerts for calls, messages, and notifications.</string>
@@ -110,53 +107,42 @@ We need notification access to save and organize your notifications.\n\nHow to e
 Find “Notification History” → Turn ON access.
 </string>
     <string name="manage_selected_apps_message">To manage selected apps, tap Select Apps.</string>
-    <string name="select_at_least_one_app_message">Select at least one app to start saving notifications.</string>
     <string name="go_to_settings">Go to settings</string>
 
     <!-- Home dashboard and general settings -->
     <string name="settings_title">Settings</string>
-    <string name="tracking_active">Tracking active</string>
-    <string name="tracking_paused">Tracking paused</string>
-    <string name="tracking_permission_required">Permission required</string>
-    <string name="tracking_active_description">Saving notifications from your selected apps.</string>
-    <string name="tracking_paused_description">Tracking is paused. Your existing history is safe.</string>
-    <string name="tracking_permission_description">Allow notification access to start saving history.</string>
-    <string name="home_view_history">View History</string>
-    <string name="home_view_history_description">Search and review saved alerts</string>
     <string name="home_manage_apps">Manage Apps</string>
-    <string name="home_selected_apps_count">%1$d apps selected</string>
     <string name="battery_warning_title">Improve reliability</string>
-    <string name="battery_warning_description">Allow background activity so notifications are saved reliably.</string>
     <string name="fix">Fix</string>
     <string name="billing_unavailable">Billing is not available right now.</string>
     <string name="purchase_unavailable">Unable to start purchase from this screen.</string>
     <string name="settings_tracking_section">Tracking</string>
     <string name="settings_history_section">History</string>
-    <string name="settings_reliability_section">Reliability</string>
-    <string name="settings_premium_app_section">Premium and app</string>
-    <string name="settings_tracking_description">Control whether new notifications are saved.</string>
     <string name="settings_notification_access">Notification access</string>
     <string name="settings_permission_granted">Allowed</string>
-    <string name="settings_permission_required">Required — tap to open system settings</string>
-    <string name="settings_open_history_description">Search, filter and manage saved notifications</string>
+    <string name="settings_value_needed">Needed — tap to allow</string>
+    <string name="settings_value_on">On</string>
+    <string name="settings_value_off">Off</string>
+    <string name="settings_battery_unrestricted">Unrestricted</string>
+    <string name="settings_battery_restricted">Restricted — tap to fix</string>
+    <string name="settings_general_section">General</string>
+    <string name="settings_app_section">App</string>
+    <plurals name="settings_apps_count">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
     <string name="settings_clear_history">Clear all history</string>
-    <string name="settings_clear_history_description">Move all saved notifications to Trash, where they can be restored later.</string>
     <string name="clear_history_confirmation">All notifications will be moved to Trash and can be restored later.</string>
     <string name="clear_history_confirmation_title">Clear all history?</string>
     <string name="settings_battery_optimization">Battery optimization</string>
-    <string name="settings_battery_ready">Background reliability is configured</string>
-    <string name="settings_battery_action">Tap to allow reliable background operation</string>
     <string name="settings_premium_active">Premium active</string>
     <string name="settings_feedback">Feedback and support</string>
-    <string name="settings_feedback_description">Report an issue or send feedback</string>
     <string name="delete">Delete</string>
     <string name="cancel">Cancel</string>
     <string name="move_to_trash">Move to Trash</string>
     <string name="trash_title">Trash</string>
-    <string name="settings_trash_description">Restore or permanently delete notifications</string>
     <string name="trash_empty">Trash is empty.</string>
-    <string name="trash_deleted_at">Moved to Trash: %1$s</string>
-    <string name="trash_received_at">Received: %1$s</string>
+    <string name="trash_deleted_at">Deleted %1$s</string>
     <string name="trash_restore">Restore</string>
     <string name="trash_restore_all">Restore all</string>
     <string name="trash_restore_all_question">Restore all notifications?</string>
@@ -167,6 +153,124 @@ Find “Notification History” → Turn ON access.
     <string name="trash_empty_action">Empty Trash</string>
     <string name="trash_empty_question">Empty Trash?</string>
     <string name="trash_empty_confirmation">All notifications in Trash will be permanently deleted and cannot be recovered.</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_get_started">Get started</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_allow_access">Allow access</string>
+    <string name="onboarding_done">Done</string>
+    <string name="onboarding_intro_title">Never lose a notification again</string>
+    <string name="onboarding_feature_saves">Saves notifications you swipe away</string>
+    <string name="onboarding_feature_deleted">Read deleted messages later</string>
+    <string name="onboarding_feature_private">Nothing leaves your phone</string>
+    <string name="onboarding_access_title">Allow notification access</string>
+    <string name="onboarding_access_description">Android asks before any app can read notifications. Nothing leaves your phone.</string>
+    <string name="onboarding_access_granted_hint">You\'re all set. Next, choose which apps to save.</string>
+    <string name="onboarding_apps_title">Choose apps to save</string>
+    <string name="onboarding_apps_description">Messaging apps are pre-selected. Change anytime.</string>
+
+    <!-- Recording-stopped alert -->
+    <string name="alert_channel_name">Recording status</string>
+    <string name="alert_channel_description">Alerts when Notification History stops saving notifications.</string>
+    <string name="alert_listener_stopped_title">Recording stopped</string>
+    <string name="alert_listener_stopped_text">Notification History lost its connection and isn\'t saving notifications. Tap to reconnect.</string>
+
+    <!-- Launcher shortcuts -->
+    <string name="shortcut_search_short">Search</string>
+    <string name="shortcut_search_long">Search notifications</string>
+    <string name="shortcut_history_short">History</string>
+    <string name="shortcut_history_long">Open notification history</string>
+    <string name="shortcut_insights_short">Insights</string>
+    <string name="shortcut_insights_long">Open insights</string>
+
+    <!-- Empty-state helpers -->
+    <string name="trash_empty_description">Notifications you delete stay here for %1$d days before they\'re removed for good.</string>
+    <string name="insights_empty_description">Once notifications are saved, trends and top apps will show up here.</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">Home</string>
+
+    <!-- Home dashboard -->
+    <string name="home_status_recording">Recording</string>
+    <string name="home_status_paused">Paused</string>
+    <string name="home_status_access_needed">Access needed</string>
+    <string name="home_status_reconnecting">Reconnecting…</string>
+    <string name="home_status_allow">Allow</string>
+    <string name="home_stat_notifications">Notifications</string>
+    <string name="home_stat_apps">Apps</string>
+    <string name="home_stat_top_app">Top app</string>
+    <string name="home_recent_section">Recent</string>
+    <string name="home_see_all">See all</string>
+    <string name="home_recent_empty_title">Nothing saved yet</string>
+    <string name="home_no_apps_selected_title">No apps selected</string>
+    <string name="home_select_apps_action">Select</string>
+
+    <!-- History retention -->
+    <string name="settings_retention">History retention</string>
+    <string name="settings_retention_dialog_title">Keep history for</string>
+    <string name="settings_retention_description">Older notifications are deleted automatically. Items in Trash are not affected.</string>
+    <string name="settings_retention_forever">Keep forever</string>
+    <plurals name="settings_retention_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+
+    <!-- Appearance -->
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_dialog_title">Choose theme</string>
+    <string name="theme_system">System default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+
+    <!-- Shared -->
+    <string name="close">Close</string>
+    <string name="notification_fallback_title">Notification</string>
+    <string name="share_notification_chooser">Share notification</string>
+    <string name="unable_to_open_app">Unable to open this app</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="content_description_clear_search">Clear search</string>
+    <string name="date_today">Today</string>
+    <string name="date_yesterday">Yesterday</string>
+    <string name="delete_confirmation_title">Move to Trash?</string>
+    <string name="delete_confirmation_message">You can restore this notification later from Trash.</string>
+
+    <!-- History -->
+    <string name="history_title">History</string>
+    <string name="history_cap_hint">Showing the latest %1$d notifications. Use search or filters to narrow down.</string>
+    <string name="search_notifications_hint">Search notifications</string>
+    <string name="history_tab_messages">Messages</string>
+    <string name="history_tab_apps">Apps</string>
+    <string name="history_mode_all">All</string>
+    <string name="history_mode_conversations">Chats</string>
+    <string name="history_filter_all_apps">All apps</string>
+    <string name="history_clear_filters">Clear filters</string>
+    <string name="history_empty">No notifications yet</string>
+    <string name="history_empty_search">No search results.</string>
+    <string name="history_empty_filters">No notifications match these filters.</string>
+    <string name="history_custom_date_range">Custom date range</string>
+    <string name="history_date_start">Start: %1$s</string>
+    <string name="history_date_end">End: %1$s</string>
+    <string name="history_date_range_error">Start date must not be after end date.</string>
+    <string name="date_filter_all_time">All time</string>
+    <string name="date_filter_last_7_days">Last 7 days</string>
+    <string name="date_filter_last_30_days">Last 30 days</string>
+    <string name="date_filter_custom">Custom range</string>
+
+    <!-- Conversations -->
+    <string name="conversations_empty">No conversations yet.\nNew chat messages will be grouped here.</string>
+    <string name="conversations_empty_search">No conversations match your search.</string>
+    <string name="conversations_empty_filters">No conversations match these filters.</string>
+    <string name="conversation_empty_messages">No messages in this conversation.</string>
+
+    <!-- Manage apps -->
+    <string name="search_apps_hint">Search apps</string>
+    <string name="select_all">Select all</string>
+    <string name="select_apps_count">%1$d of %2$d apps saved</string>
+    <string name="select_apps_filters">Title filters for %1$s</string>
+    <string name="loading_apps">Loading apps…</string>
+    <string name="select_apps_bulk_selecting">Selecting apps…</string>
+    <string name="select_apps_bulk_removing">Removing apps…</string>
 
 
     <!-- Insights (M7) -->
@@ -179,16 +283,14 @@ Find “Notification History” → Turn ON access.
     <string name="insights_range_all_time">All time</string>
     <string name="insights_total">Notifications</string>
     <string name="insights_active_apps">Active apps</string>
-    <string name="insights_most_active_app">Most active app</string>
     <string name="insights_busiest_hour">Busiest hour</string>
     <string name="insights_none">—</string>
-    <string name="insights_notification_count">%1$d notifications</string>
     <string name="insights_activity">Activity</string>
-    <string name="insights_bucket_hourly">Notifications per hour</string>
-    <string name="insights_bucket_daily">Notifications per day</string>
-    <string name="insights_bucket_weekly">Notifications per week</string>
-    <string name="insights_bucket_monthly">Notifications per month</string>
-    <string name="insights_bucket_yearly">Notifications per year</string>
+    <string name="insights_current_hour">This hour</string>
+    <string name="insights_current_day">Today</string>
+    <string name="insights_current_week">This week</string>
+    <string name="insights_current_month">This month</string>
+    <string name="insights_current_year">This year</string>
     <string name="insights_chart_description">Activity chart with %1$d periods. Peak: %2$s with %3$d notifications.</string>
     <string name="insights_chart_description_empty">Activity chart. No notifications in this range.</string>
     <string name="insights_chart_bar_description">%1$s: %2$d notifications</string>
@@ -198,4 +300,81 @@ Find “Notification History” → Turn ON access.
     <string name="insights_empty">No notifications in this range.</string>
     <string name="insights_error">Insights could not be loaded.</string>
     <string name="insights_retry">Retry</string>
+
+    <!-- History multi-select -->
+    <string name="content_description_selected">Selected</string>
+    <string name="content_description_cancel_selection">Cancel selection</string>
+    <string name="history_select_all">Select all</string>
+    <plurals name="history_selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <plurals name="delete_selected_confirmation_message">
+        <item quantity="one">%1$d notification will be moved to Trash. You can restore it later.</item>
+        <item quantity="other">%1$d notifications will be moved to Trash. You can restore them later.</item>
+    </plurals>
+
+    <!-- App lock: 4-digit PIN; forgot PIN → phone screen lock or recovery code -->
+    <string name="settings_app_lock">App lock</string>
+    <string name="app_lock_title">App lock</string>
+    <string name="app_lock_intro_title">Lock your notification history</string>
+    <string name="app_lock_intro_body">Ask for a 4-digit PIN when the app opens. Notifications keep being saved while it\'s locked.</string>
+    <string name="app_lock_forgot_info">Forgot your PIN? You can get back in with your phone\'s screen lock or a recovery code.</string>
+    <string name="app_lock_turn_on">Turn on app lock</string>
+    <string name="app_lock_status_on">App lock is on</string>
+    <string name="app_lock_status_on_desc">Your PIN is needed to open the app</string>
+    <string name="app_lock_change">Change PIN</string>
+    <string name="app_lock_timeout">Lock after leaving the app</string>
+    <string name="app_lock_timeout_dialog_title">Lock after</string>
+    <string name="app_lock_timeout_immediately">Immediately</string>
+    <string name="app_lock_timeout_30s">After 30 seconds</string>
+    <string name="app_lock_timeout_1m">After 1 minute</string>
+    <string name="app_lock_timeout_5m">After 5 minutes</string>
+    <string name="app_lock_biometric">Unlock with fingerprint</string>
+    <string name="app_lock_biometric_enable_title">Use fingerprint</string>
+    <string name="app_lock_biometric_enable_subtitle">Confirm to turn on fingerprint unlock</string>
+    <string name="app_lock_new_recovery_code">New recovery code</string>
+    <string name="app_lock_turn_off">Turn off app lock</string>
+    <string name="app_lock_turn_off_confirm_title">Turn off app lock?</string>
+    <string name="app_lock_turn_off_confirm_body">Anyone using your phone will be able to open your history. Your PIN and recovery code will be removed.</string>
+    <string name="app_lock_turn_off_confirm">Turn off</string>
+    <string name="app_lock_verify_title">Enter your current PIN</string>
+    <string name="app_lock_turned_on">App lock is on</string>
+    <string name="app_lock_changed">PIN changed</string>
+    <string name="app_lock_turned_off">App lock turned off</string>
+
+    <string name="lock_screen_title">Enter your PIN</string>
+    <string name="lock_screen_subtitle">Notification History is locked</string>
+    <string name="lock_continue">Continue</string>
+    <string name="lock_forgot_pin">Forgot PIN?</string>
+    <string name="lock_biometric_prompt_title">Unlock Notification History</string>
+    <string name="lock_biometric_prompt_subtitle">Confirm it\'s you to see your history</string>
+    <string name="lock_locked_out">Too many attempts. Try again in %1$s</string>
+    <plurals name="lock_wrong_attempts_left">
+        <item quantity="one">Incorrect. %1$d attempt left before a timeout.</item>
+        <item quantity="other">Incorrect. %1$d attempts left before a timeout.</item>
+    </plurals>
+    <string name="pin_pad_delete">Delete</string>
+    <string name="pin_pad_fingerprint">Unlock with fingerprint</string>
+    <string name="pin_dots_description">%1$d of %2$d digits entered</string>
+    <string name="lock_forgot_title">Forgot your PIN?</string>
+    <string name="lock_forgot_subtitle">Confirm it\'s you, then set a new PIN.</string>
+    <string name="lock_use_screen_lock">Use phone screen lock</string>
+    <string name="lock_use_recovery_code">Use recovery code</string>
+    <string name="lock_no_screen_lock">Your phone has no screen lock, so use your recovery code.</string>
+    <string name="lock_device_confirm_title">Confirm it\'s you</string>
+    <string name="lock_device_confirm_desc">Use your phone\'s screen lock to reset your app PIN</string>
+    <string name="lock_device_failed">Couldn\'t confirm your screen lock. Try again.</string>
+    <string name="lock_recover_code_title">Enter recovery code</string>
+    <string name="lock_recover_code_desc">The code you saved when you turned on the lock.</string>
+    <string name="lock_recovery_code_label">Recovery code</string>
+    <string name="lock_recovery_code_hint" translatable="false">XXXX-XXXX</string>
+    <string name="lock_enter_new_pin">Create a 4-digit PIN</string>
+    <string name="lock_confirm_pin">Enter it again to confirm</string>
+    <string name="lock_error_mismatch">PINs didn\'t match. Try again.</string>
+    <string name="lock_recovery_code_title">Your recovery code</string>
+    <string name="lock_recovery_code_body">Use it if you forget your PIN and can\'t use your phone\'s screen lock. Write it down or keep it somewhere safe.</string>
+    <string name="lock_copy_code">Copy</string>
+    <string name="lock_code_copied">Recovery code copied</string>
+    <string name="lock_code_saved">I\'ve saved it</string>
 </resources>

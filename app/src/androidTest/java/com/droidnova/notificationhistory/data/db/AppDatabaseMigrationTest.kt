@@ -102,6 +102,73 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrationFrom2To3PreservesRowsAndAddsTrashSchema() {
+        context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null).use { legacyDb ->
+            legacyDb.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `apps` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `packageName` TEXT NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `message` TEXT NOT NULL,
+                    `receivedAt` INTEGER NOT NULL,
+                    `notificationKey` TEXT,
+                    `contentFingerprint` TEXT,
+                    `conversationTitle` TEXT
+                )
+                """.trimIndent()
+            )
+            legacyDb.execSQL(
+                """
+                INSERT INTO `apps` (`id`, `packageName`, `title`, `message`, `receivedAt`,
+                    `notificationKey`, `contentFingerprint`, `conversationTitle`)
+                VALUES (3, 'com.example.app', 'Title', 'Body', 5000, 'key', 'fp', NULL)
+                """.trimIndent()
+            )
+            listOf(
+                "CREATE INDEX `index_apps_receivedAt` ON `apps` (`receivedAt`)",
+                "CREATE INDEX `index_apps_packageName_receivedAt` ON `apps` (`packageName`, `receivedAt`)",
+                "CREATE INDEX `index_apps_notificationKey_contentFingerprint_receivedAt` " +
+                    "ON `apps` (`notificationKey`, `contentFingerprint`, `receivedAt`)"
+            ).forEach(legacyDb::execSQL)
+            legacyDb.version = 2
+        }
+
+        database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
+            .addMigrations(
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4
+            )
+            .allowMainThreadQueries()
+            .build()
+
+        val migratedDb = checkNotNull(database).openHelper.writableDatabase
+        migratedDb.query(
+            "SELECT id, packageName, title, message, receivedAt, isTrashed, trashedAt FROM apps"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(3L, cursor.getLong(0))
+            assertEquals("com.example.app", cursor.getString(1))
+            assertEquals("Title", cursor.getString(2))
+            assertEquals("Body", cursor.getString(3))
+            assertEquals(5000L, cursor.getLong(4))
+            // Legacy rows must land as active (not trashed) with no trash timestamp.
+            assertEquals(0, cursor.getInt(5))
+            assertTrue(cursor.isNull(6))
+            assertFalse(cursor.moveToNext())
+        }
+
+        val indexNames = mutableSetOf<String>()
+        migratedDb.query("PRAGMA index_list(`apps`)").use { cursor ->
+            val nameColumn = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) indexNames += cursor.getString(nameColumn)
+        }
+        assertTrue("index_apps_isTrashed_receivedAt_id" in indexNames)
+        assertTrue("index_apps_isTrashed_trashedAt_id" in indexNames)
+    }
+
+    @Test
     fun migrationFrom3To4PreservesRowsAndLeavesThemUnclassified() {
         context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null).use { legacyDb ->
             legacyDb.execSQL(

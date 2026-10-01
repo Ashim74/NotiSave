@@ -130,7 +130,7 @@ object IntentUtil {
         if (launchIntent != null) {
             context.startActivity(launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } else {
-            Toast.makeText(context, "Unable to open this app", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.unable_to_open_app), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -138,7 +138,7 @@ object IntentUtil {
         val clipboardManager =
             context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.setPrimaryClip(ClipData.newPlainText(label, text))
-        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show()
     }
 
     fun shareText(context: Context, chooserTitle: String, text: String) {

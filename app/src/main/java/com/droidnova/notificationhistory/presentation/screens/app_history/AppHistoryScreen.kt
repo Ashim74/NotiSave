@@ -7,16 +7,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +26,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,13 +41,18 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
+import com.droidnova.notificationhistory.presentation.components.GroupRowGap
 import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
+import com.droidnova.notificationhistory.presentation.components.dayGroupedItems
 import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
@@ -56,7 +60,7 @@ import com.droidnova.notificationhistory.presentation.components.NotificationHis
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.toReadableShareText
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppHistoryScreen(
     mainViewModel: MainViewModel,
@@ -80,13 +84,12 @@ fun AppHistoryScreen(
     val listState = rememberLazyListState()
 
     var title by remember { mutableStateOf(packageName) }
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = { mainViewModel.refreshAppHistory(packageName) }
-    )
 
     LaunchedEffect(packageName) {
         mainViewModel.ensureAppHistoryLoaded(packageName)
+    }
+    DisposableEffect(packageName) {
+        onDispose { mainViewModel.releaseAppHistory(packageName) }
     }
 
     LaunchedEffect(notifications) {
@@ -122,7 +125,7 @@ fun AppHistoryScreen(
                                 searchQuery = it
                                 mainViewModel.updateAppHistorySearchQuery(packageName, it)
                             },
-                            placeholder = { Text("Search notifications") },
+                            placeholder = { Text(stringResource(R.string.search_notifications_hint)) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(focusRequester),
@@ -143,7 +146,10 @@ fun AppHistoryScreen(
                             searchQuery = ""
                             mainViewModel.updateAppHistorySearchQuery(packageName, "")
                         }) {
-                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close search")
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.content_description_close_search)
+                            )
                         }
                     },
                     actions = {
@@ -154,7 +160,7 @@ fun AppHistoryScreen(
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
-                                    contentDescription = "Clear search"
+                                    contentDescription = stringResource(R.string.content_description_clear_search)
                                 )
                             }
                         }
@@ -165,15 +171,21 @@ fun AppHistoryScreen(
                 }
             } else {
                 TopAppBar(
-                    title = { Text(title, fontWeight = FontWeight.Bold) },
+                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
                         }
                     },
                     actions = {
                         IconButton(onClick = { isSearchActive = true }) {
-                            Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.content_description_search)
+                            )
                         }
                     }
                 )
@@ -186,37 +198,46 @@ fun AppHistoryScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            Box(
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { mainViewModel.refreshAppHistory(packageName) },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .pullRefresh(pullRefreshState)
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    state = listState
+                    state = listState,
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp)
                 ) {
                     if (notifications.isEmpty()) {
-                        item {
+                        item(key = "app-history-state") {
                             if (isRefreshing) {
-                                HistoryLoadingState(Modifier.fillMaxSize())
+                                HistoryLoadingState(Modifier.fillParentMaxSize())
                             } else {
                                 HistoryEmptyState(
                                     message = if (searchQuery.isNotBlank()) {
-                                        "No search results."
+                                        stringResource(R.string.history_empty_search)
                                     } else {
-                                        "No notification history."
+                                        stringResource(R.string.history_empty)
                                     },
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillParentMaxSize()
                                 )
                             }
                         }
                     } else {
-                        items(notifications, key = { it.id }) { item ->
+                        dayGroupedItems(
+                            items = notifications,
+                            key = { it.id },
+                            epochOf = { it.receivedAtEpoch }
+                        ) { item, shape ->
                             NotificationHistoryCard(
+                                modifier = Modifier.animateItem(),
                                 notification = item,
                                 searchQuery = searchQuery,
-                                onClick = { selectedNotification = item }
+                                onClick = { selectedNotification = item },
+                                shape = shape,
+                                spacing = GroupRowGap
                             )
                         }
                         if (isLoadingMore) {
@@ -233,11 +254,6 @@ fun AppHistoryScreen(
                         }
                     }
                 }
-                PullRefreshIndicator(
-                    refreshing = isRefreshing,
-                    state = pullRefreshState,
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
             }
         }
     }
@@ -272,7 +288,7 @@ fun AppHistoryScreen(
             onCopy = {
                 IntentUtil.copyToClipboard(
                     context,
-                    "Notification",
+                    context.getString(R.string.notification_fallback_title),
                     notification.toReadableShareText()
                 )
                 selectedNotification = null
@@ -280,7 +296,7 @@ fun AppHistoryScreen(
             onShare = {
                 IntentUtil.shareText(
                     context,
-                    "Share notification",
+                    context.getString(R.string.share_notification_chooser),
                     notification.toReadableShareText()
                 )
                 selectedNotification = null

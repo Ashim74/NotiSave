@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.droidnova.notificationhistory.core.apps.AppInfoCache
 import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
@@ -13,12 +14,15 @@ import com.droidnova.notificationhistory.data.model.HistoryFilterState
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data.model.toDateBounds
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.data_shared.ThemeMode
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationDetailUiState
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationHistoryController
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationListUiState
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationQuery
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent
 import com.droidnova.notificationhistory.presentation.screens.select_app.AppInfo
+import com.droidnova.notificationhistory.service.NotificationListener
+import com.droidnova.notificationhistory.utils.CrashReporter
 import com.droidnova.notificationhistory.utils.getInstalledApps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,6 +37,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -51,6 +56,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _hasNotificationAccess = MutableStateFlow(false)
     val hasNotificationAccess: StateFlow<Boolean> = _hasNotificationAccess.asStateFlow()
 
+    // Persisted flag comes from the listener's connect/disconnect callbacks; the live flag is the
+    // in-process binding state re-read on resume. Either being true means we are capturing.
+    private val _listenerConnectedLive = MutableStateFlow(NotificationListener.isConnected)
+    val listenerConnected: StateFlow<Boolean> =
+        combine(userPrefs.listenerConnected, _listenerConnectedLive) { persisted, live ->
+            persisted || live
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
     private val _events = MutableSharedFlow<HomeUiEvent>()
     val events: SharedFlow<HomeUiEvent> = _events.asSharedFlow()
 
@@ -59,7 +72,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     data class HistoryLoadState(
         val isLoadingMore: Boolean = false,
-        val endReached: Boolean = false
+        val endReached: Boolean = false,
+        /** True when the list stopped at [MAX_LOADED_HISTORY] rows rather than at the real end. */
+        val isCapped: Boolean = false
     )
 
     private val _historyLoadState = MutableStateFlow(HistoryLoadState())
@@ -89,6 +104,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             SharingStarted.WhileSubscribed(5_000),
             false
         )
+
+    /** null while DataStore is still loading; the splash stays up until it resolves. */
+    val onboardingComplete: StateFlow<Boolean?> =
+        userPrefs.onboardingComplete.map<Boolean, Boolean?> { it }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    fun completeOnboarding() {
+        viewModelScope.launch { userPrefs.setOnboardingComplete() }
+    }
+
+    /** First-run convenience: if nothing is selected yet, pre-tick the installed messengers. */
+    fun preselectCommonApps(installed: List<AppInfo>) {
+        viewModelScope.launch {
+            if (userPrefs.allowedApps.first().isNotEmpty()) return@launch
+            val installedPackages = installed.mapTo(hashSetOf()) { it.packageName }
+            val preset = COMMON_MESSAGING_APPS.filterTo(linkedSetOf()) { it in installedPackages }
+            if (preset.isNotEmpty()) userPrefs.setAllowedApps(preset)
+        }
+    }
+
+    // One-shot request from the "Search" launcher shortcut, consumed by HistoryScreen.
+    private val _historySearchFocusRequested = MutableStateFlow(false)
+    val historySearchFocusRequested: StateFlow<Boolean> = _historySearchFocusRequested.asStateFlow()
+
+    fun requestHistorySearchFocus() {
+        _historySearchFocusRequested.value = true
+    }
+
+    fun consumeHistorySearchFocus() {
+        _historySearchFocusRequested.value = false
+    }
+
+    // Eager so the Activity applies the saved theme on its very first frame.
+    val themeMode: StateFlow<ThemeMode> =
+        userPrefs.themeMode.stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.System)
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { userPrefs.setThemeMode(mode) }
+    }
 
     private val _showPremiumWelcome = MutableStateFlow(false)
     val showPremiumWelcome: StateFlow<Boolean> = _showPremiumWelcome.asStateFlow()
@@ -126,6 +180,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var allowedPackagesSet = emptySet<String>()
     private var awaitingGrant = false
+    private var launchCounted = false
 
     data class AppHistoryUiState(
         val notifications: List<NotificationModel> = emptyList(),
@@ -200,8 +255,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             dao.observeLatestNotificationsByApp().collectLatest { entities ->
-                _appSummaries.value = entities.map {
-                    convertEntityToModel(getApplication(), it)
+                _appSummaries.value = withContext(Dispatchers.IO) {
+                    entities.map { convertEntityToModel(getApplication(), it) }
                 }
             }
         }
@@ -234,6 +289,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun onResume() {
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
         _hasNotificationAccess.value = granted
+        _listenerConnectedLive.value = NotificationListener.isConnected
         if (granted) {
             if (awaitingGrant) {
                 awaitingGrant = false
@@ -266,16 +322,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshListenerGranted() = onResume()
 
+    /**
+     * Counts one launch per ViewModel lifetime. The ViewModel survives configuration changes,
+     * so rotation / theme switches no longer inflate the count that gates the rate-us card.
+     */
     fun incrementLaunchCount() {
+        if (launchCounted) return
+        launchCounted = true
         viewModelScope.launch {
-            val setting = userPrefs.settingFlow.first()
-            userPrefs.updateLaunchCount(setting.launchCount + 1)
+            userPrefs.incrementLaunchCount()
         }
     }
 
     fun getAllInstalledApps(context: Context) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
+                AppInfoCache.invalidateMisses()
                 val allApps = getInstalledApps(context, allowedPackagesSet)
                 _allInstalledApps.value = allApps
             }
@@ -379,9 +441,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val sanitizedDays = retentionDays.coerceAtLeast(0)
         _isHistoryRefreshing.value = true
         viewModelScope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            runCatching {
+                dao.deleteTrashedBefore(
+                    now - TimeUnit.DAYS.toMillis(SettingState.TRASH_RETENTION_DAYS.toLong())
+                )
+            }.onFailure(CrashReporter::record)
             val deletedCount = if (sanitizedDays > 0) {
-                val threshold = System.currentTimeMillis() -
-                        TimeUnit.DAYS.toMillis(sanitizedDays.toLong())
+                val threshold = now - TimeUnit.DAYS.toMillis(sanitizedDays.toLong())
                 dao.deleteActiveNotificationsOlderThan(threshold)
             } else 0
             withContext(Dispatchers.Main) {
@@ -437,9 +504,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         current + models.filterNot { it.id in existingIds }
                     }
                 }
-                if (models.size < pageSize) {
+                val capped = _history.value.size >= MAX_LOADED_HISTORY
+                if (models.size < pageSize || capped) {
                     endReached = true
-                    _historyLoadState.update { it.copy(endReached = true) }
+                    _historyLoadState.update { it.copy(endReached = true, isCapped = capped) }
                 }
             } finally {
                 if (activeHistoryLoadGeneration == generation) {
@@ -513,6 +581,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         resetAppHistory(packageName, stateFlow.value.searchQuery)
     }
 
+    /** Called when AppHistoryScreen leaves composition; the state is rebuilt on next visit. */
+    fun releaseAppHistory(packageName: String) {
+        appHistorySearchJobs.remove(packageName)?.cancel()
+        appHistoryStates.remove(packageName)
+    }
+
+    fun releaseConversationDetail(conversationKey: String) =
+        conversations.releaseDetail(conversationKey)
+
     fun updateAppHistorySearchQuery(packageName: String, query: String) {
         appHistorySearchJobs.remove(packageName)?.cancel()
         appHistorySearchJobs[packageName] = viewModelScope.launch {
@@ -584,6 +661,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 notificationId = notification.id,
                 trashedAt = System.currentTimeMillis()
             )
+        }
+    }
+
+    fun moveNotificationsToTrash(notificationIds: Set<Long>) {
+        if (notificationIds.isEmpty()) return
+        removeTrashedNotificationsFromActiveUi(notificationIds)
+        viewModelScope.launch(Dispatchers.IO) {
+            val trashedAt = System.currentTimeMillis()
+            notificationIds.chunked(TRASH_BATCH_SIZE).forEach { batch ->
+                dao.moveNotificationsToTrash(batch, trashedAt)
+            }
         }
     }
 
@@ -730,6 +818,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val SEARCH_DEBOUNCE_MS = 300L
+        /** Upper bound on rows held in memory for the flat history list (30 pages of 100). */
+        const val MAX_LOADED_HISTORY = 3_000
+
+        /** Stays well under SQLite's 999 bound-variable limit. */
+        const val TRASH_BATCH_SIZE = 500
+
+        /** Messengers most users want saved; pre-selected during onboarding when installed. */
+        val COMMON_MESSAGING_APPS = listOf(
+            "com.whatsapp",
+            "com.whatsapp.w4b",
+            "org.telegram.messenger",
+            "com.facebook.orca",
+            "com.instagram.android",
+            "org.thoughtcrime.securesms",
+            "com.google.android.apps.messaging",
+            "com.samsung.android.messaging",
+            "com.snapchat.android",
+            "com.discord",
+            "com.viber.voip"
+        )
         val SEARCH_WHITESPACE = Regex("\\s+")
 
         fun normalizeSearchQuery(query: String): String =

@@ -1,11 +1,14 @@
 package com.droidnova.notificationhistory.presentation.screens.insights
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,19 +16,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -33,7 +35,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -41,13 +43,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -59,11 +65,33 @@ import com.droidnova.notificationhistory.data.insights.BucketUnit
 import com.droidnova.notificationhistory.data.insights.ChartBucket
 import com.droidnova.notificationhistory.data.insights.InsightsData
 import com.droidnova.notificationhistory.data.insights.InsightsRange
-import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
+import com.droidnova.notificationhistory.presentation.components.AnimatedText
+import com.droidnova.notificationhistory.presentation.components.AppCard
+import com.droidnova.notificationhistory.presentation.components.EmptyState
+import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.PackageAppIcon
+import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
+import com.droidnova.notificationhistory.presentation.components.fitToWidth
 import com.droidnova.notificationhistory.presentation.navigation.Screens
+import com.droidnova.notificationhistory.presentation.navigation.navigateToTab
+import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
+import com.droidnova.notificationhistory.presentation.ui.theme.ScreenListContentPadding
+import com.droidnova.notificationhistory.presentation.ui.theme.listItemPadding
+import com.droidnova.notificationhistory.utils.Analytics
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Height available to the tallest bar; value labels sit in an extra strip above it. */
+private val ChartBarAreaHeight = 96.dp
+private val ChartValueLabelHeight = 16.dp
+
+/** Non-zero bars never shrink below this, so small counts stay visible next to a dominant peak. */
+private val MinBarHeight = 4.dp
+
+/** Zero buckets draw a faint stub, so the timeline stays continuous instead of looking blank. */
+private val EmptyBarHeight = 2.dp
+
+/** Above this many bars there is no room for a label on each; only peak and current are labelled. */
+private const val MAX_BUCKETS_WITH_ALL_VALUES = 12
+
 @Composable
 fun InsightsScreen(
     viewModel: InsightsViewModel,
@@ -74,6 +102,7 @@ fun InsightsScreen(
     // Day boundaries can move while the app is in the background; re-plan on every resume.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
+        Analytics.log(Analytics.INSIGHTS_OPEN)
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
         }
@@ -82,60 +111,56 @@ fun InsightsScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.insights_title), fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.content_description_back)
-                        )
-                    }
-                }
-            )
-        }
+        topBar = { ScreenTopBar(title = stringResource(R.string.insights_title)) }
     ) { innerPadding ->
+        val sectionPadding = Modifier.listItemPadding()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            contentPadding = ScreenListContentPadding
         ) {
             item(key = "range") {
-                RangeSelector(selected = state.range, onSelected = viewModel::selectRange)
+                RangeSelector(
+                    selected = state.range,
+                    onSelected = viewModel::selectRange,
+                    modifier = Modifier.listItemPadding()
+                )
             }
             when {
                 state.hasError -> item(key = "error") {
                     ErrorState(onRetry = viewModel::refresh)
                 }
                 state.data == null -> item(key = "loading") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator() }
+                    HistoryLoadingState(Modifier.padding(vertical = 48.dp))
                 }
                 else -> {
                     val data = checkNotNull(state.data)
-                    item(key = "summary") { SummaryCards(data) }
+                    item(key = "summary") {
+                        SummaryCards(data, modifier = Modifier.animateItem().listItemPadding())
+                    }
                     if (data.totalNotifications == 0) {
                         item(key = "empty") {
-                            HistoryEmptyState(
-                                message = stringResource(R.string.insights_empty),
-                                modifier = Modifier.fillMaxWidth()
+                            EmptyState(
+                                title = stringResource(R.string.insights_empty),
+                                modifier = Modifier.animateItem(),
+                                description = stringResource(R.string.insights_empty_description),
+                                icon = ImageVector.vectorResource(R.drawable.ic_insights)
                             )
                         }
                     } else {
-                        item(key = "chart") { ActivityChartCard(data) }
+                        item(key = "chart") {
+                            ActivityChartCard(data, modifier = Modifier.animateItem().then(sectionPadding))
+                        }
                         item(key = "top-apps") {
                             TopAppsCard(
                                 apps = data.topApps,
+                                modifier = Modifier.animateItem().then(sectionPadding),
                                 onAppClick = { app ->
-                                    navController.navigate(
-                                        Screens.History.createRoute(app.packageName)
+                                    // Fresh args must win over any saved History tab state.
+                                    navController.navigateToTab(
+                                        Screens.History.createRoute(app.packageName),
+                                        restoreState = false
                                     )
                                 }
                             )
@@ -149,9 +174,13 @@ fun InsightsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RangeSelector(selected: InsightsRange, onSelected: (InsightsRange) -> Unit) {
+private fun RangeSelector(
+    selected: InsightsRange,
+    onSelected: (InsightsRange) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val options = InsightsRange.entries
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+    SingleChoiceSegmentedButtonRow(modifier = modifier.fillMaxWidth()) {
         options.forEachIndexed { index, range ->
             SegmentedButton(
                 selected = selected == range,
@@ -161,7 +190,9 @@ private fun RangeSelector(selected: InsightsRange, onSelected: (InsightsRange) -
                     Text(
                         text = range.shortLabel(),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        autoSize = fitToWidth(MaterialTheme.typography.labelLarge.fontSize)
                     )
                 }
             )
@@ -169,115 +200,69 @@ private fun RangeSelector(selected: InsightsRange, onSelected: (InsightsRange) -
     }
 }
 
+/** One strip, like Home's: total, apps, and the busiest hour. Top apps are listed below. */
 @Composable
-private fun SummaryCards(data: InsightsData) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SummaryCard(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.insights_total),
-                value = data.totalNotifications.toString()
+private fun SummaryCards(data: InsightsData, modifier: Modifier = Modifier) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .height(IntrinsicSize.Min)
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SummaryStat(
+                value = data.totalNotifications.toString(),
+                label = stringResource(R.string.insights_total)
             )
-            SummaryCard(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.insights_active_apps),
-                value = data.activeApps.toString()
+            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SummaryStat(
+                value = data.activeApps.toString(),
+                label = stringResource(R.string.insights_active_apps)
             )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SummaryCard(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.insights_most_active_app),
-                value = data.mostActiveApp?.appName ?: stringResource(R.string.insights_none),
-                supporting = data.mostActiveApp?.let {
-                    stringResource(R.string.insights_notification_count, it.count)
-                },
-                leading = data.mostActiveApp?.let { { PackageAppIcon(it.packageName) } }
-            )
-            SummaryCard(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.insights_busiest_hour),
-                value = data.busiestHour?.label ?: stringResource(R.string.insights_none),
-                supporting = data.busiestHour?.let {
-                    stringResource(R.string.insights_notification_count, it.count)
-                }
+            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SummaryStat(
+                // "9 AM–10 AM" → "9 AM": the start is enough at a glance.
+                value = data.busiestHour?.label?.substringBefore('–')
+                    ?: stringResource(R.string.insights_none),
+                label = stringResource(R.string.insights_busiest_hour)
             )
         }
     }
 }
 
 @Composable
-private fun SummaryCard(
-    modifier: Modifier,
-    label: String,
-    value: String,
-    supporting: String? = null,
-    leading: (@Composable () -> Unit)? = null
-) {
-    Card(
-        modifier = modifier
-            .heightIn(min = 88.dp)
+private fun RowScope.SummaryStat(value: String, label: String) {
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .padding(horizontal = 4.dp)
             .semantics(mergeDescendants = true) {},
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        )
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Row(
-                modifier = Modifier.padding(top = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (leading != null) {
-                    leading()
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            if (supporting != null) {
-                Text(
-                    text = supporting,
-                    modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
+        AnimatedText(
+            text = value,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            autoSize = fitToWidth(MaterialTheme.typography.labelMedium.fontSize)
+        )
     }
 }
 
 @Composable
-private fun ActivityChartCard(data: InsightsData) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+private fun ActivityChartCard(data: InsightsData, modifier: Modifier = Modifier) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Text(
                 text = stringResource(R.string.insights_activity),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = data.bucketUnit.description(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             ActivityBarChart(
                 buckets = data.buckets,
@@ -286,6 +271,9 @@ private fun ActivityChartCard(data: InsightsData) {
                     .fillMaxWidth()
                     .padding(top = 12.dp)
             )
+            if (data.buckets.any { it.isCurrent }) {
+                CurrentPeriodLegend(unit = data.bucketUnit, modifier = Modifier.padding(top = 10.dp))
+            }
         }
     }
 }
@@ -297,54 +285,87 @@ private fun ActivityBarChart(
     modifier: Modifier = Modifier
 ) {
     val maxCount = remember(buckets) { buckets.maxOfOrNull { it.count }?.coerceAtLeast(1) ?: 1 }
-    val peak = remember(buckets) { buckets.maxByOrNull { it.count } }
-    val chartDescription = if (peak == null || peak.count == 0) {
+    val peakIndex = remember(buckets) {
+        buckets.indices.maxByOrNull { buckets[it].count }?.takeIf { buckets[it].count > 0 }
+    }
+    val peak = peakIndex?.let { buckets[it] }
+    val chartDescription = if (peak == null) {
         stringResource(R.string.insights_chart_description_empty)
     } else {
         stringResource(R.string.insights_chart_description, buckets.size, peak.label, peak.count)
     }
-    val barColor = MaterialTheme.colorScheme.primary
-    val trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-    val barShape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
-    val gap = if (buckets.size > 24) 1.dp else 3.dp
+    val showAllValues = buckets.size <= MAX_BUCKETS_WITH_ALL_VALUES
+    val currentColor = MaterialTheme.colorScheme.primary
+    val barColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+    val emptyColor = MaterialTheme.colorScheme.outlineVariant
+    val barShape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+    val gap = if (buckets.size > 24) 2.dp else 4.dp
 
     Column(modifier = modifier.semantics { contentDescription = chartDescription }) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp),
+                .height(ChartBarAreaHeight + ChartValueLabelHeight),
             horizontalArrangement = Arrangement.spacedBy(gap),
             verticalAlignment = Alignment.Bottom
         ) {
-            buckets.forEach { bucket ->
-                val fraction = bucket.count.toFloat() / maxCount
+            buckets.forEachIndexed { index, bucket ->
                 val barDescription = stringResource(
                     R.string.insights_chart_bar_description,
                     bucket.label,
                     bucket.count
                 )
-                Box(
+                val targetHeight = if (bucket.count == 0) {
+                    EmptyBarHeight
+                } else {
+                    max(MinBarHeight, ChartBarAreaHeight * (bucket.count.toFloat() / maxCount))
+                }
+                val barHeight by animateDpAsState(targetHeight, label = "barHeight")
+                val showValue = bucket.count > 0 &&
+                    (showAllValues || index == peakIndex || bucket.isCurrent)
+
+                Column(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .clip(barShape)
-                        .background(trackColor)
                         .semantics { contentDescription = barDescription },
-                    contentAlignment = Alignment.BottomCenter
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (bucket.count > 0) {
-                        Box(
+                    if (showValue) {
+                        // Unbounded width: a 3-digit label may be wider than a thin bar.
+                        Text(
+                            text = bucket.count.toString(),
                             modifier = Modifier
-                                .fillMaxWidth()
-                                // Keep tiny values visible against a dominant bar.
-                                .fillMaxHeight(fraction.coerceAtLeast(0.04f))
-                                .clip(barShape)
-                                .background(barColor)
+                                .wrapContentWidth(unbounded = true)
+                                .padding(bottom = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (bucket.isCurrent) FontWeight.Bold else null,
+                            color = if (bucket.isCurrent) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(barHeight)
+                            .clip(barShape)
+                            .background(
+                                when {
+                                    bucket.count == 0 -> emptyColor
+                                    bucket.isCurrent -> currentColor
+                                    else -> barColor
+                                }
+                            )
+                    )
                 }
             }
         }
+        // Baseline axis under the bars.
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -357,7 +378,11 @@ private fun ActivityBarChart(
                         Text(
                             text = bucket.label,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (bucket.isCurrent) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                             maxLines = 1,
                             softWrap = false,
                             overflow = TextOverflow.Visible
@@ -370,20 +395,38 @@ private fun ActivityBarChart(
 }
 
 @Composable
-private fun TopAppsCard(apps: List<AppStat>, onAppClick: (AppStat) -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+private fun CurrentPeriodLegend(unit: BucketUnit, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
         )
-    ) {
-        Column(modifier = Modifier.padding(vertical = 12.dp)) {
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = unit.currentLabel(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun TopAppsCard(
+    apps: List<AppStat>,
+    onAppClick: (AppStat) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(vertical = 14.dp)) {
             Text(
                 text = stringResource(R.string.insights_top_apps),
-                modifier = Modifier.padding(horizontal = 12.dp),
+                modifier = Modifier.padding(horizontal = 14.dp),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(Modifier.height(4.dp))
             apps.forEach { app ->
                 TopAppRow(app = app, onClick = { onAppClick(app) })
             }
@@ -399,52 +442,52 @@ private fun TopAppRow(app: AppStat, onClick: () -> Unit) {
         app.count,
         app.percent
     )
-    Card(
-        onClick = onClick,
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .padding(horizontal = 6.dp)
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
             .semantics(mergeDescendants = true) { contentDescription = description },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0f))
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            PackageAppIcon(app.packageName)
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = app.appName,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = stringResource(R.string.insights_count_and_percent, app.count, app.percent),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.End
-                    )
-                }
-                LinearProgressIndicator(
-                    progress = { app.percent / 100f },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp),
-                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        PackageAppIcon(app.packageName)
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = app.appName,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(R.string.insights_count_and_percent, app.count, app.percent),
+                    modifier = Modifier.padding(start = 8.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    maxLines = 1
                 )
             }
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = null,
-                modifier = Modifier.padding(start = 4.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            LinearProgressIndicator(
+                progress = { app.percent / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp),
+                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             )
         }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            modifier = Modifier.padding(start = 4.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -479,12 +522,12 @@ private fun InsightsRange.shortLabel(): String = stringResource(
 )
 
 @Composable
-private fun BucketUnit.description(): String = stringResource(
+private fun BucketUnit.currentLabel(): String = stringResource(
     when (this) {
-        BucketUnit.Hour -> R.string.insights_bucket_hourly
-        BucketUnit.Day -> R.string.insights_bucket_daily
-        BucketUnit.Week -> R.string.insights_bucket_weekly
-        BucketUnit.Month -> R.string.insights_bucket_monthly
-        BucketUnit.Year -> R.string.insights_bucket_yearly
+        BucketUnit.Hour -> R.string.insights_current_hour
+        BucketUnit.Day -> R.string.insights_current_day
+        BucketUnit.Week -> R.string.insights_current_week
+        BucketUnit.Month -> R.string.insights_current_month
+        BucketUnit.Year -> R.string.insights_current_year
     }
 )

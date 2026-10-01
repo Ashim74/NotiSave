@@ -11,12 +11,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Badge
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,20 +38,32 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.ConversationModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
+import com.droidnova.notificationhistory.presentation.components.AppCard
+import com.droidnova.notificationhistory.presentation.components.AppCardDefaults
+import com.droidnova.notificationhistory.presentation.components.GroupRowGap
+import com.droidnova.notificationhistory.presentation.components.groupedShape
+import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.Shape
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
+import com.droidnova.notificationhistory.presentation.components.EmptyState
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
 import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
 import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
+import com.droidnova.notificationhistory.presentation.ui.theme.ScreenListContentPadding
+import com.droidnova.notificationhistory.presentation.ui.theme.listItemPadding
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.toReadableShareText
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -68,7 +82,9 @@ fun ConversationListContent(
     searchQuery: String,
     hasActiveFilters: Boolean,
     onConversationClick: (ConversationModel) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClearSearch: (() -> Unit)? = null,
+    onClearFilters: (() -> Unit)? = null
 ) {
     val state by mainViewModel.conversationList.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
@@ -88,25 +104,47 @@ fun ConversationListContent(
             .collect { mainViewModel.loadMoreConversations() }
     }
 
-    LazyColumn(modifier = modifier.fillMaxSize(), state = listState) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        state = listState,
+        contentPadding = ScreenListContentPadding
+    ) {
         if (conversations.isEmpty()) {
             item(key = "conversation-state") {
                 if (!state.hasLoaded) {
-                    HistoryLoadingState(Modifier.fillMaxSize())
+                    HistoryLoadingState(Modifier.fillParentMaxSize())
                 } else {
-                    val message = when {
-                        searchQuery.isNotBlank() -> "No conversations match your search."
-                        hasActiveFilters -> "No conversations match these filters."
-                        else -> "No conversations yet.\nNew chat messages will be grouped here."
+                    when {
+                        searchQuery.isNotBlank() -> EmptyState(
+                            title = stringResource(R.string.conversations_empty_search),
+                            modifier = Modifier.fillParentMaxSize(),
+                            actionLabel = onClearSearch?.let {
+                                stringResource(R.string.content_description_clear_search)
+                            },
+                            onAction = onClearSearch
+                        )
+                        hasActiveFilters -> EmptyState(
+                            title = stringResource(R.string.conversations_empty_filters),
+                            modifier = Modifier.fillParentMaxSize(),
+                            actionLabel = onClearFilters?.let {
+                                stringResource(R.string.history_clear_filters)
+                            },
+                            onAction = onClearFilters
+                        )
+                        else -> EmptyState(
+                            title = stringResource(R.string.conversations_empty),
+                            modifier = Modifier.fillParentMaxSize()
+                        )
                     }
-                    HistoryEmptyState(message, Modifier.fillMaxSize())
                 }
             }
         } else {
-            items(conversations, key = { it.conversationKey }) { conversation ->
+            itemsIndexed(conversations, key = { _, item -> item.conversationKey }) { index, conversation ->
                 ConversationRow(
+                    modifier = Modifier.animateItem(),
                     conversation = conversation,
-                    onClick = { onConversationClick(conversation) }
+                    onClick = { onConversationClick(conversation) },
+                    shape = groupedShape(index, conversations.size)
                 )
             }
             if (state.isLoadingMore) {
@@ -122,32 +160,42 @@ fun ConversationListContent(
     }
 }
 
+/** Two lines: who + when, then the latest message and how many messages there are. */
 @Composable
-private fun ConversationRow(conversation: ConversationModel, onClick: () -> Unit) {
-    val time = remember(conversation.latestReceivedAtEpoch) {
-        formatConversationTime(conversation.latestReceivedAtEpoch)
+private fun ConversationRow(
+    conversation: ConversationModel,
+    onClick: () -> Unit,
+    shape: Shape,
+    modifier: Modifier = Modifier
+) {
+    val yesterdayLabel = stringResource(R.string.date_yesterday)
+    val time = remember(conversation.latestReceivedAtEpoch, yesterdayLabel) {
+        formatConversationTime(conversation.latestReceivedAtEpoch, yesterdayLabel)
     }
-    Card(
+    Surface(
         onClick = onClick,
-        modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 4.dp)
-            .fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
-        )
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = Dimens.ScreenHorizontal, vertical = GroupRowGap / 2),
+        shape = shape,
+        color = AppCardDefaults.containerColor()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            HistoryAppIcon(drawable = conversation.appIcon)
-            Spacer(Modifier.width(10.dp))
+            HistoryAppIcon(
+                packageName = conversation.packageName,
+                size = 36.dp,
+                contentDescription = conversation.appName.ifBlank { conversation.packageName }
+            )
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = conversation.title,
                         modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -156,20 +204,11 @@ private fun ConversationRow(conversation: ConversationModel, onClick: () -> Unit
                         text = time,
                         modifier = Modifier.padding(start = 8.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
                     )
                 }
-                Text(
-                    text = conversation.appName.ifBlank { conversation.packageName },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(
-                    modifier = Modifier.padding(top = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = conversation.latestMessage.replace('\n', ' '),
                         modifier = Modifier.weight(1f),
@@ -178,12 +217,14 @@ private fun ConversationRow(conversation: ConversationModel, onClick: () -> Unit
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Badge(
-                        modifier = Modifier.padding(start = 8.dp),
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    ) {
-                        Text(conversation.messageCount.toString())
+                    if (conversation.messageCount > 1) {
+                        Badge(
+                            modifier = Modifier.padding(start = 8.dp),
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ) {
+                            Text(conversation.messageCount.toString())
+                        }
                     }
                 }
             }
@@ -231,6 +272,9 @@ fun ConversationDetailScreen(
     val state by remember(conversationKey) {
         mainViewModel.conversationDetailState(conversationKey)
     }.collectAsStateWithLifecycle()
+    DisposableEffect(conversationKey) {
+        onDispose { mainViewModel.releaseConversationDetail(conversationKey) }
+    }
     val listState = rememberLazyListState()
     val zoneId = remember { ZoneId.systemDefault() }
     val rows = remember(state.messages) { buildTimelineRows(state.messages, zoneId) }
@@ -266,7 +310,7 @@ fun ConversationDetailScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        HistoryAppIcon(drawable = state.appIcon)
+                        HistoryAppIcon(packageName = state.packageName.ifBlank { null })
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(
@@ -292,7 +336,7 @@ fun ConversationDetailScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 }
@@ -308,7 +352,7 @@ fun ConversationDetailScreen(
             when {
                 !state.hasLoaded -> HistoryLoadingState(Modifier.fillMaxSize())
                 rows.isEmpty() -> HistoryEmptyState(
-                    message = "No messages in this conversation.",
+                    message = stringResource(R.string.conversation_empty_messages),
                     modifier = Modifier.fillMaxSize()
                 )
                 else -> LazyColumn(
@@ -370,7 +414,7 @@ fun ConversationDetailScreen(
             onCopy = {
                 IntentUtil.copyToClipboard(
                     context,
-                    "Notification",
+                    context.getString(R.string.notification_fallback_title),
                     notification.toReadableShareText()
                 )
                 selectedNotification = null
@@ -378,7 +422,7 @@ fun ConversationDetailScreen(
             onShare = {
                 IntentUtil.shareText(
                     context,
-                    "Share notification",
+                    context.getString(R.string.share_notification_chooser),
                     notification.toReadableShareText()
                 )
                 selectedNotification = null
@@ -394,7 +438,12 @@ fun ConversationDetailScreen(
 
 @Composable
 private fun TimelineDateHeader(date: LocalDate) {
-    val label = remember(date) { formatDateLabel(date, LocalDate.now()) }
+    val today = LocalDate.now()
+    val label = when (date) {
+        today -> stringResource(R.string.date_today)
+        today.minusDays(1) -> stringResource(R.string.date_yesterday)
+        else -> remember(date) { date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) }
+    }
     Text(
         text = label,
         modifier = Modifier
@@ -420,36 +469,40 @@ private fun TimelineMessage(
     val subtitle = notification.title.takeIf {
         it.isNotBlank() && !it.startsWith(conversationTitle, ignoreCase = true)
     }
-    Card(
-        onClick = onClick,
+    // A chat bubble: as wide as its text needs, sender on top, time tucked in the corner.
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
-        )
+            .padding(horizontal = Dimens.ScreenHorizontal, vertical = 3.dp)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.widthIn(max = 320.dp),
+            shape = RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp),
+            color = AppCardDefaults.containerColor()
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
-                    text = subtitle.orEmpty(),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = notification.text.ifBlank { notification.title },
+                    style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
                     text = time,
+                    modifier = Modifier.align(Alignment.End),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(
-                text = notification.text.ifBlank { notification.title },
-                modifier = Modifier.padding(top = 4.dp),
-                style = MaterialTheme.typography.bodyMedium
-            )
         }
     }
 }
@@ -457,20 +510,14 @@ private fun TimelineMessage(
 private fun Long.toLocalDate(zoneId: ZoneId): LocalDate =
     Instant.ofEpochMilli(this).atZone(zoneId).toLocalDate()
 
-private fun formatDateLabel(date: LocalDate, today: LocalDate): String = when (date) {
-    today -> "Today"
-    today.minusDays(1) -> "Yesterday"
-    else -> date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
-}
-
-/** Time for today's messages, "Yesterday", otherwise a short date. */
-private fun formatConversationTime(epochMillis: Long): String {
+/** Time for today's messages, [yesterdayLabel] for yesterday, otherwise a short date. */
+private fun formatConversationTime(epochMillis: Long, yesterdayLabel: String): String {
     val zoneId = ZoneId.systemDefault()
     val dateTime = Instant.ofEpochMilli(epochMillis).atZone(zoneId)
     val today = LocalDate.now(zoneId)
     return when (dateTime.toLocalDate()) {
         today -> dateTime.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
-        today.minusDays(1) -> "Yesterday"
+        today.minusDays(1) -> yesterdayLabel
         else -> dateTime.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT))
     }
 }

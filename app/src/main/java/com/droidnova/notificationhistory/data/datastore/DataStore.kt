@@ -12,13 +12,28 @@ import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.KEY_USER_W
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LAUNCH_COUNT
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HISTORY_RETENTION_DAYS
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.IS_PREMIUM
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LISTENER_CONNECTED
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.ONBOARDING_COMPLETE
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.THEME_MODE
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.data_shared.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 
 private val Context.dataStore by preferencesDataStore(name = DataStoreKeys.PREF_NAME)
+
+/**
+ * An explicit flag always wins. Without one (every install older than 0.20), a user who has
+ * selected apps or launched more than once is an upgrader and must not see the intro again.
+ * The launch counter increments before the first frame, so a brand-new install reads 1.
+ */
+internal fun resolveOnboardingComplete(
+    storedFlag: Boolean?,
+    hasAllowedApps: Boolean,
+    launchCount: Int
+): Boolean = storedFlag ?: (hasAllowedApps || launchCount > 1)
 
 class UserPreferences(private val context: Context) {
 
@@ -79,6 +94,46 @@ class UserPreferences(private val context: Context) {
         }
     }
 
+    // Written by the notification listener; lets the UI show a reconnect state.
+    val listenerConnected: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[LISTENER_CONNECTED] ?: false
+    }
+
+    suspend fun setListenerConnected(connected: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[LISTENER_CONNECTED] = connected
+        }
+    }
+
+    /**
+     * The flag is only written by the onboarding flow (added in 0.20). Users upgrading from
+     * older versions have no flag, so anyone who already selected apps or launched the app
+     * more than once is treated as onboarded instead of being shown the intro.
+     */
+    val onboardingComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        resolveOnboardingComplete(
+            storedFlag = prefs[ONBOARDING_COMPLETE],
+            hasAllowedApps = prefs[allowedAppsKey]?.isNotEmpty() == true,
+            launchCount = prefs[LAUNCH_COUNT] ?: 0
+        )
+    }
+
+    suspend fun setOnboardingComplete() {
+        context.dataStore.edit { prefs ->
+            prefs[ONBOARDING_COMPLETE] = true
+        }
+    }
+
+    val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
+        ThemeMode.fromStorageKey(prefs[THEME_MODE])
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { prefs ->
+            prefs[THEME_MODE] = mode.storageKey
+        }
+    }
+
     suspend fun allowApp(packageAppName: String) {
         context.dataStore.edit { prefs ->
             val currentAppsPackage = prefs[allowedAppsKey] ?: emptySet()
@@ -128,6 +183,13 @@ class UserPreferences(private val context: Context) {
     suspend fun updateLaunchCount(value:Int){
         context.dataStore.edit { preference->
             preference[LAUNCH_COUNT] = value
+        }
+    }
+
+    /** Atomic read-modify-write; the previous read-then-write could lose concurrent increments. */
+    suspend fun incrementLaunchCount() {
+        context.dataStore.edit { preference ->
+            preference[LAUNCH_COUNT] = (preference[LAUNCH_COUNT] ?: 0) + 1
         }
     }
 

@@ -31,7 +31,9 @@ data class BusiestHour(
 
 data class ChartBucket(
     val label: String,
-    val count: Int
+    val count: Int,
+    /** True for the bucket containing "now" (this hour, today, this week...), highlighted in the chart. */
+    val isCurrent: Boolean = false
 )
 
 data class InsightsData(
@@ -89,6 +91,7 @@ class InsightsRepository(
                 )
             }
             val countsByBucket = counts.associate { it.bucket to it.count }
+            val nowMillis = now().toEpochMilli()
             InsightsData(
                 range = plan.range,
                 bucketUnit = plan.bucketUnit,
@@ -104,7 +107,11 @@ class InsightsRepository(
                 },
                 // Missing buckets are zero-filled so the timeline stays continuous.
                 buckets = plan.buckets.mapIndexed { index, bucket ->
-                    ChartBucket(label = bucket.label, count = countsByBucket[index] ?: 0)
+                    ChartBucket(
+                        label = bucket.label,
+                        count = countsByBucket[index] ?: 0,
+                        isCurrent = nowMillis >= bucket.startInclusive && nowMillis < bucket.endExclusive
+                    )
                 },
                 labelledBuckets = plan.labelledBucketIndexes(MAX_CHART_LABELS),
                 topApps = appStats

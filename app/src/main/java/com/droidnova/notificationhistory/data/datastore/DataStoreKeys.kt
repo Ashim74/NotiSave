@@ -2,6 +2,7 @@ package com.droidnova.notificationhistory.data.datastore
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 
 object DataStoreKeys {
     const val PREF_NAME = "notification_prefs"
@@ -11,6 +12,9 @@ object DataStoreKeys {
     val SHOW_RATE_US_CARD = booleanPreferencesKey("show_us_rate_card")
     val HISTORY_RETENTION_DAYS = intPreferencesKey("history_retention_days")
     val IS_PREMIUM = booleanPreferencesKey("is_premium")
+    val LISTENER_CONNECTED = booleanPreferencesKey("listener_connected")
+    val THEME_MODE = stringPreferencesKey("theme_mode")
+    val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
     const val FILTERS_PREFIX = "filters_"
 
 }

@@ -35,6 +35,40 @@ interface NotificationDao {
         until: Long
     ): Boolean
 
+    /** Content of the newest row saved for [notificationKey] (trashed rows included). */
+    @Query(
+        """
+        SELECT contentFingerprint FROM apps
+        WHERE notificationKey = :notificationKey AND receivedAt >= :since
+        ORDER BY receivedAt DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun latestFingerprintForKey(notificationKey: String, since: Long): String?
+
+    /** Newest saved time under [notificationKey] (trashed rows included), or null. */
+    @Query("SELECT MAX(receivedAt) FROM apps WHERE notificationKey = :notificationKey AND receivedAt >= :since")
+    suspend fun latestReceivedAtForKey(notificationKey: String, since: Long): Long?
+
+    /** Same text from the same app under any key, e.g. a group summary echoing its child. */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM apps
+            WHERE packageName = :packageName
+              AND contentFingerprint = :contentFingerprint
+              AND receivedAt BETWEEN :from AND :to
+            LIMIT 1
+        )
+        """
+    )
+    suspend fun hasSameContentBetween(
+        packageName: String,
+        contentFingerprint: String,
+        from: Long,
+        to: Long
+    ): Boolean
+
     @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC")
     suspend fun getAllApps(): List<NotificationEntity>
 
@@ -80,6 +114,10 @@ interface NotificationDao {
     @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC, id DESC LIMIT 1")
     fun observeLatestNotification(): Flow<NotificationEntity?>
 
+    /** Newest active rows for the Home preview; bounded so it stays cheap to observe. */
+    @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC, id DESC LIMIT :limit")
+    fun observeRecentActive(limit: Int): Flow<List<NotificationEntity>>
+
     @Query(
         """
         SELECT * FROM apps AS summary
@@ -102,6 +140,13 @@ interface NotificationDao {
     )
     suspend fun moveNotificationToTrash(notificationId: Long, trashedAt: Long): Int
 
+    /** Callers chunk [notificationIds] to stay under SQLite's bound-variable limit. */
+    @Query(
+        "UPDATE apps SET isTrashed = 1, trashedAt = :trashedAt " +
+            "WHERE id IN (:notificationIds) AND isTrashed = 0"
+    )
+    suspend fun moveNotificationsToTrash(notificationIds: List<Long>, trashedAt: Long): Int
+
     @Query("UPDATE apps SET isTrashed = 1, trashedAt = :trashedAt WHERE isTrashed = 0")
     suspend fun moveAllActiveToTrash(trashedAt: Long): Int
 
@@ -120,8 +165,16 @@ interface NotificationDao {
     @Query("DELETE FROM apps WHERE id = :notificationId AND isTrashed = 1")
     suspend fun permanentlyDeleteNotification(notificationId: Long): Int
 
+    // App-lock "erase and reset": active history and trash, everything.
+    @Query("DELETE FROM apps")
+    suspend fun deleteAllNotifications(): Int
+
     @Query("DELETE FROM apps WHERE isTrashed = 1")
     suspend fun emptyTrash(): Int
+
+    /** Auto-purge: rows moved to Trash before [threshold] are gone for good. */
+    @Query("DELETE FROM apps WHERE isTrashed = 1 AND trashedAt IS NOT NULL AND trashedAt < :threshold")
+    suspend fun deleteTrashedBefore(threshold: Long): Int
 
     // Observe all rows, newest first
     @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC")
