@@ -1,14 +1,11 @@
 package com.droidnova.notificationhistory.presentation.screens.lock
 
 import android.app.Application
-import android.os.Bundle
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.lock.AppLock
 import com.droidnova.notificationhistory.core.lock.AutoLockTimeout
 import com.droidnova.notificationhistory.core.lock.LockConfig
-import com.droidnova.notificationhistory.core.lock.LockType
-import com.droidnova.notificationhistory.core.lock.RecoveryMethod
 import com.droidnova.notificationhistory.utils.Analytics
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,61 +16,55 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** An action that needs the current PIN/password first. */
-sealed interface ProtectedAction {
-    data object Change : ProtectedAction
-    data object TurnOff : ProtectedAction
-    data object NewRecoveryCode : ProtectedAction
-    data class SetRecoveryMethod(val method: RecoveryMethod) : ProtectedAction
-}
+/** An action that needs the current PIN first. */
+enum class ProtectedAction { Change, NewRecoveryCode }
 
 sealed interface LockSettingsFlow {
     /** The settings list. */
     data object None : LockSettingsFlow
-    data object SetupSecret : LockSettingsFlow
-    /** Setup step 2: forgot-PIN options + optional biometric. */
-    data object SetupRecovery : LockSettingsFlow
+    data object SetupPin : LockSettingsFlow
     data class VerifyCurrent(val action: ProtectedAction) : LockSettingsFlow
-    data object ChangeSecret : LockSettingsFlow
+    data object ChangePin : LockSettingsFlow
     data class ShowRecoveryCode(val code: String, val afterSetup: Boolean) : LockSettingsFlow
 }
 
-enum class LockSettingsMessage { LockOn, LockChanged, LockOff, RecoveryMethodChanged }
+enum class LockSettingsMessage { LockOn, PinChanged, LockOff }
 
 data class AppLockSettingsState(
     val config: LockConfig = LockConfig(),
     val flow: LockSettingsFlow = LockSettingsFlow.None,
-    val newSecret: NewSecretState = NewSecretState(),
+    val newPin: NewPinState = NewPinState(),
     val feedback: VerifyFeedback = VerifyFeedback(),
     val isSaving: Boolean = false
 )
 
+/**
+ * Turn on: new PIN → confirm → recovery code. Change PIN and new recovery code ask for the
+ * current PIN first; turning the lock off only needs a confirmation.
+ */
 class AppLockSettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AppLock.get(application).repository
-    private val newSecret = NewSecretController()
+    private val newPin = NewPinController()
     private val feedbackHolder = VerifyFeedbackHolder(viewModelScope, repository)
     private val flow = MutableStateFlow<LockSettingsFlow>(LockSettingsFlow.None)
     private val isSaving = MutableStateFlow(false)
     private val _messages = MutableSharedFlow<LockSettingsMessage>(extraBufferCapacity = 1)
     val messages: SharedFlow<LockSettingsMessage> = _messages
 
-    /** Setup step 1 result, held in memory only until the lock is written. */
-    private var pendingSetup: Pair<LockType, String>? = null
-
     val state: StateFlow<AppLockSettingsState> = combine(
         repository.config,
         flow,
-        newSecret.state,
+        newPin.state,
         feedbackHolder.feedback,
         isSaving
-    ) { config, flow, newSecret, feedback, saving ->
-        AppLockSettingsState(config, flow, newSecret, feedback, saving)
+    ) { config, flow, newPin, feedback, saving ->
+        AppLockSettingsState(config, flow, newPin, feedback, saving)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AppLockSettingsState())
 
     fun startSetup() {
-        newSecret.reset()
-        flow.value = LockSettingsFlow.SetupSecret
+        newPin.reset()
+        flow.value = LockSettingsFlow.SetupPin
     }
 
     fun startProtected(action: ProtectedAction) {
@@ -81,44 +72,28 @@ class AppLockSettingsViewModel(application: Application) : AndroidViewModel(appl
         flow.value = LockSettingsFlow.VerifyCurrent(action)
     }
 
-    fun chooseNewSecretType(type: LockType) = newSecret.chooseType(type)
-
-    fun submitNewSecret(input: String) {
-        val result = newSecret.submit(input) ?: return
+    fun submitNewPin(input: String) {
+        if (isSaving.value) return
+        val pin = newPin.submit(input) ?: return
         when (flow.value) {
-            LockSettingsFlow.SetupSecret -> {
-                pendingSetup = result
-                flow.value = LockSettingsFlow.SetupRecovery
+            LockSettingsFlow.SetupPin -> save {
+                val code = repository.enable(pin)
+                Analytics.log(Analytics.APP_LOCK_ENABLED)
+                flow.value = LockSettingsFlow.ShowRecoveryCode(code, afterSetup = true)
             }
-            LockSettingsFlow.ChangeSecret -> save {
-                repository.changeSecret(result.first, result.second)
-                Analytics.log(Analytics.APP_LOCK_CHANGED, typeParams(result.first))
-                finish(LockSettingsMessage.LockChanged)
+            LockSettingsFlow.ChangePin -> save {
+                repository.changePin(pin)
+                Analytics.log(Analytics.APP_LOCK_CHANGED)
+                finish(LockSettingsMessage.PinChanged)
             }
             else -> Unit
         }
     }
 
-    fun completeSetup(method: RecoveryMethod, useBiometric: Boolean) {
-        val (type, secret) = pendingSetup ?: return startSetup()
-        save {
-            val code = repository.enable(type, secret, method, useBiometric)
-            pendingSetup = null
-            Analytics.log(
-                Analytics.APP_LOCK_ENABLED,
-                typeParams(type).apply {
-                    putString(Analytics.PARAM_METHOD, method.storageKey)
-                    putString(Analytics.PARAM_BIOMETRIC, useBiometric.toString())
-                }
-            )
-            flow.value = LockSettingsFlow.ShowRecoveryCode(code, afterSetup = true)
-        }
-    }
-
-    fun submitCurrentSecret(secret: String) {
+    fun submitCurrentPin(pin: String) {
         val action = (flow.value as? LockSettingsFlow.VerifyCurrent)?.action ?: return
         feedbackHolder.verify(
-            check = { repository.verifySecret(secret) },
+            check = { repository.verifyPin(pin) },
             onSuccess = { perform(action) }
         )
     }
@@ -126,6 +101,7 @@ class AppLockSettingsViewModel(application: Application) : AndroidViewModel(appl
     /** After the recovery code was shown (setup or regenerate). */
     fun finishRecoveryCode() {
         val afterSetup = (flow.value as? LockSettingsFlow.ShowRecoveryCode)?.afterSetup == true
+        newPin.reset()
         flow.value = LockSettingsFlow.None
         if (afterSetup) _messages.tryEmit(LockSettingsMessage.LockOn)
     }
@@ -134,11 +110,7 @@ class AppLockSettingsViewModel(application: Application) : AndroidViewModel(appl
         viewModelScope.launch { repository.setTimeout(timeout) }
     }
 
-    fun setHideInRecents(hide: Boolean) {
-        viewModelScope.launch { repository.setHideInRecents(hide) }
-    }
-
-    /** Call only after a successful biometric prompt when enabling. */
+    /** Call only after a successful fingerprint prompt when enabling. */
     fun setBiometricEnabled(enabled: Boolean) {
         viewModelScope.launch { repository.setBiometricEnabled(enabled) }
     }
@@ -147,13 +119,7 @@ class AppLockSettingsViewModel(application: Application) : AndroidViewModel(appl
     fun back(): Boolean {
         when (flow.value) {
             LockSettingsFlow.None -> return false
-            LockSettingsFlow.SetupSecret, LockSettingsFlow.ChangeSecret ->
-                if (!newSecret.back()) cancelFlow()
-            LockSettingsFlow.SetupRecovery -> {
-                pendingSetup = null
-                newSecret.reset()
-                flow.value = LockSettingsFlow.SetupSecret
-            }
+            LockSettingsFlow.SetupPin, LockSettingsFlow.ChangePin -> if (!newPin.back()) cancelFlow()
             is LockSettingsFlow.VerifyCurrent -> cancelFlow()
             // The code is already active; it must be acknowledged before leaving.
             is LockSettingsFlow.ShowRecoveryCode -> Unit
@@ -162,41 +128,43 @@ class AppLockSettingsViewModel(application: Application) : AndroidViewModel(appl
     }
 
     private fun cancelFlow() {
-        pendingSetup = null
-        newSecret.reset()
+        newPin.reset()
         flow.value = LockSettingsFlow.None
     }
 
     private suspend fun perform(action: ProtectedAction) {
         when (action) {
             ProtectedAction.Change -> {
-                newSecret.reset(state.value.config.type ?: LockType.Pin)
-                flow.value = LockSettingsFlow.ChangeSecret
-            }
-            ProtectedAction.TurnOff -> {
-                repository.disable()
-                Analytics.log(Analytics.APP_LOCK_DISABLED)
-                finish(LockSettingsMessage.LockOff)
+                newPin.reset()
+                flow.value = LockSettingsFlow.ChangePin
             }
             ProtectedAction.NewRecoveryCode -> {
                 val code = repository.regenerateRecoveryCode()
                 flow.value = LockSettingsFlow.ShowRecoveryCode(code, afterSetup = false)
             }
-            is ProtectedAction.SetRecoveryMethod -> {
-                repository.setRecoveryMethod(action.method)
-                finish(LockSettingsMessage.RecoveryMethodChanged)
-            }
+        }
+    }
+
+    /**
+     * No PIN needed: the user is already inside the unlocked app, and turning the lock off only
+     * removes protection; it reveals nothing that isn't already on screen.
+     */
+    fun turnOff() {
+        if (isSaving.value) return
+        save {
+            repository.disable()
+            Analytics.log(Analytics.APP_LOCK_DISABLED)
+            finish(LockSettingsMessage.LockOff)
         }
     }
 
     private fun finish(message: LockSettingsMessage) {
-        newSecret.reset()
+        newPin.reset()
         flow.value = LockSettingsFlow.None
         _messages.tryEmit(message)
     }
 
     private fun save(block: suspend () -> Unit) {
-        if (isSaving.value) return
         isSaving.value = true
         viewModelScope.launch {
             try {
@@ -206,7 +174,4 @@ class AppLockSettingsViewModel(application: Application) : AndroidViewModel(appl
             }
         }
     }
-
-    private fun typeParams(type: LockType) =
-        Bundle().apply { putString(Analytics.PARAM_TYPE, type.storageKey) }
 }

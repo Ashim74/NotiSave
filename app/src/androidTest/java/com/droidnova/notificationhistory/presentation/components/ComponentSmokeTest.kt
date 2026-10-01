@@ -40,30 +40,37 @@ class ComponentSmokeTest {
     }
 
     @Test
-    fun statusCardRendersInDarkThemeWithTrailingSlot() {
+    fun listRowRendersInDarkThemeWithValueAndTrailingSlot() {
+        var clicks = 0
         compose.setContent {
             AppTheme(darkTheme = true, dynamicColor = false) {
-                StatusCard(
+                ListRow(
                     title = "Recording",
-                    description = "12 notifications saved today",
-                    icon = Icons.Default.Warning,
-                    tone = StatusTone.Positive,
-                    trailing = { Text("trailing") }
+                    value = "64 apps",
+                    leading = { IconBadge(Icons.Default.Warning) },
+                    trailing = { Text("trailing") },
+                    onClick = { clicks++ }
                 )
             }
         }
-        compose.onNodeWithText("Recording").assertIsDisplayed()
+        compose.onNodeWithText("64 apps").assertIsDisplayed()
         compose.onNodeWithText("trailing").assertIsDisplayed()
+        compose.onNodeWithText("Recording").performClick()
+        assertEquals(1, clicks)
     }
 
     @Test
-    fun statCardShowsValueAndLabel() {
+    fun listGroupDrawsEveryRow() {
         compose.setContent {
             AppTheme(dynamicColor = false) {
-                StatCard(value = "214", label = "Notifications")
+                ListGroup(title = "History") {
+                    row { shape -> ListRow(title = "Retention", shape = shape) }
+                    row { shape -> ListRow(title = "Trash", shape = shape) }
+                }
             }
         }
-        compose.onNodeWithText("214").assertIsDisplayed()
-        compose.onNodeWithText("Notifications").assertIsDisplayed()
+        compose.onNodeWithText("History").assertIsDisplayed()
+        compose.onNodeWithText("Retention").assertIsDisplayed()
+        compose.onNodeWithText("Trash").assertIsDisplayed()
     }
 }

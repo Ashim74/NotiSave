@@ -3,6 +3,7 @@ package com.droidnova.notificationhistory.core.lock
 import android.app.Activity
 import android.app.KeyguardManager
 import android.os.Build
+import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
@@ -11,6 +12,9 @@ import androidx.biometric.BiometricPrompt
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 val LocalBiometricGate = staticCompositionLocalOf<BiometricGate?> { null }
 
@@ -23,6 +27,29 @@ class BiometricGate(
     private val onHandoff: () -> Unit
 ) {
     private var pending: ((Boolean) -> Unit)? = null
+
+    /**
+     * Set while a phone-screen-lock check is out. Saved with the activity: if Android recreates
+     * it meanwhile (rotation, low memory), the result reaches this new instance, which has no
+     * [pending] callback, so it is parked in [restoredDeviceCredentialResult] instead of lost.
+     */
+    private var deviceCredentialPending = false
+    private val _restoredDeviceCredentialResult = MutableStateFlow<Boolean?>(null)
+    val restoredDeviceCredentialResult: StateFlow<Boolean?> = _restoredDeviceCredentialResult.asStateFlow()
+
+    init {
+        val registry = activity.savedStateRegistry
+        deviceCredentialPending =
+            registry.consumeRestoredStateForKey(SAVED_STATE_KEY)?.getBoolean(KEY_PENDING) == true
+        registry.registerSavedStateProvider(SAVED_STATE_KEY) {
+            Bundle().apply { putBoolean(KEY_PENDING, deviceCredentialPending) }
+        }
+    }
+
+    /** The lock screen took the parked result. */
+    fun consumeRestoredDeviceCredentialResult() {
+        _restoredDeviceCredentialResult.value = null
+    }
 
     private val prompt = BiometricPrompt(
         activity,
@@ -69,14 +96,15 @@ class BiometricGate(
         start(onResult) { prompt.authenticate(info) }
     }
 
+    /** The phone's own unlock (PIN, pattern, password, or fingerprint where the system allows it). */
     fun confirmDeviceCredential(title: String, description: String, onResult: (Boolean) -> Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val info = BiometricPrompt.PromptInfo.Builder()
                 .setTitle(title)
                 .setSubtitle(description)
-                .setAllowedAuthenticators(DEVICE_CREDENTIAL)
+                .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
                 .build()
-            start(onResult) { prompt.authenticate(info) }
+            start(onResult, deviceCredential = true) { prompt.authenticate(info) }
         } else {
             @Suppress("DEPRECATION")
             val intent = keyguard?.createConfirmDeviceCredentialIntent(title, description)
@@ -84,19 +112,35 @@ class BiometricGate(
                 onResult(false)
                 return
             }
-            start(onResult) { credentialLauncher.launch(intent) }
+            start(onResult, deviceCredential = true) { credentialLauncher.launch(intent) }
         }
     }
 
-    private fun start(onResult: (Boolean) -> Unit, launch: () -> Unit) {
+    private fun start(
+        onResult: (Boolean) -> Unit,
+        deviceCredential: Boolean = false,
+        launch: () -> Unit
+    ) {
         pending = onResult
+        deviceCredentialPending = deviceCredential
         onHandoff()
         runCatching(launch).onFailure { deliver(false) }
     }
 
     private fun deliver(success: Boolean) {
-        val callback = pending ?: return
+        val callback = pending
+        val wasDeviceCredential = deviceCredentialPending
         pending = null
-        callback(success)
+        deviceCredentialPending = false
+        when {
+            callback != null -> callback(success)
+            // The requester was lost to activity recreation; park it for the lock screen.
+            wasDeviceCredential -> _restoredDeviceCredentialResult.value = success
+        }
+    }
+
+    private companion object {
+        const val SAVED_STATE_KEY = "biometric_gate"
+        const val KEY_PENDING = "device_credential_pending"
     }
 }

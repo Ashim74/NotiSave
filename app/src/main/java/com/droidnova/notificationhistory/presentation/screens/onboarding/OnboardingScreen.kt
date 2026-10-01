@@ -60,9 +60,18 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
-import com.droidnova.notificationhistory.presentation.components.AppListItem
-import com.droidnova.notificationhistory.presentation.components.StatusCard
-import com.droidnova.notificationhistory.presentation.components.StatusTone
+import com.droidnova.notificationhistory.presentation.components.AnimatedText
+import com.droidnova.notificationhistory.presentation.components.GroupRowGap
+import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
+import com.droidnova.notificationhistory.presentation.components.IconBadge
+import com.droidnova.notificationhistory.presentation.components.ListGroup
+import com.droidnova.notificationhistory.presentation.components.ListRow
+import com.droidnova.notificationhistory.presentation.components.groupedShape
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.CircularProgressIndicator
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
 import com.droidnova.notificationhistory.utils.Analytics
 
@@ -137,13 +146,7 @@ fun OnboardingScreen(mainViewModel: MainViewModel, onFinished: () -> Unit) {
             ) { current ->
                 when (current) {
                     STEP_INTRO -> IntroStep()
-                    STEP_ACCESS -> AccessStep(
-                        hasPermission = hasPermission,
-                        onOpenSettings = {
-                            mainViewModel.onPermissionSettingsOpened()
-                            openNotificationAccessSettings(context)
-                        }
-                    )
+                    STEP_ACCESS -> AccessStep(hasPermission = hasPermission)
                     else -> AppsStep(mainViewModel = mainViewModel)
                 }
             }
@@ -206,39 +209,59 @@ private fun IntroStep() {
             painter = painterResource(R.drawable.ic_notification_history),
             contentDescription = null,
             modifier = Modifier
-                .size(96.dp)
+                .size(88.dp)
                 .clip(CircleShape)
         )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
         Text(
             text = stringResource(R.string.onboarding_intro_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = stringResource(R.string.onboarding_intro_description),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
+        Spacer(Modifier.height(24.dp))
+        // Three icon lines instead of a paragraph.
+        ListGroup {
+            row { shape ->
+                ListRow(
+                    shape = shape,
+                    title = stringResource(R.string.onboarding_feature_saves),
+                    leading = { IconBadge(Icons.Default.Notifications) }
+                )
+            }
+            row { shape ->
+                ListRow(
+                    shape = shape,
+                    title = stringResource(R.string.onboarding_feature_deleted),
+                    leading = { IconBadge(Icons.Default.Email) }
+                )
+            }
+            row { shape ->
+                ListRow(
+                    shape = shape,
+                    title = stringResource(R.string.onboarding_feature_private),
+                    leading = { IconBadge(Icons.Default.Lock) }
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun AccessStep(hasPermission: Boolean, onOpenSettings: () -> Unit) {
+private fun AccessStep(hasPermission: Boolean) {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.Notifications,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
+        Crossfade(targetState = hasPermission, label = "accessIcon") { granted ->
+            IconBadge(
+                icon = if (granted) Icons.Default.CheckCircle else Icons.Default.Notifications,
+                modifier = Modifier.size(88.dp),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
         Spacer(Modifier.height(24.dp))
         Text(
             text = stringResource(R.string.onboarding_access_title),
@@ -246,26 +269,16 @@ private fun AccessStep(hasPermission: Boolean, onOpenSettings: () -> Unit) {
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = stringResource(R.string.onboarding_access_description),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(24.dp))
-        StatusCard(
-            title = stringResource(
-                if (hasPermission) R.string.settings_permission_granted
-                else R.string.tracking_permission_required
-            ),
-            description = stringResource(
+        Spacer(Modifier.height(8.dp))
+        // The big button below does the asking; this line only says why.
+        AnimatedText(
+            text = stringResource(
                 if (hasPermission) R.string.onboarding_access_granted_hint
-                else R.string.notification_permission_toast_message
-            ).trim(),
-            icon = if (hasPermission) Icons.Default.CheckCircle else Icons.Default.Notifications,
-            tone = if (hasPermission) StatusTone.Positive else StatusTone.Warning,
-            onClick = if (hasPermission) null else onOpenSettings
+                else R.string.onboarding_access_description
+            ),
+            style = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 3
         )
     }
 }
@@ -290,37 +303,28 @@ private fun AppsStep(mainViewModel: MainViewModel) {
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
-        Spacer(Modifier.height(8.dp))
         Text(
             text = stringResource(R.string.onboarding_apps_description),
+            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(12.dp))
         if (apps.isEmpty()) {
-            Text(
-                text = stringResource(R.string.loading_apps),
-                modifier = Modifier.padding(vertical = 16.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         } else {
             LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                items(apps, key = { it.packageName }) { app ->
-                    AppListItem(
-                        packageName = app.packageName,
+                itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
+                    ListRow(
+                        modifier = Modifier.padding(vertical = GroupRowGap / 2),
+                        shape = groupedShape(index, apps.size),
                         title = app.appName,
-                        modifier = Modifier.padding(horizontal = 0.dp),
+                        leading = { HistoryAppIcon(packageName = app.packageName, size = 32.dp) },
                         onClick = { mainViewModel.addToAllowedApps(app.packageName, !app.isAllowed) },
-                        trailing = {
-                            Switch(
-                                checked = app.isAllowed,
-                                onCheckedChange = { mainViewModel.addToAllowedApps(app.packageName, it) }
-                            )
-                        }
+                        trailing = { Switch(checked = app.isAllowed, onCheckedChange = null) }
                     )
                 }
-                item { Spacer(Modifier.width(1.dp).height(8.dp)) }
             }
         }
     }

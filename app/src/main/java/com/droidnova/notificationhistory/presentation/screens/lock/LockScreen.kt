@@ -2,6 +2,11 @@ package com.droidnova.notificationhistory.presentation.screens.lock
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -13,11 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,7 +32,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,18 +49,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.core.lock.AppLockController
 import com.droidnova.notificationhistory.core.lock.LocalBiometricGate
-import com.droidnova.notificationhistory.core.lock.LockType
 import com.droidnova.notificationhistory.core.lock.RecoveryCodes
-import com.droidnova.notificationhistory.core.lock.RecoveryMethod
-import kotlinx.coroutines.delay
 
 private const val APP_CONTENT_KEY = "app_content"
-private const val ERASE_DELAY_SECONDS = 10
+
+/** Older 12-character codes from before the PIN-only lock are still accepted. */
+private const val RECOVERY_INPUT_MAX = 20
 
 /**
  * The lock screen *replaces* the app rather than covering it: while locked, history is never
- * composed, so screenshots, TalkBack and the Recents thumbnail can't reach it. The saveable
- * state holder keeps the app's navigation and scroll state across a lock/unlock.
+ * composed, so screenshots and TalkBack can't reach it. The saveable state holder keeps the
+ * app's navigation and scroll state across a lock/unlock.
  */
 @Composable
 fun AppLockGate(
@@ -71,7 +76,7 @@ fun AppLockGate(
 }
 
 @Composable
-fun LockScreen(onHistoryErased: () -> Unit, viewModel: LockScreenViewModel = viewModel()) {
+fun LockScreen(viewModel: LockScreenViewModel = viewModel()) {
     val state by viewModel.state.collectAsState()
     val activity = LocalContext.current as? Activity
     val biometricGate = LocalBiometricGate.current
@@ -82,9 +87,7 @@ fun LockScreen(onHistoryErased: () -> Unit, viewModel: LockScreenViewModel = vie
     val biometricAvailable = remember(state.biometricEnabled) {
         state.biometricEnabled && biometricGate?.canUseBiometric() == true
     }
-    val deviceRecoveryAvailable = remember(state.recoveryMethod) {
-        state.recoveryMethod == RecoveryMethod.DeviceAndCode && biometricGate?.isDeviceSecure() == true
-    }
+    val deviceLockAvailable = remember { biometricGate?.isDeviceSecure() == true }
 
     val biometricTitle = stringResource(R.string.lock_biometric_prompt_title)
     val biometricSubtitle = stringResource(R.string.lock_biometric_prompt_subtitle)
@@ -94,6 +97,15 @@ fun LockScreen(onHistoryErased: () -> Unit, viewModel: LockScreenViewModel = vie
     val promptBiometric: () -> Unit = {
         biometricGate?.authenticateBiometric(biometricTitle, biometricSubtitle, cancel) { success ->
             if (success) viewModel.onBiometricSuccess()
+        }
+    }
+
+    // A phone-screen-lock result that arrived after Android recreated the activity.
+    val restoredDeviceResult = biometricGate?.restoredDeviceCredentialResult?.collectAsState()?.value
+    LaunchedEffect(restoredDeviceResult) {
+        if (restoredDeviceResult != null) {
+            biometricGate?.consumeRestoredDeviceCredentialResult()
+            viewModel.onDeviceCredentialResult(restoredDeviceResult)
         }
     }
 
@@ -109,40 +121,32 @@ fun LockScreen(onHistoryErased: () -> Unit, viewModel: LockScreenViewModel = vie
     LockScreenContent(
         state = state,
         biometricAvailable = biometricAvailable,
-        deviceRecoveryAvailable = deviceRecoveryAvailable,
+        deviceLockAvailable = deviceLockAvailable,
         actions = LockScreenActions(
-            onSubmitSecret = viewModel::submitSecret,
+            onSubmitPin = viewModel::submitPin,
             onBiometric = promptBiometric,
-            onForgot = viewModel::openForgotOptions,
-            onUseDeviceCredential = {
+            onForgot = viewModel::openForgot,
+            onUseDeviceLock = {
                 biometricGate?.confirmDeviceCredential(deviceTitle, deviceDescription) { success ->
                     viewModel.onDeviceCredentialResult(success)
                 }
             },
             onUseRecoveryCode = viewModel::openRecoveryCode,
             onSubmitRecoveryCode = viewModel::submitRecoveryCode,
-            onOpenErase = viewModel::openEraseConfirm,
-            onConfirmErase = { viewModel.eraseHistoryAndReset(onHistoryErased) },
-            onChooseNewType = viewModel::chooseNewSecretType,
-            onSubmitNewSecret = viewModel::submitNewSecret,
-            onFinishRecovery = viewModel::finishRecovery,
+            onSubmitNewPin = viewModel::submitNewPin,
             onBack = { viewModel.back() }
         )
     )
 }
 
 class LockScreenActions(
-    val onSubmitSecret: (String) -> Unit = {},
+    val onSubmitPin: (String) -> Unit = {},
     val onBiometric: () -> Unit = {},
     val onForgot: () -> Unit = {},
-    val onUseDeviceCredential: () -> Unit = {},
+    val onUseDeviceLock: () -> Unit = {},
     val onUseRecoveryCode: () -> Unit = {},
     val onSubmitRecoveryCode: (String) -> Unit = {},
-    val onOpenErase: () -> Unit = {},
-    val onConfirmErase: () -> Unit = {},
-    val onChooseNewType: (LockType) -> Unit = {},
-    val onSubmitNewSecret: (String) -> Unit = {},
-    val onFinishRecovery: () -> Unit = {},
+    val onSubmitNewPin: (String) -> Unit = {},
     val onBack: () -> Unit = {}
 )
 
@@ -150,9 +154,8 @@ class LockScreenActions(
 fun LockScreenContent(
     state: LockScreenState,
     biometricAvailable: Boolean,
-    deviceRecoveryAvailable: Boolean,
-    actions: LockScreenActions,
-    eraseDelaySeconds: Int = ERASE_DELAY_SECONDS
+    deviceLockAvailable: Boolean,
+    actions: LockScreenActions
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -165,26 +168,25 @@ fun LockScreenContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Column(
+            AnimatedContent(
+                targetState = state.stage,
                 modifier = Modifier.widthIn(max = 420.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                when (val stage = state.stage) {
-                    LockStage.Unlock -> UnlockStage(state, biometricAvailable, actions)
-                    LockStage.ForgotOptions -> ForgotOptionsStage(state, deviceRecoveryAvailable, actions)
-                    LockStage.RecoveryCode -> RecoveryCodeStage(state, actions)
-                    LockStage.NewSecret -> {
-                        FlowBackButton(onBack = actions.onBack)
-                        NewSecretContent(
-                            state = state.newSecret,
-                            title = stringResource(R.string.lock_new_secret_title_reset),
-                            onChooseType = actions.onChooseNewType,
-                            onSubmit = actions.onSubmitNewSecret
+                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) },
+                contentKey = { it::class },
+                label = "lockStage"
+            ) { stage ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    when (stage) {
+                        LockStage.Unlock -> UnlockStage(state, biometricAvailable, actions)
+                        LockStage.Forgot -> ForgotStage(state, deviceLockAvailable, actions)
+                        LockStage.RecoveryCode -> RecoveryCodeStage(state, actions)
+                        LockStage.NewPin -> NewPinContent(
+                            state = state.newPin,
+                            onSubmit = actions.onSubmitNewPin,
+                            enabled = !state.isSaving,
+                            checking = state.isSaving
                         )
                     }
-                    is LockStage.ShowRecoveryCode ->
-                        RecoveryCodeContent(code = stage.code, onDone = actions.onFinishRecovery)
-                    LockStage.EraseConfirm -> EraseStage(eraseDelaySeconds, actions)
                 }
             }
         }
@@ -193,78 +195,58 @@ fun LockScreenContent(
 
 @Composable
 private fun UnlockStage(state: LockScreenState, biometricAvailable: Boolean, actions: LockScreenActions) {
-    val isPin = state.lockType == LockType.Pin
-    var input by remember { mutableStateOf("") }
     val feedback = state.feedback
-    // A wrong entry or a lockout empties the field for the next try.
-    LaunchedEffect(feedback.attemptsLeft, feedback.isLockedOut) {
-        if (feedback.attemptsLeft != null || feedback.isLockedOut) input = ""
-    }
-
     LockHeader(
-        title = stringResource(if (isPin) R.string.lock_screen_title_pin else R.string.lock_screen_title_password),
+        title = stringResource(R.string.lock_screen_title),
         subtitle = stringResource(R.string.lock_screen_subtitle)
     )
-    Spacer(Modifier.height(12.dp))
+    Spacer(Modifier.height(8.dp))
     VerifyFeedbackText(feedback)
-    Spacer(Modifier.height(12.dp))
-    SecretEntry(
-        type = state.lockType,
-        value = input,
-        onValueChange = { input = it },
-        onSubmit = { actions.onSubmitSecret(input) },
+    Spacer(Modifier.height(8.dp))
+    PinEntry(
+        onComplete = actions.onSubmitPin,
         enabled = !feedback.isChecking && !feedback.isLockedOut,
-        isError = feedback.attemptsLeft != null
+        checking = feedback.isChecking,
+        errorKey = feedback.errorKey,
+        onFingerprint = if (biometricAvailable) actions.onBiometric else null
     )
     Spacer(Modifier.height(16.dp))
-    if (biometricAvailable) {
-        TextButton(onClick = actions.onBiometric) {
-            Text(stringResource(R.string.lock_unlock_biometric))
-        }
-    }
     TextButton(onClick = actions.onForgot) {
-        Text(stringResource(if (isPin) R.string.lock_forgot_pin else R.string.lock_forgot_password))
+        Text(stringResource(R.string.lock_forgot_pin))
     }
 }
 
 @Composable
-private fun ForgotOptionsStage(
-    state: LockScreenState,
-    deviceRecoveryAvailable: Boolean,
-    actions: LockScreenActions
-) {
+private fun ForgotStage(state: LockScreenState, deviceLockAvailable: Boolean, actions: LockScreenActions) {
     FlowBackButton(onBack = actions.onBack)
     LockHeader(
         title = stringResource(R.string.lock_forgot_title),
         subtitle = stringResource(R.string.lock_forgot_subtitle)
     )
-    Spacer(Modifier.height(24.dp))
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (deviceRecoveryAvailable) {
-            OptionCard(
-                title = stringResource(R.string.lock_recover_device_title),
-                description = stringResource(R.string.lock_recover_device_desc),
-                onClick = actions.onUseDeviceCredential
-            )
-            if (state.deviceCheckFailed) {
-                Text(
-                    stringResource(R.string.lock_device_failed),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+    Spacer(Modifier.height(32.dp))
+    if (deviceLockAvailable) {
+        Button(onClick = actions.onUseDeviceLock, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.lock_use_screen_lock))
         }
-        OptionCard(
-            title = stringResource(R.string.lock_recover_code_title),
-            description = stringResource(R.string.lock_recover_code_desc),
-            onClick = actions.onUseRecoveryCode
+        if (state.deviceCheckFailed) {
+            Spacer(Modifier.height(8.dp))
+            ErrorLine(stringResource(R.string.lock_device_failed))
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = actions.onUseRecoveryCode, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.lock_use_recovery_code))
+        }
+    } else {
+        Text(
+            stringResource(R.string.lock_no_screen_lock),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
         )
-        OptionCard(
-            title = stringResource(R.string.lock_recover_erase_title),
-            description = stringResource(R.string.lock_recover_erase_desc),
-            onClick = actions.onOpenErase,
-            isDestructive = true
-        )
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = actions.onUseRecoveryCode, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.lock_use_recovery_code))
+        }
     }
 }
 
@@ -272,10 +254,12 @@ private fun ForgotOptionsStage(
 private fun RecoveryCodeStage(state: LockScreenState, actions: LockScreenActions) {
     var code by remember { mutableStateOf("") }
     val feedback = state.feedback
-    LaunchedEffect(feedback.attemptsLeft, feedback.isLockedOut) {
-        if (feedback.attemptsLeft != null || feedback.isLockedOut) code = ""
+    LaunchedEffect(feedback.errorKey) {
+        if (feedback.errorKey != null) code = ""
     }
-    val complete = RecoveryCodes.normalize(code).length == RecoveryCodes.LENGTH
+    val canSubmit = RecoveryCodes.normalize(code).length >= RecoveryCodes.LENGTH &&
+        !feedback.isChecking && !feedback.isLockedOut
+    val submit = { if (canSubmit) actions.onSubmitRecoveryCode(code) }
 
     FlowBackButton(onBack = actions.onBack)
     LockHeader(
@@ -294,69 +278,15 @@ private fun RecoveryCodeStage(state: LockScreenState, actions: LockScreenActions
         placeholder = { Text(stringResource(R.string.lock_recovery_code_hint)) },
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.Characters,
-            autoCorrectEnabled = false
-        )
-    )
-    Spacer(Modifier.height(8.dp))
-    VerifyFeedbackText(feedback)
-    Spacer(Modifier.height(8.dp))
-    Button(
-        onClick = { actions.onSubmitRecoveryCode(code) },
-        enabled = complete && !feedback.isChecking && !feedback.isLockedOut,
-        modifier = Modifier.fillMaxWidth()
-    ) { Text(stringResource(R.string.lock_continue)) }
-}
-
-private const val RECOVERY_INPUT_MAX = 20
-
-@Composable
-private fun EraseStage(eraseDelaySeconds: Int, actions: LockScreenActions) {
-    val eraseWord = stringResource(R.string.lock_erase_word)
-    var typed by remember { mutableStateOf("") }
-    var secondsLeft by remember { mutableIntStateOf(eraseDelaySeconds) }
-    var erasing by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        while (secondsLeft > 0) {
-            delay(1_000)
-            secondsLeft--
-        }
-    }
-    val confirmed = typed.trim().equals(eraseWord, ignoreCase = true)
-
-    FlowBackButton(onBack = actions.onBack)
-    LockHeader(
-        title = stringResource(R.string.lock_erase_title),
-        subtitle = stringResource(R.string.lock_erase_body)
-    )
-    Spacer(Modifier.height(24.dp))
-    OutlinedTextField(
-        value = typed,
-        onValueChange = { typed = it },
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        label = { Text(stringResource(R.string.lock_erase_type_hint, eraseWord)) },
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters)
-    )
-    Spacer(Modifier.height(16.dp))
-    Button(
-        onClick = {
-            erasing = true
-            actions.onConfirmErase()
-        },
-        enabled = confirmed && secondsLeft == 0 && !erasing,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.error,
-            contentColor = MaterialTheme.colorScheme.onError
+            autoCorrectEnabled = false,
+            imeAction = ImeAction.Done
         ),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            text = if (secondsLeft > 0) {
-                stringResource(R.string.lock_erase_button_wait, secondsLeft)
-            } else {
-                stringResource(R.string.lock_erase_button)
-            },
-            textAlign = TextAlign.Center
-        )
+        keyboardActions = KeyboardActions(onDone = { submit() })
+    )
+    Spacer(Modifier.height(4.dp))
+    VerifyFeedbackText(feedback)
+    Spacer(Modifier.height(4.dp))
+    Button(onClick = submit, enabled = canSubmit, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.lock_continue))
     }
 }

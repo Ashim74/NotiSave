@@ -4,7 +4,6 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
-import android.view.WindowManager
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -56,15 +55,6 @@ class MainActivity : FragmentActivity() {
                 appLock.controller.gate.value == AppLockController.Gate.Loading
         }
         biometricGate = BiometricGate(this, onHandoff = appLock.controller::beginHandoff)
-        lifecycleScope.launch {
-            appLock.secureWindow.collect { secure ->
-                if (secure) {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                } else {
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                }
-            }
-        }
         val launchAction = LaunchAction.from(intent)
         if (launchAction == LaunchAction.Reconnect) Analytics.log(Analytics.RECONNECT_TAPPED)
         applyEdgeToEdge(darkTheme = null)
@@ -103,7 +93,7 @@ class MainActivity : FragmentActivity() {
                         // (and routes the shortcut / alert) once unlocked.
                         AppLockGate(
                             gate = gate,
-                            lockContent = { LockScreen(onHistoryErased = viewModel::onHistoryErased) },
+                            lockContent = { LockScreen() },
                             appContent = { AppNavGraph(launchAction = launchAction) }
                         )
                     }

@@ -16,9 +16,14 @@ import kotlinx.coroutines.launch
 data class VerifyFeedback(
     val attemptsLeft: Int? = null,
     val lockoutRemainingMs: Long = 0L,
-    val isChecking: Boolean = false
+    val isChecking: Boolean = false,
+    /** Bumped on every rejected entry; the PIN pad shakes and clears when it changes. */
+    val rejections: Int = 0
 ) {
     val isLockedOut: Boolean get() = lockoutRemainingMs > 0L
+
+    /** Key for [PinEntry]'s errorKey: null until the first rejection. */
+    val errorKey: Int? get() = rejections.takeIf { it > 0 }
 }
 
 /** Runs verifications one at a time and counts a lockout down to zero. */
@@ -42,14 +47,21 @@ class VerifyFeedbackHolder(
         if (_feedback.value.isChecking || _feedback.value.isLockedOut) return
         _feedback.update { it.copy(isChecking = true) }
         scope.launch {
+            val rejections = _feedback.value.rejections + 1
             when (val result = check()) {
                 VerifyResult.Success -> {
                     _feedback.value = VerifyFeedback()
                     onSuccess()
                 }
-                is VerifyResult.Wrong -> _feedback.value = VerifyFeedback(attemptsLeft = result.attemptsLeft)
+                is VerifyResult.Wrong -> _feedback.value = VerifyFeedback(
+                    attemptsLeft = result.attemptsLeft,
+                    rejections = rejections
+                )
                 is VerifyResult.LockedOut -> {
-                    _feedback.value = VerifyFeedback(lockoutRemainingMs = result.remainingMs)
+                    _feedback.value = VerifyFeedback(
+                        lockoutRemainingMs = result.remainingMs,
+                        rejections = rejections
+                    )
                     Analytics.log(Analytics.APP_LOCK_LOCKOUT)
                     startTicker()
                 }

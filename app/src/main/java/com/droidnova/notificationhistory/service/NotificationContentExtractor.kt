@@ -40,13 +40,10 @@ internal object NotificationContentExtractor {
      * the user sent (null sender) are dropped, unless the app leaves every sender null.
      */
     fun extractMessages(notification: Notification): List<ExtractedMessage> = runCatching {
-        val messageBundles = notification.extras
-            ?.getParcelableArray(Notification.EXTRA_MESSAGES)
-            ?: return@runCatching emptyList()
-        val messages = Notification.MessagingStyle.Message.getMessagesFromBundleArray(messageBundles)
-        val hasAnySender = messages.any { it.senderName() != null }
+        val messages = readMessagingStyleMessages(notification.extras)
+        val hasAnySender = messages.any { it.sender != null }
         messages.mapNotNull { message ->
-            val sender = message.senderName()
+            val sender = message.sender
             if (hasAnySender && sender == null) return@mapNotNull null
             val text = sanitizeNotificationText(message.text)
             if (text.isEmpty()) return@mapNotNull null
@@ -58,21 +55,8 @@ internal object NotificationContentExtractor {
         }
     }.getOrDefault(emptyList())
 
-    @Suppress("DEPRECATION")
-    private fun Notification.MessagingStyle.Message.senderName(): CharSequence? =
-        runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) senderPerson?.name ?: sender
-            else sender
-        }.getOrNull()
-
     private fun extractMessagingStyleMessages(notification: Notification): List<CharSequence?> =
-        runCatching {
-            val messageBundles = notification.extras
-                ?.getParcelableArray(Notification.EXTRA_MESSAGES)
-                ?: return@runCatching emptyList()
-            Notification.MessagingStyle.Message.getMessagesFromBundleArray(messageBundles)
-                .map { message -> message.text }
-        }.getOrDefault(emptyList())
+        readMessagingStyleMessages(notification.extras).map { it.text }
 
     private fun Bundle?.safeText(key: String): CharSequence? {
         if (this == null) return null

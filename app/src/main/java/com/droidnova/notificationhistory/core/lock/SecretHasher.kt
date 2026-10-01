@@ -8,8 +8,12 @@ import javax.crypto.spec.PBEKeySpec
 
 /**
  * PBKDF2-HMAC-SHA256 with a per-secret random salt. The iteration count is stored with every
- * hash, so it can be raised later without invalidating existing PINs. CPU-heavy (~100–300 ms
- * on low-end phones): call off the main thread.
+ * hash, so it can change without invalidating existing PINs (see [needsRehash]).
+ *
+ * Android's PBKDF2 is pure Java, so cost scales hard on low-end CPUs: 120 000 iterations took
+ * seconds on a cold start on a Snapdragon 439 and made unlock feel frozen. A 4-digit PIN has
+ * only 10 000 values, so stretching barely slows an offline guess anyway; the real defence is
+ * the lockout plus app-private storage. Call off the main thread.
  */
 class SecretHasher(private val iterations: Int = DEFAULT_ITERATIONS) {
 
@@ -31,6 +35,17 @@ class SecretHasher(private val iterations: Int = DEFAULT_ITERATIONS) {
         return MessageDigest.isEqual(derive(secret, salt, stored.iterations), expected)
     }
 
+    /** True for hashes made with another iteration count; re-hash them after a successful match. */
+    fun needsRehash(stored: HashedSecret): Boolean = stored.iterations != iterations
+
+    /**
+     * Loads the crypto provider and lets the JIT compile the hash loop, so the first real check
+     * runs at full speed. Cheap enough to run while the lock screen is showing.
+     */
+    fun warmUp() {
+        runCatching { derive("0000", ByteArray(SALT_BYTES), iterations) }
+    }
+
     private fun derive(secret: String, salt: ByteArray, iterations: Int): ByteArray {
         val spec = PBEKeySpec(secret.toCharArray(), salt, iterations, KEY_BITS)
         return try {
@@ -44,7 +59,7 @@ class SecretHasher(private val iterations: Int = DEFAULT_ITERATIONS) {
     private fun decode(value: String): ByteArray = Base64.getDecoder().decode(value)
 
     companion object {
-        const val DEFAULT_ITERATIONS = 120_000
+        const val DEFAULT_ITERATIONS = 10_000
         private const val ALGORITHM = "PBKDF2WithHmacSHA256"
         private const val SALT_BYTES = 16
         private const val KEY_BITS = 256

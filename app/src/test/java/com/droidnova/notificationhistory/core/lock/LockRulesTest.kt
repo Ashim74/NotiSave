@@ -1,25 +1,18 @@
 package com.droidnova.notificationhistory.core.lock
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LockRulesTest {
 
     @Test
-    fun `pin must be 4 to 8 digits`() {
-        assertEquals(SecretError.TooShort, SecretRules.validate(LockType.Pin, "123"))
-        assertNull(SecretRules.validate(LockType.Pin, "1234"))
-        assertNull(SecretRules.validate(LockType.Pin, "12345678"))
-        assertEquals(SecretError.TooLong, SecretRules.validate(LockType.Pin, "123456789"))
-        assertEquals(SecretError.DigitsOnly, SecretRules.validate(LockType.Pin, "12a4"))
-    }
-
-    @Test
-    fun `password needs at least 6 characters`() {
-        assertEquals(SecretError.TooShort, SecretRules.validate(LockType.Password, "abc12"))
-        assertNull(SecretRules.validate(LockType.Password, "abc123"))
+    fun `pin is exactly 4 digits`() {
+        assertTrue(PinRules.isValid("0123"))
+        assertFalse(PinRules.isValid("123"))
+        assertFalse(PinRules.isValid("12345"))
+        assertFalse(PinRules.isValid("12a4"))
     }
 
     @Test
@@ -46,10 +39,10 @@ class LockRulesTest {
     @Test
     fun `recovery codes are grouped, unambiguous and normalize back`() {
         val code = RecoveryCodes.generate()
-        assertTrue(code.matches(Regex("[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}")))
+        assertTrue(code.matches(Regex("[A-Z2-9]{4}-[A-Z2-9]{4}")))
         assertTrue(code.none { it in "01OI" })
         assertEquals(RecoveryCodes.LENGTH, RecoveryCodes.normalize(code).length)
-        assertEquals("ABCD2345EFGH", RecoveryCodes.normalize(" abcd-2345 efgh "))
+        assertEquals("ABCD2345", RecoveryCodes.normalize(" abcd-2345 "))
     }
 
     @Test

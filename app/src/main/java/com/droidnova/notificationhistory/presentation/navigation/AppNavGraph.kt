@@ -5,9 +5,12 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
@@ -63,7 +66,11 @@ import com.droidnova.notificationhistory.presentation.screens.setting.SettingScr
 import com.droidnova.notificationhistory.presentation.screens.trash.TrashScreen
 
 private const val TRANSITION_MS = 300
-private const val TAB_FADE_MS = 200
+// Material "fade through" for tab switches: the old tab fades out quickly, then the new one
+// fades in while scaling up slightly, so the swap reads as one motion instead of a cross-dissolve.
+private const val TAB_FADE_OUT_MS = 90
+private const val TAB_FADE_IN_MS = 210
+private const val TAB_SCALE_FROM = 0.96f
 
 /**
  * Switches to a bottom-navigation tab: single instance, state saved/restored per tab, back
@@ -99,7 +106,8 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boo
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.enter(forward: Boolean): EnterTransition =
     if (isTabSwitch()) {
-        fadeIn(tween(TAB_FADE_MS))
+        val spec = tween<Float>(TAB_FADE_IN_MS, delayMillis = TAB_FADE_OUT_MS, easing = LinearOutSlowInEasing)
+        fadeIn(spec) + scaleIn(spec, initialScale = TAB_SCALE_FROM)
     } else {
         slideInHorizontally(
             initialOffsetX = { if (forward) it else -it },
@@ -109,7 +117,7 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.enter(forward: Boo
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.exit(forward: Boolean): ExitTransition =
     if (isTabSwitch()) {
-        fadeOut(tween(TAB_FADE_MS))
+        fadeOut(tween(TAB_FADE_OUT_MS, easing = FastOutLinearInEasing))
     } else {
         slideOutHorizontally(
             targetOffsetX = { if (forward) -it else it },

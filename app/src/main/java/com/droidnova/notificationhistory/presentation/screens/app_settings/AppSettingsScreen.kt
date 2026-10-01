@@ -2,6 +2,7 @@ package com.droidnova.notificationhistory.presentation.screens.app_settings
 
 import android.app.Activity
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,14 +12,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
@@ -27,8 +31,6 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,7 +40,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +56,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -66,6 +68,13 @@ import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.core.lock.AppLock
 import com.droidnova.notificationhistory.data_shared.ThemeMode
+import com.droidnova.notificationhistory.presentation.components.AnimatedText
+import com.droidnova.notificationhistory.presentation.components.AppCard
+import com.droidnova.notificationhistory.presentation.components.AppCardDefaults
+import com.droidnova.notificationhistory.presentation.components.IconBadge
+import com.droidnova.notificationhistory.presentation.components.ListGroup
+import com.droidnova.notificationhistory.presentation.components.ListRow
+import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
 import com.droidnova.notificationhistory.presentation.components.SectionHeader
 import com.droidnova.notificationhistory.presentation.components.rememberBatteryOptimizationState
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
@@ -73,6 +82,7 @@ import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBot
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDialog
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.presentation.navigation.navigateToTab
+import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -118,192 +128,237 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.settings_title)) })
+            ScreenTopBar(title = stringResource(R.string.settings_title))
         }
     ) { padding ->
+        val onRemoveAds: (() -> Unit)? = if (isPremium) null else {
+            {
+                if (billingManager != null) {
+                    mainViewModel.onRemoveAdsClicked()
+                    showPurchaseSheet = true
+                    billingManager.queryProductDetails()
+                } else {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.billing_unavailable),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+        val openAccess = {
+            mainViewModel.onPermissionSettingsOpened()
+            openNotificationAccessSettings(context)
+        }
+        val errorBadge: @Composable (ImageVector) -> Unit = {
+            IconBadge(
+                it,
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+
+        // Grouped blocks with one-word values instead of a card and a sentence per setting.
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(horizontal = Dimens.ScreenHorizontal, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            item { SectionHeader(stringResource(R.string.settings_tracking_section)) }
-            item {
-                TrackingSettingsCard(
-                    checked = state.userToggleTracking && hasPermission,
-                    hasPermission = hasPermission,
-                    onCheckedChange = { enabled ->
+            item(key = "tracking") {
+                val checked = state.userToggleTracking && hasPermission
+                val container by animateColorAsState(
+                    if (checked) MaterialTheme.colorScheme.primaryContainer
+                    else AppCardDefaults.containerColor(),
+                    label = "trackingContainer"
+                )
+                ListRow(
+                    title = stringResource(
                         when {
-                            !enabled -> mainViewModel.setToggleTracking(false)
-                            hasPermission -> mainViewModel.onEnableClick()
-                            else -> {
-                                mainViewModel.onPermissionSettingsOpened()
-                                openNotificationAccessSettings(context)
-                            }
+                            !hasPermission -> R.string.home_status_access_needed
+                            checked -> R.string.home_status_recording
+                            else -> R.string.home_status_paused
                         }
-                    }
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Notifications,
-                    title = stringResource(R.string.settings_notification_access),
-                    supportingText = if (hasPermission) {
-                        stringResource(R.string.settings_permission_granted)
-                    } else {
-                        stringResource(R.string.settings_permission_required)
-                    },
-                    onClick = if (hasPermission) null else {
-                        {
-                            mainViewModel.onPermissionSettingsOpened()
-                            openNotificationAccessSettings(context)
-                        }
-                    }
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Settings,
-                    title = stringResource(R.string.home_manage_apps),
-                    supportingText = stringResource(
-                        R.string.home_selected_apps_count,
-                        state.selectedAppsCount
                     ),
-                    onClick = { navController.navigate(Screens.ManageNotifications.route) }
-                )
-            }
-
-            item { SectionHeader(stringResource(R.string.settings_history_section)) }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Notifications,
-                    title = stringResource(R.string.home_view_history),
-                    supportingText = stringResource(R.string.settings_open_history_description),
-                    onClick = { navController.navigateToTab(Screens.History.route) }
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = ImageVector.vectorResource(R.drawable.ic_history),
-                    title = stringResource(R.string.settings_retention),
-                    supportingText = retentionLabel(state.historyRetentionDays),
-                    onClick = { showRetentionDialog = true }
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Delete,
-                    title = stringResource(R.string.trash_title),
-                    supportingText = stringResource(R.string.settings_trash_description),
-                    onClick = { navController.navigate(Screens.Trash.route) }
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Delete,
-                    title = stringResource(R.string.settings_clear_history),
-                    supportingText = stringResource(R.string.settings_clear_history_description),
-                    isDestructive = true,
-                    onClick = { showClearConfirmation = true }
-                )
-            }
-
-            item { SectionHeader(stringResource(R.string.settings_reliability_section)) }
-            item {
-                SettingsRow(
-                    icon = if (batteryOptimization.isIgnored) Icons.Default.CheckCircle else Icons.Default.Warning,
-                    title = stringResource(R.string.settings_battery_optimization),
-                    supportingText = if (batteryOptimization.isIgnored) {
-                        stringResource(R.string.settings_battery_ready)
-                    } else {
-                        stringResource(R.string.settings_battery_action)
-                    },
-                    onClick = if (batteryOptimization.isIgnored) null else batteryOptimization.requestExemption
-                )
-            }
-
-            item { SectionHeader(stringResource(R.string.settings_appearance_section)) }
-            item {
-                SettingsRow(
-                    icon = ImageVector.vectorResource(R.drawable.ic_theme),
-                    title = stringResource(R.string.settings_theme),
-                    supportingText = stringResource(themeMode.labelRes()),
-                    onClick = { showThemeDialog = true }
-                )
-            }
-
-            item { SectionHeader(stringResource(R.string.settings_privacy_section)) }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Lock,
-                    title = stringResource(R.string.settings_app_lock),
-                    supportingText = if (appLockEnabled) {
-                        stringResource(R.string.app_lock_status_on)
-                    } else {
-                        stringResource(R.string.settings_app_lock_off)
-                    },
-                    onClick = { navController.navigate(Screens.AppLock.route) }
-                )
-            }
-
-            item { SectionHeader(stringResource(R.string.settings_premium_app_section)) }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Star,
-                    title = if (isPremium) {
-                        stringResource(R.string.settings_premium_active)
-                    } else {
-                        stringResource(R.string.premium_menu_remove_ads)
-                    },
-                    supportingText = if (isPremium) {
-                        stringResource(R.string.premium_menu_unlocked_subtitle)
-                    } else {
-                        stringResource(R.string.premium_menu_remove_ads_subtitle)
-                    },
-                    onClick = if (isPremium) null else {
-                        {
-                            if (billingManager != null) {
-                                mainViewModel.onRemoveAdsClicked()
-                                showPurchaseSheet = true
-                                billingManager.queryProductDetails()
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.billing_unavailable),
-                                    Toast.LENGTH_LONG
-                                ).show()
+                    containerColor = container,
+                    leading = { IconBadge(Icons.Default.Notifications) },
+                    trailing = {
+                        Switch(
+                            checked = checked,
+                            onCheckedChange = { enabled ->
+                                when {
+                                    !enabled -> mainViewModel.setToggleTracking(false)
+                                    hasPermission -> mainViewModel.onEnableClick()
+                                    else -> openAccess()
+                                }
                             }
-                        }
+                        )
                     }
                 )
             }
-            // UMP mandates a privacy-options entry point while consent is revocable (EEA/UK/US states).
-            if (privacyOptionsRequired) {
-                item {
-                    SettingsRow(
-                        icon = Icons.Default.Lock,
-                        title = stringResource(R.string.settings_privacy_options),
-                        supportingText = stringResource(R.string.settings_privacy_options_description),
-                        onClick = { activity?.let { consentManager.showPrivacyOptionsForm(it) } }
-                    )
+
+            item(key = "capture") {
+                ListGroup(title = stringResource(R.string.settings_tracking_section)) {
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(R.string.settings_notification_access),
+                            value = stringResource(
+                                if (hasPermission) R.string.settings_permission_granted
+                                else R.string.settings_value_needed
+                            ),
+                            valueColor = if (hasPermission) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                            leading = { IconBadge(Icons.Default.Notifications) },
+                            onClick = if (hasPermission) null else openAccess
+                        )
+                    }
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(R.string.home_manage_apps),
+                            value = pluralStringResource(
+                                R.plurals.settings_apps_count,
+                                state.selectedAppsCount,
+                                state.selectedAppsCount
+                            ),
+                            leading = { IconBadge(ImageVector.vectorResource(R.drawable.ic_apps)) },
+                            onClick = { navController.navigate(Screens.ManageNotifications.route) }
+                        )
+                    }
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(R.string.settings_battery_optimization),
+                            value = stringResource(
+                                if (batteryOptimization.isIgnored) R.string.settings_battery_unrestricted
+                                else R.string.settings_battery_restricted
+                            ),
+                            valueColor = if (batteryOptimization.isIgnored) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                            leading = {
+                                IconBadge(
+                                    if (batteryOptimization.isIgnored) Icons.Default.CheckCircle
+                                    else Icons.Default.Warning
+                                )
+                            },
+                            onClick = if (batteryOptimization.isIgnored) null else batteryOptimization.requestExemption
+                        )
+                    }
                 }
             }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.Info,
-                    title = stringResource(R.string.about_title),
-                    supportingText = stringResource(R.string.app_about_description),
-                    onClick = { navController.navigate(Screens.AboutScreen.route) }
-                )
+
+            item(key = "history") {
+                ListGroup(title = stringResource(R.string.settings_history_section)) {
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(R.string.settings_retention),
+                            value = retentionLabel(state.historyRetentionDays),
+                            leading = { IconBadge(ImageVector.vectorResource(R.drawable.ic_history)) },
+                            onClick = { showRetentionDialog = true }
+                        )
+                    }
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(R.string.trash_title),
+                            leading = { IconBadge(Icons.Default.Delete) },
+                            onClick = { navController.navigate(Screens.Trash.route) }
+                        )
+                    }
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(R.string.settings_clear_history),
+                            titleColor = MaterialTheme.colorScheme.error,
+                            leading = { errorBadge(Icons.Default.Delete) },
+                            showChevron = false,
+                            onClick = { showClearConfirmation = true }
+                        )
+                    }
+                }
             }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Share,
-                    title = stringResource(R.string.settings_feedback),
-                    supportingText = stringResource(R.string.settings_feedback_description),
-                    onClick = { IntentUtil.sendSupportMail(context, isBug = false) }
-                )
+
+            item(key = "general") {
+                ListGroup(title = stringResource(R.string.settings_general_section)) {
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(R.string.settings_theme),
+                            value = stringResource(themeMode.labelRes()),
+                            leading = { IconBadge(ImageVector.vectorResource(R.drawable.ic_theme)) },
+                            onClick = { showThemeDialog = true }
+                        )
+                    }
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(R.string.settings_app_lock),
+                            value = stringResource(
+                                if (appLockEnabled) R.string.settings_value_on else R.string.settings_value_off
+                            ),
+                            leading = { IconBadge(Icons.Default.Lock) },
+                            onClick = { navController.navigate(Screens.AppLock.route) }
+                        )
+                    }
+                }
+            }
+
+            item(key = "app") {
+                ListGroup(title = stringResource(R.string.settings_app_section)) {
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(
+                                if (isPremium) R.string.settings_premium_active
+                                else R.string.premium_menu_remove_ads
+                            ),
+                            leading = {
+                                IconBadge(
+                                    Icons.Default.Star,
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            },
+                            onClick = onRemoveAds
+                        )
+                    }
+                    // UMP mandates a privacy-options entry point while consent is revocable (EEA/UK/US states).
+                    if (privacyOptionsRequired) {
+                        row { shape ->
+                            ListRow(
+                                shape = shape,
+                                title = stringResource(R.string.settings_privacy_options),
+                                leading = { IconBadge(Icons.Default.AccountBox) },
+                                onClick = { activity?.let { consentManager.showPrivacyOptionsForm(it) } }
+                            )
+                        }
+                    }
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(R.string.settings_feedback),
+                            leading = { IconBadge(Icons.Default.Email) },
+                            onClick = { IntentUtil.sendSupportMail(context, isBug = false) }
+                        )
+                    }
+                    row { shape ->
+                        ListRow(
+                            shape = shape,
+                            title = stringResource(R.string.about_title),
+                            leading = { IconBadge(Icons.Outlined.Info) },
+                            onClick = { navController.navigate(Screens.AboutScreen.route) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -447,105 +502,4 @@ private fun ThemeMode.labelRes(): Int = when (this) {
     ThemeMode.System -> R.string.theme_system
     ThemeMode.Light -> R.string.theme_light
     ThemeMode.Dark -> R.string.theme_dark
-}
-
-@Composable
-private fun TrackingSettingsCard(
-    checked: Boolean,
-    hasPermission: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (checked) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-            }
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    if (checked) stringResource(R.string.tracking_active)
-                    else if (hasPermission) stringResource(R.string.tracking_paused)
-                    else stringResource(R.string.tracking_permission_required),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    stringResource(R.string.settings_tracking_description),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
-        }
-    }
-}
-
-@Composable
-private fun SettingsRow(
-    icon: ImageVector,
-    title: String,
-    supportingText: String,
-    onClick: (() -> Unit)?,
-    isDestructive: Boolean = false
-) {
-    val contentColor = if (isDestructive) {
-        MaterialTheme.colorScheme.error
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-    val content: @Composable () -> Unit = {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = null, tint = contentColor)
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = contentColor
-                )
-                Text(
-                    supportingText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isDestructive) contentColor
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (onClick != null) {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    }
-    if (onClick != null) {
-        Card(
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-            ),
-            content = { content() }
-        )
-    } else {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-            ),
-            content = { content() }
-        )
-    }
 }

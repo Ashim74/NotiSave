@@ -2,7 +2,9 @@ package com.droidnova.notificationhistory.presentation.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -115,6 +117,10 @@ fun AppTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = AppTypography,
+        shapes = AppShapes,
         content = content
     )
 }
+
+// Cards default to shapes.medium, so this sets the corner radius for every card in the app.
+private val AppShapes = Shapes(medium = RoundedCornerShape(Dimens.CardCornerRadius))

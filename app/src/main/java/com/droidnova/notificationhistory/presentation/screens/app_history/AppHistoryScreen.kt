@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -43,12 +44,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
+import com.droidnova.notificationhistory.presentation.components.GroupRowGap
 import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
+import com.droidnova.notificationhistory.presentation.components.dayGroupedItems
 import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
@@ -167,7 +171,7 @@ fun AppHistoryScreen(
                 }
             } else {
                 TopAppBar(
-                    title = { Text(title, fontWeight = FontWeight.Bold) },
+                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
@@ -203,12 +207,13 @@ fun AppHistoryScreen(
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    state = listState
+                    state = listState,
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp)
                 ) {
                     if (notifications.isEmpty()) {
-                        item {
+                        item(key = "app-history-state") {
                             if (isRefreshing) {
-                                HistoryLoadingState(Modifier.fillMaxSize())
+                                HistoryLoadingState(Modifier.fillParentMaxSize())
                             } else {
                                 HistoryEmptyState(
                                     message = if (searchQuery.isNotBlank()) {
@@ -216,16 +221,23 @@ fun AppHistoryScreen(
                                     } else {
                                         stringResource(R.string.history_empty)
                                     },
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillParentMaxSize()
                                 )
                             }
                         }
                     } else {
-                        items(notifications, key = { it.id }) { item ->
+                        dayGroupedItems(
+                            items = notifications,
+                            key = { it.id },
+                            epochOf = { it.receivedAtEpoch }
+                        ) { item, shape ->
                             NotificationHistoryCard(
+                                modifier = Modifier.animateItem(),
                                 notification = item,
                                 searchQuery = searchQuery,
-                                onClick = { selectedNotification = item }
+                                onClick = { selectedNotification = item },
+                                shape = shape,
+                                spacing = GroupRowGap
                             )
                         }
                         if (isLoadingMore) {

@@ -5,84 +5,81 @@ import android.os.Bundle
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.lock.AppLock
-import com.droidnova.notificationhistory.core.lock.LockType
-import com.droidnova.notificationhistory.core.lock.RecoveryMethod
-import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.utils.Analytics
-import com.droidnova.notificationhistory.utils.CrashReporter
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 sealed interface LockStage {
     data object Unlock : LockStage
-    data object ForgotOptions : LockStage
+    data object Forgot : LockStage
     data object RecoveryCode : LockStage
-    data object NewSecret : LockStage
-    data class ShowRecoveryCode(val code: String) : LockStage
-    data object EraseConfirm : LockStage
+    data object NewPin : LockStage
 }
 
 data class LockScreenState(
     val stage: LockStage = LockStage.Unlock,
-    val lockType: LockType = LockType.Pin,
     val biometricEnabled: Boolean = false,
-    val recoveryMethod: RecoveryMethod = RecoveryMethod.DeviceAndCode,
     val feedback: VerifyFeedback = VerifyFeedback(),
-    val newSecret: NewSecretState = NewSecretState(),
-    val deviceCheckFailed: Boolean = false
+    val newPin: NewPinState = NewPinState(),
+    val deviceCheckFailed: Boolean = false,
+    val isSaving: Boolean = false
 )
 
+/**
+ * Unlock with the PIN (or fingerprint, if turned on). Forgot PIN: confirm the phone's screen lock
+ * or enter the recovery code, then set a new PIN.
+ */
 class LockScreenViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appLock = AppLock.get(application)
     private val repository = appLock.repository
-    private val newSecret = NewSecretController()
+    private val newPin = NewPinController()
     private val feedbackHolder = VerifyFeedbackHolder(viewModelScope, repository)
     private val stage = MutableStateFlow<LockStage>(LockStage.Unlock)
     private val deviceCheckFailed = MutableStateFlow(false)
+    private val isSaving = MutableStateFlow(false)
+    /** How identity was proven before [LockStage.NewPin]; a spent recovery code is replaced. */
     private var recoveredWith: String? = null
-    private var savingNewSecret = false
 
     val state: StateFlow<LockScreenState> = combine(
         repository.config,
         stage,
         feedbackHolder.feedback,
-        newSecret.state,
-        deviceCheckFailed
-    ) { config, stage, feedback, newSecret, deviceFailed ->
+        newPin.state,
+        combine(deviceCheckFailed, isSaving, ::Pair)
+    ) { config, stage, feedback, newPin, (deviceFailed, saving) ->
         LockScreenState(
             stage = stage,
-            lockType = config.type ?: LockType.Pin,
             biometricEnabled = config.biometricEnabled,
-            recoveryMethod = config.recoveryMethod,
             feedback = feedback,
-            newSecret = newSecret,
-            deviceCheckFailed = deviceFailed
+            newPin = newPin,
+            deviceCheckFailed = deviceFailed,
+            isSaving = saving
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, LockScreenState())
 
     init {
         feedbackHolder.refreshLockout()
+        // While the user types, so the PIN check itself runs at full speed.
+        viewModelScope.launch { repository.warmUp() }
     }
 
-    fun submitSecret(secret: String) {
+    fun submitPin(pin: String) {
         feedbackHolder.verify(
-            check = { repository.verifySecret(secret) },
+            check = { repository.verifyPin(pin) },
             onSuccess = { unlock() }
         )
     }
 
     fun onBiometricSuccess() = unlock()
 
-    fun openForgotOptions() {
+    fun openForgot() {
         deviceCheckFailed.value = false
-        stage.value = LockStage.ForgotOptions
+        stage.value = LockStage.Forgot
     }
 
     fun openRecoveryCode() {
@@ -90,60 +87,35 @@ class LockScreenViewModel(application: Application) : AndroidViewModel(applicati
         stage.value = LockStage.RecoveryCode
     }
 
-    fun openEraseConfirm() {
-        stage.value = LockStage.EraseConfirm
-    }
-
+    /** The phone's screen lock is the escape hatch, so it works even during a lockout. */
     fun onDeviceCredentialResult(success: Boolean) {
-        if (success) {
-            startNewSecret(method = METHOD_DEVICE)
-        } else {
-            deviceCheckFailed.value = true
-        }
+        if (success) startNewPin(METHOD_DEVICE) else deviceCheckFailed.value = true
     }
 
     fun submitRecoveryCode(code: String) {
         feedbackHolder.verify(
             check = { repository.verifyRecoveryCode(code) },
-            onSuccess = { startNewSecret(method = METHOD_CODE) }
+            onSuccess = { startNewPin(METHOD_CODE) }
         )
     }
 
-    fun chooseNewSecretType(type: LockType) = newSecret.chooseType(type)
-
-    fun submitNewSecret(input: String) {
-        if (savingNewSecret) return
-        val (type, secret) = newSecret.submit(input) ?: return
-        savingNewSecret = true
+    fun submitNewPin(input: String) {
+        if (isSaving.value) return
+        val pin = newPin.submit(input) ?: return
+        val method = recoveredWith
+        isSaving.value = true
         viewModelScope.launch {
-            val code = repository.resetAfterRecovery(type, secret)
-            Analytics.log(
-                Analytics.APP_LOCK_RECOVERED,
-                Bundle().apply { putString(Analytics.PARAM_METHOD, recoveredWith) }
-            )
-            stage.value = LockStage.ShowRecoveryCode(code)
-            savingNewSecret = false
-        }
-    }
-
-    /** The user saved the new recovery code; recovery is complete. */
-    fun finishRecovery() = unlock()
-
-    /**
-     * Last resort: permanently deletes history + trash, then removes the lock (which opens the
-     * gate). [onHistoryErased] lets the activity drop its cached history before the UI returns.
-     */
-    fun eraseHistoryAndReset(onHistoryErased: () -> Unit) {
-        viewModelScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    AppDatabase.getInstance(getApplication()).notificationDao().deleteAllNotifications()
-                }
-            }.onFailure(CrashReporter::record)
-            onHistoryErased()
-            Analytics.log(Analytics.APP_LOCK_ERASE_RESET)
-            resetUi()
-            repository.disable()
+            try {
+                Analytics.log(
+                    Analytics.APP_LOCK_RECOVERED,
+                    Bundle().apply { putString(Analytics.PARAM_METHOD, method) }
+                )
+                // Same for both ways in: new PIN, then straight into the app.
+                repository.changePin(pin)
+                unlock()
+            } finally {
+                isSaving.value = false
+            }
         }
     }
 
@@ -151,36 +123,30 @@ class LockScreenViewModel(application: Application) : AndroidViewModel(applicati
     fun back(): Boolean {
         when (stage.value) {
             LockStage.Unlock -> return false
-            LockStage.ForgotOptions -> {
+            LockStage.Forgot -> {
                 feedbackHolder.clear()
                 stage.value = LockStage.Unlock
             }
-            LockStage.RecoveryCode, LockStage.EraseConfirm -> openForgotOptions()
-            // Identity is already proven; backing out would force the user to prove it again.
-            LockStage.NewSecret -> newSecret.back()
-            // The new code is already active; leaving without it would strand the user.
-            is LockStage.ShowRecoveryCode -> Unit
+            LockStage.RecoveryCode -> openForgot()
+            // Identity is already proven; leaving would force the user to prove it again.
+            LockStage.NewPin -> newPin.back()
         }
         return true
     }
 
-    private fun startNewSecret(method: String) {
+    private fun startNewPin(method: String) {
         recoveredWith = method
-        newSecret.reset(state.value.lockType)
-        stage.value = LockStage.NewSecret
+        newPin.reset()
+        stage.value = LockStage.NewPin
     }
 
     private fun unlock() {
-        resetUi()
-        appLock.controller.unlock()
-    }
-
-    private fun resetUi() {
         stage.value = LockStage.Unlock
         deviceCheckFailed.value = false
         recoveredWith = null
-        newSecret.reset()
+        newPin.reset()
         feedbackHolder.clear()
+        appLock.controller.unlock()
     }
 
     private companion object {

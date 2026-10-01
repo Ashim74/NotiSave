@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
@@ -39,6 +40,8 @@ import com.droidnova.notificationhistory.data.mapper.toReadableTime
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.components.EmptyState
+import com.droidnova.notificationhistory.presentation.components.GroupRowGap
+import com.droidnova.notificationhistory.presentation.components.dayGroupedItems
 import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.NotificationHistoryCard
 
@@ -95,22 +98,25 @@ fun TrashScreen(mainViewModel: MainViewModel, navController: NavController) {
                         SettingState.TRASH_RETENTION_DAYS
                     )
                 )
-                else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(notifications, key = { it.id }) { notification ->
-                        val movedTime = notification.trashedAtEpoch?.toReadableTime().orEmpty()
-                        val receivedLabel = stringResource(
-                            R.string.trash_received_at,
-                            notification.receivedAt
-                        )
-                        val movedLabel = movedTime.takeIf { it.isNotBlank() }?.let {
-                            stringResource(R.string.trash_deleted_at, it)
-                        }
-                        val footer = listOfNotNull(receivedLabel, movedLabel).joinToString("\n")
+                // Grouped by the day each item was deleted, newest first, like History.
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp)
+                ) {
+                    dayGroupedItems(
+                        items = notifications,
+                        key = { it.id },
+                        epochOf = { it.trashedAtEpoch ?: it.receivedAtEpoch }
+                    ) { notification, shape ->
+                        val movedTime = notification.trashedAtEpoch?.toReadableTime()
                         NotificationHistoryCard(
+                            modifier = Modifier.animateItem(),
                             notification = notification,
                             searchQuery = "",
                             onClick = { selectedNotification = notification },
-                            footerText = footer
+                            footerText = movedTime?.let { stringResource(R.string.trash_deleted_at, it) },
+                            shape = shape,
+                            spacing = GroupRowGap
                         )
                     }
                 }

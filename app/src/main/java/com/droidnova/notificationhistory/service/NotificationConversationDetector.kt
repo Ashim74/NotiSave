@@ -28,7 +28,7 @@ internal object NotificationConversationDetector {
         appLabel: String?
     ): ConversationSignals {
         val extras = runCatching { notification.extras }.getOrNull()
-        val messages = extractMessages(extras)
+        val messages = readMessagingStyleMessages(extras)
         val template = runCatching { extras?.getString(Notification.EXTRA_TEMPLATE) }.getOrNull()
 
         return ConversationSignals(
@@ -41,7 +41,7 @@ internal object NotificationConversationDetector {
             isMessagingStyle = messages.isNotEmpty() || template == MESSAGING_STYLE_TEMPLATE,
             isGroupSummary = (notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0,
             isGroupConversation = readIsGroupConversation(extras),
-            messageSenders = messages.map { it.senderName() },
+            messageSenders = messages.map { it.sender },
             selfName = readSelfName(extras)
         )
     }
@@ -58,23 +58,6 @@ internal object NotificationConversationDetector {
         }
         return person ?: extras.safeText(Notification.EXTRA_SELF_DISPLAY_NAME)
     }
-
-    private fun extractMessages(extras: Bundle?): List<Notification.MessagingStyle.Message> =
-        runCatching {
-            val bundles = extras?.getParcelableArray(Notification.EXTRA_MESSAGES)
-                ?: return@runCatching emptyList()
-            Notification.MessagingStyle.Message.getMessagesFromBundleArray(bundles)
-        }.getOrDefault(emptyList())
-
-    @Suppress("DEPRECATION")
-    private fun Notification.MessagingStyle.Message.senderName(): CharSequence? =
-        runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                senderPerson?.name ?: sender
-            } else {
-                sender
-            }
-        }.getOrNull()
 
     private fun readIsGroupConversation(extras: Bundle?): Boolean? {
         if (extras == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null

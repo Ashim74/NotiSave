@@ -22,11 +22,6 @@ class AppLock private constructor(context: Context) {
 
     val isEnabled: Flow<Boolean> = repository.config.map { it.isEnabled }.distinctUntilChanged()
 
-    /** FLAG_SECURE: blank Recents thumbnail, no screenshots or screen recording. */
-    val secureWindow: Flow<Boolean> = repository.config
-        .map { it.isEnabled && it.hideInRecents }
-        .distinctUntilChanged()
-
     init {
         CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).launch {
             repository.config

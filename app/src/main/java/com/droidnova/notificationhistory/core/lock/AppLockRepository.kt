@@ -1,9 +1,12 @@
 package com.droidnova.notificationhistory.core.lock
 
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -15,38 +18,34 @@ class AppLockRepository(
     private val store: AppLockStore,
     private val elapsedRealtime: () -> Long,
     private val hasher: SecretHasher = SecretHasher(),
-    private val hashDispatcher: CoroutineDispatcher = Dispatchers.Default
+    private val hashDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    /** Runs follow-up work (hash upgrades) after a successful check has already returned. */
+    private val backgroundScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 ) {
     val config: Flow<LockConfig> = store.config
 
     suspend fun current(): LockConfig = store.config.first()
 
+    /** Prepares the hasher while the user is still typing; see [SecretHasher.warmUp]. */
+    suspend fun warmUp() = withContext(hashDispatcher) { hasher.warmUp() }
+
     /** Turns the lock on and returns the recovery code to show the user once. */
-    suspend fun enable(
-        type: LockType,
-        secret: String,
-        recoveryMethod: RecoveryMethod,
-        biometricEnabled: Boolean
-    ): String {
+    suspend fun enable(pin: String): String {
         val code = RecoveryCodes.generate()
-        val hashedSecret = hash(secret)
+        val hashedPin = hash(pin)
         val hashedCode = hash(RecoveryCodes.normalize(code))
-        store.update {
-            it.copy(
-                type = type,
-                secret = hashedSecret,
-                recovery = hashedCode,
-                recoveryMethod = recoveryMethod,
-                biometricEnabled = biometricEnabled
-            ).clearedFailures()
-        }
+        store.update { it.copy(pin = hashedPin, recovery = hashedCode).clearedFailures() }
         return code
     }
 
-    suspend fun verifySecret(secret: String): VerifyResult = verify(secret) { it.secret }
+    suspend fun verifyPin(pin: String): VerifyResult =
+        verify(pin, target = { it.pin }, replace = { config, hash -> config.copy(pin = hash) })
 
-    suspend fun verifyRecoveryCode(code: String): VerifyResult =
-        verify(RecoveryCodes.normalize(code)) { it.recovery }
+    suspend fun verifyRecoveryCode(code: String): VerifyResult = verify(
+        RecoveryCodes.normalize(code),
+        target = { it.recovery },
+        replace = { config, hash -> config.copy(recovery = hash) }
+    )
 
     fun lockoutRemaining(config: LockConfig): Long = LockoutPolicy.remaining(
         startedElapsed = config.lockoutStartedElapsed,
@@ -54,21 +53,14 @@ class AppLockRepository(
         nowElapsed = elapsedRealtime()
     )
 
-    /** Change PIN/password (after the current one was verified). Recovery code is kept. */
-    suspend fun changeSecret(type: LockType, secret: String) {
-        val hashed = hash(secret)
-        store.update { it.copy(type = type, secret = hashed).clearedFailures() }
-    }
-
-    /** After a successful recovery: new PIN/password and a fresh code (the old one is spent). */
-    suspend fun resetAfterRecovery(type: LockType, secret: String): String {
-        val code = RecoveryCodes.generate()
-        val hashedSecret = hash(secret)
-        val hashedCode = hash(RecoveryCodes.normalize(code))
-        store.update {
-            it.copy(type = type, secret = hashedSecret, recovery = hashedCode).clearedFailures()
-        }
-        return code
+    /**
+     * New PIN after the current PIN, the phone screen lock or the recovery code was confirmed.
+     * The recovery code stays valid, so it keeps working the next time a PIN is forgotten.
+     * Also ends any running lockout.
+     */
+    suspend fun changePin(pin: String) {
+        val hashed = hash(pin)
+        store.update { it.copy(pin = hashed).clearedFailures() }
     }
 
     suspend fun regenerateRecoveryCode(): String {
@@ -78,9 +70,9 @@ class AppLockRepository(
         return code
     }
 
-    /** Clears every secret; timeout / Recents preferences are kept for a future re-enable. */
+    /** Clears the PIN, recovery code and fingerprint opt-in; the timeout is kept for next time. */
     suspend fun disable() {
-        store.update { LockConfig(timeout = it.timeout, hideInRecents = it.hideInRecents) }
+        store.update { LockConfig(timeout = it.timeout) }
     }
 
     suspend fun setBiometricEnabled(enabled: Boolean) {
@@ -91,15 +83,11 @@ class AppLockRepository(
         store.update { it.copy(timeout = timeout) }
     }
 
-    suspend fun setHideInRecents(hide: Boolean) {
-        store.update { it.copy(hideInRecents = hide) }
-    }
-
-    suspend fun setRecoveryMethod(method: RecoveryMethod) {
-        store.update { it.copy(recoveryMethod = method) }
-    }
-
-    private suspend fun verify(input: String, target: (LockConfig) -> HashedSecret?): VerifyResult {
+    private suspend fun verify(
+        input: String,
+        target: (LockConfig) -> HashedSecret?,
+        replace: (LockConfig, HashedSecret) -> LockConfig
+    ): VerifyResult {
         val config = current()
         val remaining = lockoutRemaining(config)
         if (remaining > 0L) return VerifyResult.LockedOut(remaining)
@@ -107,7 +95,11 @@ class AppLockRepository(
 
         val matches = withContext(hashDispatcher) { hasher.matches(input, stored) }
         if (matches) {
-            store.update { it.clearedFailures() }
+            // The usual case has nothing to reset: skip the disk write so unlock is instant.
+            if (config.failedAttempts > 0 || config.lockoutDurationMs > 0L) {
+                store.update { it.clearedFailures() }
+            }
+            if (hasher.needsRehash(stored)) upgradeHash(input, stored, target, replace)
             return VerifyResult.Success
         }
         val updated = store.update {
@@ -123,6 +115,22 @@ class AppLockRepository(
             VerifyResult.LockedOut(updated.lockoutDurationMs)
         } else {
             VerifyResult.Wrong(LockoutPolicy.FREE_ATTEMPTS - updated.failedAttempts)
+        }
+    }
+
+    /**
+     * Re-hashes with the current iteration count after the app has already opened. Skipped if the
+     * secret was changed meanwhile, so an upgrade can never overwrite a newer PIN or code.
+     */
+    private fun upgradeHash(
+        input: String,
+        stored: HashedSecret,
+        target: (LockConfig) -> HashedSecret?,
+        replace: (LockConfig, HashedSecret) -> LockConfig
+    ) {
+        backgroundScope.launch {
+            val upgraded = hash(input)
+            store.update { if (target(it) == stored) replace(it, upgraded) else it }
         }
     }
 

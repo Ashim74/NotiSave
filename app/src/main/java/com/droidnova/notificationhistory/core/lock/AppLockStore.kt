@@ -58,13 +58,10 @@ class DataStoreAppLockStore(context: Context) : AppLockStore {
     }
 
     private fun Preferences.toLockConfig() = LockConfig(
-        type = LockType.fromStorageKey(this[TYPE]),
-        secret = hashed(SECRET_HASH, SECRET_SALT, SECRET_ITERATIONS),
+        pin = hashed(SECRET_HASH, SECRET_SALT, SECRET_ITERATIONS),
         recovery = hashed(RECOVERY_HASH, RECOVERY_SALT, RECOVERY_ITERATIONS),
-        recoveryMethod = RecoveryMethod.fromStorageKey(this[RECOVERY_METHOD]),
         biometricEnabled = this[BIOMETRIC] ?: false,
         timeout = AutoLockTimeout.fromStorageKey(this[TIMEOUT]),
-        hideInRecents = this[HIDE_IN_RECENTS] ?: true,
         failedAttempts = this[FAILED_ATTEMPTS] ?: 0,
         lockoutStartedElapsed = this[LOCKOUT_STARTED] ?: 0L,
         lockoutDurationMs = this[LOCKOUT_DURATION] ?: 0L
@@ -83,17 +80,16 @@ class DataStoreAppLockStore(context: Context) : AppLockStore {
     }
 
     private fun MutablePreferences.write(config: LockConfig) {
-        putOrRemove(TYPE, config.type?.storageKey)
-        putOrRemove(SECRET_HASH, config.secret?.hash)
-        putOrRemove(SECRET_SALT, config.secret?.salt)
-        putOrRemove(SECRET_ITERATIONS, config.secret?.iterations)
+        // Keys from the earlier PIN-or-password version; dropped on the first write.
+        LEGACY_KEYS.forEach { remove(it) }
+        putOrRemove(SECRET_HASH, config.pin?.hash)
+        putOrRemove(SECRET_SALT, config.pin?.salt)
+        putOrRemove(SECRET_ITERATIONS, config.pin?.iterations)
         putOrRemove(RECOVERY_HASH, config.recovery?.hash)
         putOrRemove(RECOVERY_SALT, config.recovery?.salt)
         putOrRemove(RECOVERY_ITERATIONS, config.recovery?.iterations)
-        this[RECOVERY_METHOD] = config.recoveryMethod.storageKey
         this[BIOMETRIC] = config.biometricEnabled
         this[TIMEOUT] = config.timeout.storageKey
-        this[HIDE_IN_RECENTS] = config.hideInRecents
         this[FAILED_ATTEMPTS] = config.failedAttempts
         this[LOCKOUT_STARTED] = config.lockoutStartedElapsed
         this[LOCKOUT_DURATION] = config.lockoutDurationMs
@@ -104,17 +100,20 @@ class DataStoreAppLockStore(context: Context) : AppLockStore {
     }
 
     private companion object {
-        val TYPE = stringPreferencesKey("lock_type")
+        // Key names predate the PIN-only lock; kept so an existing lock stays readable.
         val SECRET_HASH = stringPreferencesKey("secret_hash")
         val SECRET_SALT = stringPreferencesKey("secret_salt")
         val SECRET_ITERATIONS = intPreferencesKey("secret_iterations")
         val RECOVERY_HASH = stringPreferencesKey("recovery_hash")
         val RECOVERY_SALT = stringPreferencesKey("recovery_salt")
         val RECOVERY_ITERATIONS = intPreferencesKey("recovery_iterations")
-        val RECOVERY_METHOD = stringPreferencesKey("recovery_method")
         val BIOMETRIC = booleanPreferencesKey("biometric_enabled")
         val TIMEOUT = stringPreferencesKey("auto_lock_timeout")
-        val HIDE_IN_RECENTS = booleanPreferencesKey("hide_in_recents")
+        val LEGACY_KEYS = listOf(
+            stringPreferencesKey("lock_type"),
+            stringPreferencesKey("recovery_method"),
+            booleanPreferencesKey("hide_in_recents")
+        )
         val FAILED_ATTEMPTS = intPreferencesKey("failed_attempts")
         val LOCKOUT_STARTED = longPreferencesKey("lockout_started_elapsed")
         val LOCKOUT_DURATION = longPreferencesKey("lockout_duration_ms")

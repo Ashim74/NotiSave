@@ -19,13 +19,10 @@ object Analytics {
     const val APP_LOCK_DISABLED = "app_lock_disabled"
     const val APP_LOCK_CHANGED = "app_lock_changed"
     const val APP_LOCK_RECOVERED = "app_lock_recovered"
-    const val APP_LOCK_ERASE_RESET = "app_lock_erase_reset"
     const val APP_LOCK_LOCKOUT = "app_lock_lockout"
 
     // Event params. Never the PIN, its length or any hash.
-    const val PARAM_TYPE = "type"
     const val PARAM_METHOD = "method"
-    const val PARAM_BIOMETRIC = "biometric"
 
     @Volatile
     private var appContext: Context? = null

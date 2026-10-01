@@ -2,11 +2,10 @@
 <resources>
     <string name="app_name">Notification History</string>
     <string name="warning_only_matching_titles">Only notifications matching added titles will be saved</string>
-    <string name="label_add_title_filter">Add title filter</string>
+    <string name="label_add_title_filter">Save only titles containing…</string>
     <string name="btn_add">Add</string>
-    <string name="btn_clear_all_filters">Clear All Filters</string>
-    <string name="label_current_filters">Current Filters</string>
-    <string name="label_no_filters">No filters added yet</string>
+    <string name="btn_clear_all_filters">Clear all filters</string>
+    <string name="label_no_filters">No filters — every notification is saved</string>
     <string name="btn_save">Save</string>
     <string name="btn_apply">Apply</string>
     <string name="remove">Remove</string>
@@ -29,27 +28,23 @@
     <string name="premium_welcome_later_button">Later</string>
     <string name="premium_menu_remove_ads">Remove Ads</string>
     <string name="premium_menu_already_unlocked">Premium unlocked</string>
-    <string name="premium_menu_unlocked_subtitle">Thanks for supporting us!</string>
-    <string name="premium_menu_remove_ads_subtitle">Enjoy the app without ads and support development.</string>
     <string name="settings_privacy_options">Privacy options</string>
-    <string name="settings_privacy_options_description">Review or change your ad consent choices.</string>
 
     <!-- About screen -->
     <string name="about_title">About</string>
     <string name="rate_us">Rate Us</string>
-    <string name="rate_us_desc">Enjoying the app? Leave a review.</string>
+    <plurals name="rate_us_star_description">
+        <item quantity="one">%d star</item>
+        <item quantity="other">%d stars</item>
+    </plurals>
     <string name="share_us">Share Us</string>
-    <string name="share_us_desc">Invite friends to try Notification History.</string>
     <string name="report_bugs">Report Bugs</string>
-    <string name="report_bugs_desc">Report any bugs or issues you encounter.</string>
     <string name="follow_instagram">Follow us on Instagram</string>
-    <string name="follow_instagram_desc">Get updates, tips, and new releases.</string>
     <string name="join_whatsapp">Join our WhatsApp Community</string>
-    <string name="join_whatsapp_desc">Ask questions and get quick support.</string>
-    <string name="app_version">App Version</string>
+    <string name="about_version">Version %1$s</string>
     <string name="checkout_other_apps">Check Out Other Apps</string>
     <string name="check_more_apps_playstore">Check more apps on Play Store</string>
-    <string name="app_about_description">Notification History stores your recent alerts so you can revisit them anytime.</string>    <string name="other_app_clipboard_title">Clipboard History</string>
+    <string name="other_app_clipboard_title">Clipboard History</string>
     <string name="other_app_clipboard_description">Save your latest copied text so you can paste it quickly.</string>
     <string name="other_app_flash_alert_title">Flash Alert</string>
     <string name="other_app_flash_alert_description">Get flash alerts for calls, messages, and notifications.</string>
@@ -112,53 +107,42 @@ We need notification access to save and organize your notifications.\n\nHow to e
 Find “Notification History” → Turn ON access.
 </string>
     <string name="manage_selected_apps_message">To manage selected apps, tap Select Apps.</string>
-    <string name="select_at_least_one_app_message">Select at least one app to start saving notifications.</string>
     <string name="go_to_settings">Go to settings</string>
 
     <!-- Home dashboard and general settings -->
     <string name="settings_title">Settings</string>
-    <string name="tracking_active">Tracking active</string>
-    <string name="tracking_paused">Tracking paused</string>
-    <string name="tracking_permission_required">Permission required</string>
-    <string name="tracking_active_description">Saving notifications from your selected apps.</string>
-    <string name="tracking_paused_description">Tracking is paused. Your existing history is safe.</string>
-    <string name="tracking_permission_description">Allow notification access to start saving history.</string>
-    <string name="home_view_history">View History</string>
-    <string name="home_view_history_description">Search and review saved alerts</string>
     <string name="home_manage_apps">Manage Apps</string>
-    <string name="home_selected_apps_count">%1$d apps selected</string>
     <string name="battery_warning_title">Improve reliability</string>
-    <string name="battery_warning_description">Allow background activity so notifications are saved reliably.</string>
     <string name="fix">Fix</string>
     <string name="billing_unavailable">Billing is not available right now.</string>
     <string name="purchase_unavailable">Unable to start purchase from this screen.</string>
     <string name="settings_tracking_section">Tracking</string>
     <string name="settings_history_section">History</string>
-    <string name="settings_reliability_section">Reliability</string>
-    <string name="settings_premium_app_section">Premium and app</string>
-    <string name="settings_tracking_description">Control whether new notifications are saved.</string>
     <string name="settings_notification_access">Notification access</string>
     <string name="settings_permission_granted">Allowed</string>
-    <string name="settings_permission_required">Required — tap to open system settings</string>
-    <string name="settings_open_history_description">Search, filter and manage saved notifications</string>
+    <string name="settings_value_needed">Needed — tap to allow</string>
+    <string name="settings_value_on">On</string>
+    <string name="settings_value_off">Off</string>
+    <string name="settings_battery_unrestricted">Unrestricted</string>
+    <string name="settings_battery_restricted">Restricted — tap to fix</string>
+    <string name="settings_general_section">General</string>
+    <string name="settings_app_section">App</string>
+    <plurals name="settings_apps_count">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
     <string name="settings_clear_history">Clear all history</string>
-    <string name="settings_clear_history_description">Move all saved notifications to Trash, where they can be restored later.</string>
     <string name="clear_history_confirmation">All notifications will be moved to Trash and can be restored later.</string>
     <string name="clear_history_confirmation_title">Clear all history?</string>
     <string name="settings_battery_optimization">Battery optimization</string>
-    <string name="settings_battery_ready">Background reliability is configured</string>
-    <string name="settings_battery_action">Tap to allow reliable background operation</string>
     <string name="settings_premium_active">Premium active</string>
     <string name="settings_feedback">Feedback and support</string>
-    <string name="settings_feedback_description">Report an issue or send feedback</string>
     <string name="delete">Delete</string>
     <string name="cancel">Cancel</string>
     <string name="move_to_trash">Move to Trash</string>
     <string name="trash_title">Trash</string>
-    <string name="settings_trash_description">Restore or permanently delete notifications</string>
     <string name="trash_empty">Trash is empty.</string>
-    <string name="trash_deleted_at">Moved to Trash: %1$s</string>
-    <string name="trash_received_at">Received: %1$s</string>
+    <string name="trash_deleted_at">Deleted %1$s</string>
     <string name="trash_restore">Restore</string>
     <string name="trash_restore_all">Restore all</string>
     <string name="trash_restore_all_question">Restore all notifications?</string>
@@ -177,12 +161,14 @@ Find “Notification History” → Turn ON access.
     <string name="onboarding_allow_access">Allow access</string>
     <string name="onboarding_done">Done</string>
     <string name="onboarding_intro_title">Never lose a notification again</string>
-    <string name="onboarding_intro_description">Notification History quietly saves the alerts you swipe away, so you can read deleted messages, missed reminders and everything else later.</string>
+    <string name="onboarding_feature_saves">Saves notifications you swipe away</string>
+    <string name="onboarding_feature_deleted">Read deleted messages later</string>
+    <string name="onboarding_feature_private">Nothing leaves your phone</string>
     <string name="onboarding_access_title">Allow notification access</string>
-    <string name="onboarding_access_description">Android needs your permission before any app can read notifications. Nothing leaves your device.</string>
+    <string name="onboarding_access_description">Android asks before any app can read notifications. Nothing leaves your phone.</string>
     <string name="onboarding_access_granted_hint">You\'re all set. Next, choose which apps to save.</string>
     <string name="onboarding_apps_title">Choose apps to save</string>
-    <string name="onboarding_apps_description">We\'ve pre-selected your messaging apps. You can change this anytime from Manage Apps.</string>
+    <string name="onboarding_apps_description">Messaging apps are pre-selected. Change anytime.</string>
 
     <!-- Recording-stopped alert -->
     <string name="alert_channel_name">Recording status</string>
@@ -199,7 +185,6 @@ Find “Notification History” → Turn ON access.
     <string name="shortcut_insights_long">Open insights</string>
 
     <!-- Empty-state helpers -->
-    <string name="history_empty_description">Notifications from your selected apps will be saved here as they arrive.</string>
     <string name="trash_empty_description">Notifications you delete stay here for %1$d days before they\'re removed for good.</string>
     <string name="insights_empty_description">Once notifications are saved, trends and top apps will show up here.</string>
 
@@ -208,21 +193,16 @@ Find “Notification History” → Turn ON access.
 
     <!-- Home dashboard -->
     <string name="home_status_recording">Recording</string>
+    <string name="home_status_paused">Paused</string>
+    <string name="home_status_access_needed">Access needed</string>
     <string name="home_status_reconnecting">Reconnecting…</string>
-    <string name="home_status_reconnecting_description">Access is granted but the listener isn\'t connected. Tap to reconnect.</string>
     <string name="home_status_allow">Allow</string>
-    <plurals name="home_saved_today">
-        <item quantity="one">%d notification saved today</item>
-        <item quantity="other">%d notifications saved today</item>
-    </plurals>
-    <string name="home_today_section">Today</string>
     <string name="home_stat_notifications">Notifications</string>
     <string name="home_stat_apps">Apps</string>
     <string name="home_stat_top_app">Top app</string>
     <string name="home_recent_section">Recent</string>
     <string name="home_see_all">See all</string>
     <string name="home_recent_empty_title">Nothing saved yet</string>
-    <string name="home_recent_empty_description">Notifications from your selected apps will appear here as they arrive.</string>
     <string name="home_no_apps_selected_title">No apps selected</string>
     <string name="home_select_apps_action">Select</string>
 
@@ -237,7 +217,6 @@ Find “Notification History” → Turn ON access.
     </plurals>
 
     <!-- Appearance -->
-    <string name="settings_appearance_section">Appearance</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_theme_dialog_title">Choose theme</string>
     <string name="theme_system">System default</string>
@@ -263,10 +242,10 @@ Find “Notification History” → Turn ON access.
     <string name="history_tab_messages">Messages</string>
     <string name="history_tab_apps">Apps</string>
     <string name="history_mode_all">All</string>
-    <string name="history_mode_conversations">Conversations</string>
+    <string name="history_mode_conversations">Chats</string>
     <string name="history_filter_all_apps">All apps</string>
     <string name="history_clear_filters">Clear filters</string>
-    <string name="history_empty">No notification history.</string>
+    <string name="history_empty">No notifications yet</string>
     <string name="history_empty_search">No search results.</string>
     <string name="history_empty_filters">No notifications match these filters.</string>
     <string name="history_custom_date_range">Custom date range</string>
@@ -286,9 +265,9 @@ Find “Notification History” → Turn ON access.
 
     <!-- Manage apps -->
     <string name="search_apps_hint">Search apps</string>
-    <string name="select_apps_description">Select the apps whose notifications you want to save.</string>
-    <string name="select_all">Select All</string>
-    <string name="all_apps">All Apps</string>
+    <string name="select_all">Select all</string>
+    <string name="select_apps_count">%1$d of %2$d apps saved</string>
+    <string name="select_apps_filters">Title filters for %1$s</string>
     <string name="loading_apps">Loading apps…</string>
     <string name="select_apps_bulk_selecting">Selecting apps…</string>
     <string name="select_apps_bulk_removing">Removing apps…</string>
@@ -304,16 +283,14 @@ Find “Notification History” → Turn ON access.
     <string name="insights_range_all_time">All time</string>
     <string name="insights_total">Notifications</string>
     <string name="insights_active_apps">Active apps</string>
-    <string name="insights_most_active_app">Most active app</string>
     <string name="insights_busiest_hour">Busiest hour</string>
     <string name="insights_none">—</string>
-    <string name="insights_notification_count">%1$d notifications</string>
     <string name="insights_activity">Activity</string>
-    <string name="insights_bucket_hourly">Notifications per hour</string>
-    <string name="insights_bucket_daily">Notifications per day</string>
-    <string name="insights_bucket_weekly">Notifications per week</string>
-    <string name="insights_bucket_monthly">Notifications per month</string>
-    <string name="insights_bucket_yearly">Notifications per year</string>
+    <string name="insights_current_hour">This hour</string>
+    <string name="insights_current_day">Today</string>
+    <string name="insights_current_week">This week</string>
+    <string name="insights_current_month">This month</string>
+    <string name="insights_current_year">This year</string>
     <string name="insights_chart_description">Activity chart with %1$d periods. Peak: %2$s with %3$d notifications.</string>
     <string name="insights_chart_description_empty">Activity chart. No notifications in this range.</string>
     <string name="insights_chart_bar_description">%1$s: %2$d notifications</string>
@@ -337,64 +314,39 @@ Find “Notification History” → Turn ON access.
         <item quantity="other">%1$d notifications will be moved to Trash. You can restore them later.</item>
     </plurals>
 
-    <!-- App lock (M8) -->
-    <string name="settings_privacy_section">Privacy &amp; security</string>
+    <!-- App lock: 4-digit PIN; forgot PIN → phone screen lock or recovery code -->
     <string name="settings_app_lock">App lock</string>
-    <string name="settings_app_lock_off">Off — anyone using your phone can open your history</string>
     <string name="app_lock_title">App lock</string>
     <string name="app_lock_intro_title">Lock your notification history</string>
-    <string name="app_lock_intro_body">Ask for a PIN or password every time the app is opened. Notifications keep being saved while the app is locked.</string>
-    <string name="app_lock_forgot_info">Forget it later? You can reset it with your phone\'s screen lock or a recovery code.</string>
+    <string name="app_lock_intro_body">Ask for a 4-digit PIN when the app opens. Notifications keep being saved while it\'s locked.</string>
+    <string name="app_lock_forgot_info">Forgot your PIN? You can get back in with your phone\'s screen lock or a recovery code.</string>
     <string name="app_lock_turn_on">Turn on app lock</string>
-    <string name="app_lock_setup_title">Set up app lock</string>
     <string name="app_lock_status_on">App lock is on</string>
-    <string name="app_lock_status_on_pin">Unlocks with a PIN</string>
-    <string name="app_lock_status_on_password">Unlocks with a password</string>
-    <string name="app_lock_section_unlock">Unlocking</string>
-    <string name="app_lock_section_recovery">If you forget</string>
-    <string name="app_lock_change">Change PIN or password</string>
-    <string name="app_lock_change_desc">You can also switch between PIN and password</string>
+    <string name="app_lock_status_on_desc">Your PIN is needed to open the app</string>
+    <string name="app_lock_change">Change PIN</string>
     <string name="app_lock_timeout">Lock after leaving the app</string>
     <string name="app_lock_timeout_dialog_title">Lock after</string>
     <string name="app_lock_timeout_immediately">Immediately</string>
     <string name="app_lock_timeout_30s">After 30 seconds</string>
     <string name="app_lock_timeout_1m">After 1 minute</string>
     <string name="app_lock_timeout_5m">After 5 minutes</string>
-    <string name="app_lock_biometric">Unlock with fingerprint or face</string>
-    <string name="app_lock_biometric_desc">Your PIN or password still works, and is needed to change these settings</string>
-    <string name="app_lock_biometric_enable_title">Use fingerprint or face</string>
-    <string name="app_lock_biometric_enable_subtitle">Confirm to turn on biometric unlock</string>
-    <string name="app_lock_setup_use_biometric">Also unlock with fingerprint or face</string>
-    <string name="app_lock_hide_recents">Hide content in Recents</string>
-    <string name="app_lock_hide_recents_desc">Shows a blank preview in the app switcher and blocks screenshots</string>
-    <string name="app_lock_recovery_method">Forgot-PIN options</string>
-    <string name="app_lock_recovery_device_and_code">Phone screen lock or recovery code</string>
-    <string name="app_lock_recovery_device_and_code_desc">Easiest. Anyone who knows your phone\'s PIN could also reset the app lock.</string>
-    <string name="app_lock_recovery_code_only">Recovery code only</string>
-    <string name="app_lock_recovery_code_only_desc">Stricter. Choose this if other people know your phone\'s PIN.</string>
-    <string name="app_lock_code_only_note">Only your recovery code can reset a forgotten PIN. Without it, the last option is erasing your history.</string>
-    <string name="app_lock_no_device_lock_warning">Your phone has no screen lock, so your recovery code is the only way to reset a forgotten PIN without erasing your history.</string>
-    <string name="app_lock_recovery_step_title">If you ever forget it</string>
-    <string name="app_lock_recovery_step_subtitle">Choose how you can get back in. You\'ll also get a recovery code to keep safe.</string>
-    <string name="app_lock_new_recovery_code">Get a new recovery code</string>
-    <string name="app_lock_new_recovery_code_desc">Your old code stops working</string>
+    <string name="app_lock_biometric">Unlock with fingerprint</string>
+    <string name="app_lock_biometric_enable_title">Use fingerprint</string>
+    <string name="app_lock_biometric_enable_subtitle">Confirm to turn on fingerprint unlock</string>
+    <string name="app_lock_new_recovery_code">New recovery code</string>
     <string name="app_lock_turn_off">Turn off app lock</string>
-    <string name="app_lock_turn_off_desc">Anyone using your phone will be able to open your history</string>
-    <string name="app_lock_verify_title_pin">Enter your current PIN</string>
-    <string name="app_lock_verify_title_password">Enter your current password</string>
+    <string name="app_lock_turn_off_confirm_title">Turn off app lock?</string>
+    <string name="app_lock_turn_off_confirm_body">Anyone using your phone will be able to open your history. Your PIN and recovery code will be removed.</string>
+    <string name="app_lock_turn_off_confirm">Turn off</string>
+    <string name="app_lock_verify_title">Enter your current PIN</string>
     <string name="app_lock_turned_on">App lock is on</string>
-    <string name="app_lock_changed">Lock updated</string>
+    <string name="app_lock_changed">PIN changed</string>
     <string name="app_lock_turned_off">App lock turned off</string>
-    <string name="app_lock_recovery_changed">Forgot-PIN options updated</string>
 
-    <string name="lock_screen_title_pin">Enter your PIN</string>
-    <string name="lock_screen_title_password">Enter your password</string>
+    <string name="lock_screen_title">Enter your PIN</string>
     <string name="lock_screen_subtitle">Notification History is locked</string>
-    <string name="lock_password_label">Password</string>
     <string name="lock_continue">Continue</string>
-    <string name="lock_unlock_biometric">Use fingerprint or face</string>
     <string name="lock_forgot_pin">Forgot PIN?</string>
-    <string name="lock_forgot_password">Forgot password?</string>
     <string name="lock_biometric_prompt_title">Unlock Notification History</string>
     <string name="lock_biometric_prompt_subtitle">Confirm it\'s you to see your history</string>
     <string name="lock_locked_out">Too many attempts. Try again in %1$s</string>
@@ -403,46 +355,26 @@ Find “Notification History” → Turn ON access.
         <item quantity="other">Incorrect. %1$d attempts left before a timeout.</item>
     </plurals>
     <string name="pin_pad_delete">Delete</string>
-    <string name="pin_pad_submit">Confirm</string>
-    <string name="pin_dots_description">%1$d digits entered</string>
-    <string name="lock_forgot_title">Can\'t remember it?</string>
-    <string name="lock_forgot_subtitle">Choose how to get back in.</string>
-    <string name="lock_recover_device_title">Use your phone\'s screen lock</string>
-    <string name="lock_recover_device_desc">Confirm your phone\'s PIN, pattern or password, then set a new app lock.</string>
+    <string name="pin_pad_fingerprint">Unlock with fingerprint</string>
+    <string name="pin_dots_description">%1$d of %2$d digits entered</string>
+    <string name="lock_forgot_title">Forgot your PIN?</string>
+    <string name="lock_forgot_subtitle">Confirm it\'s you, then set a new PIN.</string>
+    <string name="lock_use_screen_lock">Use phone screen lock</string>
+    <string name="lock_use_recovery_code">Use recovery code</string>
+    <string name="lock_no_screen_lock">Your phone has no screen lock, so use your recovery code.</string>
     <string name="lock_device_confirm_title">Confirm it\'s you</string>
-    <string name="lock_device_confirm_desc">Use your phone\'s screen lock to reset the Notification History lock</string>
-    <string name="lock_device_failed">Couldn\'t confirm your screen lock. Try again or use another option.</string>
+    <string name="lock_device_confirm_desc">Use your phone\'s screen lock to reset your app PIN</string>
+    <string name="lock_device_failed">Couldn\'t confirm your screen lock. Try again.</string>
     <string name="lock_recover_code_title">Enter recovery code</string>
-    <string name="lock_recover_code_desc">Use the 12-character code you saved when you turned on the lock.</string>
+    <string name="lock_recover_code_desc">The code you saved when you turned on the lock.</string>
     <string name="lock_recovery_code_label">Recovery code</string>
-    <string name="lock_recovery_code_hint" translatable="false">XXXX-XXXX-XXXX</string>
-    <string name="lock_recover_erase_title">Erase history and reset lock</string>
-    <string name="lock_recover_erase_desc">Deletes every saved notification. Use this only if there is no other way in.</string>
-    <string name="lock_new_secret_title_reset">Set a new lock</string>
-    <string name="lock_choose_type_title">Choose how to unlock the app</string>
-    <string name="lock_type_pin">PIN</string>
-    <string name="lock_type_pin_desc">4 to 8 digits</string>
-    <string name="lock_type_password">Password</string>
-    <string name="lock_type_password_desc">At least 6 characters</string>
-    <string name="lock_enter_new_pin">Enter a new PIN</string>
-    <string name="lock_enter_new_password">Enter a new password</string>
-    <string name="lock_confirm_pin">Confirm your PIN</string>
-    <string name="lock_confirm_password">Confirm your password</string>
-    <string name="lock_error_too_short_pin">Use at least 4 digits</string>
-    <string name="lock_error_too_short_password">Use at least 6 characters</string>
-    <string name="lock_error_too_long">That\'s too long</string>
-    <string name="lock_error_digits">A PIN can only contain numbers</string>
-    <string name="lock_error_mismatch">They didn\'t match. Enter it again.</string>
-    <string name="lock_recovery_code_title">Save your recovery code</string>
-    <string name="lock_recovery_code_body">If you forget your PIN or password, this code lets you set a new one. It is shown only once — write it down or keep it somewhere safe off this phone.</string>
-    <string name="lock_copy_code">Copy code</string>
+    <string name="lock_recovery_code_hint" translatable="false">XXXX-XXXX</string>
+    <string name="lock_enter_new_pin">Create a 4-digit PIN</string>
+    <string name="lock_confirm_pin">Enter it again to confirm</string>
+    <string name="lock_error_mismatch">PINs didn\'t match. Try again.</string>
+    <string name="lock_recovery_code_title">Your recovery code</string>
+    <string name="lock_recovery_code_body">Use it if you forget your PIN and can\'t use your phone\'s screen lock. Write it down or keep it somewhere safe.</string>
+    <string name="lock_copy_code">Copy</string>
     <string name="lock_code_copied">Recovery code copied</string>
-    <string name="lock_code_saved_check">I\'ve saved my recovery code</string>
-    <string name="lock_done">Done</string>
-    <string name="lock_erase_title">Erase history?</string>
-    <string name="lock_erase_body">All saved notifications, conversations and trash will be permanently deleted and the app lock turned off. Premium, your selected apps and settings are kept. This can\'t be undone.</string>
-    <string name="lock_erase_word" translatable="false">ERASE</string>
-    <string name="lock_erase_type_hint">Type %1$s to confirm</string>
-    <string name="lock_erase_button">Erase and reset</string>
-    <string name="lock_erase_button_wait">Erase and reset (%1$d)</string>
+    <string name="lock_code_saved">I\'ve saved it</string>
 </resources>

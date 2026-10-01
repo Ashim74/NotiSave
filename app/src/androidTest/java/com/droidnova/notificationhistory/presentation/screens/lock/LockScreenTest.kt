@@ -4,7 +4,6 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -12,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.droidnova.notificationhistory.core.lock.AppLockController.Gate
 import com.droidnova.notificationhistory.presentation.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,7 +24,7 @@ class LockScreenTest {
 
     private fun setLockScreen(
         state: LockScreenState,
-        deviceRecoveryAvailable: Boolean = true,
+        deviceLockAvailable: Boolean = true,
         actions: LockScreenActions = LockScreenActions()
     ) {
         compose.setContent {
@@ -32,9 +32,8 @@ class LockScreenTest {
                 LockScreenContent(
                     state = state,
                     biometricAvailable = false,
-                    deviceRecoveryAvailable = deviceRecoveryAvailable,
-                    actions = actions,
-                    eraseDelaySeconds = 0
+                    deviceLockAvailable = deviceLockAvailable,
+                    actions = actions
                 )
             }
         }
@@ -54,38 +53,52 @@ class LockScreenTest {
     }
 
     @Test
-    fun pinPadSubmitsTypedDigits() {
+    fun pinSubmitsItselfOnTheFourthDigit() {
         var submitted: String? = null
-        setLockScreen(LockScreenState(), actions = LockScreenActions(onSubmitSecret = { submitted = it }))
-        listOf("1", "2", "3", "4").forEach { compose.onNodeWithText(it).performClick() }
-        compose.onNodeWithContentDescription("Confirm").performClick()
+        setLockScreen(LockScreenState(), actions = LockScreenActions(onSubmitPin = { submitted = it }))
+        listOf("1", "2", "3").forEach { compose.onNodeWithText(it).performClick() }
+        assertNull(submitted)
+        compose.onNodeWithText("4").performClick()
         assertEquals("1234", submitted)
     }
 
     @Test
-    fun wrongAttemptAndLockoutAreExplained() {
-        setLockScreen(LockScreenState(feedback = VerifyFeedback(attemptsLeft = 2)))
+    fun wrongAttemptIsExplained() {
+        setLockScreen(LockScreenState(feedback = VerifyFeedback(attemptsLeft = 2, rejections = 1)))
         compose.onNodeWithText("Incorrect. 2 attempts left before a timeout.").assertExists()
     }
 
     @Test
-    fun forgotOptionsHideScreenLockWhenUnavailable() {
-        setLockScreen(LockScreenState(stage = LockStage.ForgotOptions), deviceRecoveryAvailable = false)
-        compose.onNodeWithText("Use your phone's screen lock").assertDoesNotExist()
-        compose.onNodeWithText("Enter recovery code").assertExists()
-        compose.onNodeWithText("Erase history and reset lock").assertExists()
+    fun forgotOffersPhoneScreenLockAndRecoveryCode() {
+        var usedDeviceLock = 0
+        setLockScreen(
+            LockScreenState(stage = LockStage.Forgot),
+            actions = LockScreenActions(onUseDeviceLock = { usedDeviceLock++ })
+        )
+        compose.onNodeWithText("Use recovery code").assertExists()
+        compose.onNodeWithText("Use phone screen lock").performClick()
+        assertEquals(1, usedDeviceLock)
     }
 
     @Test
-    fun eraseNeedsTheConfirmationWord() {
-        var erased = 0
+    fun forgotWithoutPhoneScreenLockOffersOnlyTheCode() {
+        setLockScreen(LockScreenState(stage = LockStage.Forgot), deviceLockAvailable = false)
+        compose.onNodeWithText("Use phone screen lock").assertDoesNotExist()
+        compose.onNodeWithText("Use recovery code").assertExists()
+    }
+
+    @Test
+    fun recoveryCodeNeedsAllEightCharacters() {
+        var submitted: String? = null
         setLockScreen(
-            LockScreenState(stage = LockStage.EraseConfirm),
-            actions = LockScreenActions(onConfirmErase = { erased++ })
+            LockScreenState(stage = LockStage.RecoveryCode),
+            actions = LockScreenActions(onSubmitRecoveryCode = { submitted = it })
         )
-        compose.onNodeWithText("Erase and reset").assertIsNotEnabled()
-        compose.onNodeWithText("Type ERASE to confirm").performTextInput("erase")
-        compose.onNodeWithText("Erase and reset").assertIsEnabled().performClick()
-        assertEquals(1, erased)
+        compose.onNodeWithText("Continue").assertIsNotEnabled()
+        compose.onNodeWithText("Recovery code").performTextInput("abcd-234")
+        compose.onNodeWithText("Continue").assertIsNotEnabled()
+        compose.onNodeWithText("Recovery code").performTextInput("5")
+        compose.onNodeWithText("Continue").assertIsEnabled().performClick()
+        assertEquals("abcd-2345", submitted)
     }
 }

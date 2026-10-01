@@ -11,12 +11,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Badge
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +48,13 @@ import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.ConversationModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
+import com.droidnova.notificationhistory.presentation.components.AppCard
+import com.droidnova.notificationhistory.presentation.components.AppCardDefaults
+import com.droidnova.notificationhistory.presentation.components.GroupRowGap
+import com.droidnova.notificationhistory.presentation.components.groupedShape
+import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.Shape
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
 import com.droidnova.notificationhistory.presentation.components.EmptyState
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
@@ -54,6 +62,8 @@ import com.droidnova.notificationhistory.presentation.components.HistoryEmptySta
 import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
+import com.droidnova.notificationhistory.presentation.ui.theme.ScreenListContentPadding
+import com.droidnova.notificationhistory.presentation.ui.theme.listItemPadding
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.toReadableShareText
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -94,16 +104,20 @@ fun ConversationListContent(
             .collect { mainViewModel.loadMoreConversations() }
     }
 
-    LazyColumn(modifier = modifier.fillMaxSize(), state = listState) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        state = listState,
+        contentPadding = ScreenListContentPadding
+    ) {
         if (conversations.isEmpty()) {
             item(key = "conversation-state") {
                 if (!state.hasLoaded) {
-                    HistoryLoadingState(Modifier.fillMaxSize())
+                    HistoryLoadingState(Modifier.fillParentMaxSize())
                 } else {
                     when {
                         searchQuery.isNotBlank() -> EmptyState(
                             title = stringResource(R.string.conversations_empty_search),
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillParentMaxSize(),
                             actionLabel = onClearSearch?.let {
                                 stringResource(R.string.content_description_clear_search)
                             },
@@ -111,7 +125,7 @@ fun ConversationListContent(
                         )
                         hasActiveFilters -> EmptyState(
                             title = stringResource(R.string.conversations_empty_filters),
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillParentMaxSize(),
                             actionLabel = onClearFilters?.let {
                                 stringResource(R.string.history_clear_filters)
                             },
@@ -119,16 +133,18 @@ fun ConversationListContent(
                         )
                         else -> EmptyState(
                             title = stringResource(R.string.conversations_empty),
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillParentMaxSize()
                         )
                     }
                 }
             }
         } else {
-            items(conversations, key = { it.conversationKey }) { conversation ->
+            itemsIndexed(conversations, key = { _, item -> item.conversationKey }) { index, conversation ->
                 ConversationRow(
+                    modifier = Modifier.animateItem(),
                     conversation = conversation,
-                    onClick = { onConversationClick(conversation) }
+                    onClick = { onConversationClick(conversation) },
+                    shape = groupedShape(index, conversations.size)
                 )
             }
             if (state.isLoadingMore) {
@@ -144,33 +160,42 @@ fun ConversationListContent(
     }
 }
 
+/** Two lines: who + when, then the latest message and how many messages there are. */
 @Composable
-private fun ConversationRow(conversation: ConversationModel, onClick: () -> Unit) {
+private fun ConversationRow(
+    conversation: ConversationModel,
+    onClick: () -> Unit,
+    shape: Shape,
+    modifier: Modifier = Modifier
+) {
     val yesterdayLabel = stringResource(R.string.date_yesterday)
     val time = remember(conversation.latestReceivedAtEpoch, yesterdayLabel) {
         formatConversationTime(conversation.latestReceivedAtEpoch, yesterdayLabel)
     }
-    Card(
+    Surface(
         onClick = onClick,
-        modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 4.dp)
-            .fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
-        )
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = Dimens.ScreenHorizontal, vertical = GroupRowGap / 2),
+        shape = shape,
+        color = AppCardDefaults.containerColor()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            HistoryAppIcon(packageName = conversation.packageName)
-            Spacer(Modifier.width(10.dp))
+            HistoryAppIcon(
+                packageName = conversation.packageName,
+                size = 36.dp,
+                contentDescription = conversation.appName.ifBlank { conversation.packageName }
+            )
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = conversation.title,
                         modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -179,20 +204,11 @@ private fun ConversationRow(conversation: ConversationModel, onClick: () -> Unit
                         text = time,
                         modifier = Modifier.padding(start = 8.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
                     )
                 }
-                Text(
-                    text = conversation.appName.ifBlank { conversation.packageName },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(
-                    modifier = Modifier.padding(top = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = conversation.latestMessage.replace('\n', ' '),
                         modifier = Modifier.weight(1f),
@@ -201,12 +217,14 @@ private fun ConversationRow(conversation: ConversationModel, onClick: () -> Unit
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Badge(
-                        modifier = Modifier.padding(start = 8.dp),
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    ) {
-                        Text(conversation.messageCount.toString())
+                    if (conversation.messageCount > 1) {
+                        Badge(
+                            modifier = Modifier.padding(start = 8.dp),
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ) {
+                            Text(conversation.messageCount.toString())
+                        }
                     }
                 }
             }
@@ -451,36 +469,40 @@ private fun TimelineMessage(
     val subtitle = notification.title.takeIf {
         it.isNotBlank() && !it.startsWith(conversationTitle, ignoreCase = true)
     }
-    Card(
-        onClick = onClick,
+    // A chat bubble: as wide as its text needs, sender on top, time tucked in the corner.
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
-        )
+            .padding(horizontal = Dimens.ScreenHorizontal, vertical = 3.dp)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.widthIn(max = 320.dp),
+            shape = RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp),
+            color = AppCardDefaults.containerColor()
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
-                    text = subtitle.orEmpty(),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = notification.text.ifBlank { notification.title },
+                    style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
                     text = time,
+                    modifier = Modifier.align(Alignment.End),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(
-                text = notification.text.ifBlank { notification.title },
-                modifier = Modifier.padding(top = 4.dp),
-                style = MaterialTheme.typography.bodyMedium
-            )
         }
     }
 }

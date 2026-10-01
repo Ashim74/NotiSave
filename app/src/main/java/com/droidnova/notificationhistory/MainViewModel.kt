@@ -529,12 +529,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** App lock "erase and reset" already deleted every row; drop what is cached in memory. */
-    fun onHistoryErased() {
-        clearAllHistoryUiState()
-        _trash.value = emptyList()
-    }
-
     private fun clearAllHistoryUiState() {
         historyLoadGeneration++
         activeHistoryLoadGeneration = null
