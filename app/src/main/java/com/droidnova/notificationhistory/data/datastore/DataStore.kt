@@ -16,6 +16,7 @@ import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LISTENER_C
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.ONBOARDING_COMPLETE
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.THEME_MODE
+import com.droidnova.notificationhistory.core.review.ReviewState
 import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 import kotlinx.coroutines.flow.Flow
@@ -190,6 +191,38 @@ class UserPreferences(private val context: Context) {
     suspend fun incrementLaunchCount() {
         context.dataStore.edit { preference ->
             preference[LAUNCH_COUNT] = (preference[LAUNCH_COUNT] ?: 0) + 1
+        }
+    }
+
+    /**
+     * Counts one "it helped" moment (the user read, copied or restored a saved notification) and
+     * returns the review state after it. Also stamps the first-open time the first time it runs.
+     */
+    suspend fun recordValueMoment(now: Long): ReviewState {
+        val prefs = context.dataStore.edit { p ->
+            if (p[DataStoreKeys.FIRST_OPEN_AT] == null) p[DataStoreKeys.FIRST_OPEN_AT] = now
+            p[DataStoreKeys.VALUE_MOMENTS] = (p[DataStoreKeys.VALUE_MOMENTS] ?: 0) + 1
+        }
+        return ReviewState(
+            firstOpenAt = prefs[DataStoreKeys.FIRST_OPEN_AT] ?: now,
+            launchCount = prefs[LAUNCH_COUNT] ?: 0,
+            valueMoments = prefs[DataStoreKeys.VALUE_MOMENTS] ?: 0,
+            lastAskedAt = prefs[DataStoreKeys.REVIEW_LAST_ASKED_AT],
+            askCount = prefs[DataStoreKeys.REVIEW_ASK_COUNT] ?: 0
+        )
+    }
+
+    /** Stamps the first-open time if it isn't set yet (called on every launch). */
+    suspend fun markFirstOpen(now: Long) {
+        context.dataStore.edit { p ->
+            if (p[DataStoreKeys.FIRST_OPEN_AT] == null) p[DataStoreKeys.FIRST_OPEN_AT] = now
+        }
+    }
+
+    suspend fun markReviewAsked(now: Long) {
+        context.dataStore.edit { p ->
+            p[DataStoreKeys.REVIEW_LAST_ASKED_AT] = now
+            p[DataStoreKeys.REVIEW_ASK_COUNT] = (p[DataStoreKeys.REVIEW_ASK_COUNT] ?: 0) + 1
         }
     }
 

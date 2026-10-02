@@ -55,7 +55,6 @@ import com.droidnova.notificationhistory.utils.Analytics
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import kotlinx.coroutines.launch
 
-private const val RATE_US_LAUNCH_THRESHOLD = 3
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -167,7 +166,6 @@ fun HomeScreen(
             todaySummary = todaySummary,
             recentNotifications = recentNotifications,
             showBatteryWarning = !batteryOptimization.isIgnored,
-            showRateCard = state.launchCount >= RATE_US_LAUNCH_THRESHOLD && state.showRateUsCard,
             onTrackingChanged = { enabled ->
                 when {
                     !enabled -> viewmodel.setToggleTracking(false)
@@ -182,22 +180,7 @@ fun HomeScreen(
             onInsights = { navController.navigateToTab(Screens.Insights.route) },
             onTrash = { navController.navigate(Screens.Trash.route) },
             onBatteryAction = batteryOptimization.requestExemption,
-            onNotificationClick = { showDetailsDialog = it },
-            onRateCancel = viewmodel::resetLaunchCount,
-            onRateConfirmed = {
-                IntentUtil.openRateUs(context)
-                viewmodel.hideRateUsCard()
-            },
-            onRated = {
-                if (it == 5) {
-                    IntentUtil.openRateUs(context)
-                    viewmodel.hideRateUsCard()
-                }
-            },
-            onFeedback = {
-                IntentUtil.sendSupportMail(context, isBug = false)
-                viewmodel.resetLaunchCount()
-            }
+            onNotificationClick = { showDetailsDialog = it }
         )
     }
 

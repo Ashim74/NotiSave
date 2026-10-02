@@ -2,6 +2,7 @@ package com.droidnova.notificationhistory.data.datastore
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 
 object DataStoreKeys {
@@ -16,5 +17,11 @@ object DataStoreKeys {
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
     const val FILTERS_PREFIX = "filters_"
+
+    // In-app review timing (see ReviewPolicy)
+    val FIRST_OPEN_AT = longPreferencesKey("first_open_at")
+    val VALUE_MOMENTS = intPreferencesKey("value_moments")
+    val REVIEW_LAST_ASKED_AT = longPreferencesKey("review_last_asked_at")
+    val REVIEW_ASK_COUNT = intPreferencesKey("review_ask_count")
 
 }

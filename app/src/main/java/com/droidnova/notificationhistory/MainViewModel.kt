@@ -330,6 +330,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (launchCounted) return
         launchCounted = true
         viewModelScope.launch {
+            userPrefs.markFirstOpen(System.currentTimeMillis())
             userPrefs.incrementLaunchCount()
         }
     }

@@ -98,6 +98,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.play.services.ads)
+    implementation(libs.play.review.ktx)
     implementation(libs.user.messaging.platform)
     implementation(libs.billing.ktx)
     implementation(platform(libs.firebase.bom))

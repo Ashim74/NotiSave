@@ -7,3 +7,6 @@
 
 # Kept for Crashlytics custom exception reporting and annotation-driven libraries.
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+
+# Play In-App Review (review-ktx) references an annotation newer Play services no longer ship.
+-dontwarn com.google.android.gms.common.annotation.NoNullnessRewrite

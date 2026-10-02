@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import com.droidnova.notificationhistory.core.review.rememberInAppReview
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +46,13 @@ fun NotificationDetailsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    // Closing a saved notification after reading it is when the app has just helped: a good
+    // moment for Play's review sheet (InAppReview decides whether it is actually time).
+    val review = rememberInAppReview()
+    val close = {
+        onDismiss()
+        review.onValueMoment()
+    }
 
     val urlPattern = remember {
         Pattern.compile(
@@ -91,7 +99,7 @@ fun NotificationDetailsDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = close,
         icon = {
             Box(
                 modifier = Modifier
@@ -148,7 +156,7 @@ fun NotificationDetailsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+            TextButton(onClick = close) { Text(stringResource(R.string.close)) }
         }
     )
 }

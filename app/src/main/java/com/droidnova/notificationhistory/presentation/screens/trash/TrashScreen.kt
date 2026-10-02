@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.core.review.rememberInAppReview
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.mapper.toReadableTime
 import com.droidnova.notificationhistory.data.model.NotificationModel
@@ -60,6 +61,7 @@ import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 fun TrashScreen(mainViewModel: MainViewModel, navController: NavController) {
     val notifications by mainViewModel.trash.collectAsState()
     val isLoading by mainViewModel.isTrashLoading.collectAsState()
+    val review = rememberInAppReview()
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
     var permanentDeleteTarget by remember { mutableStateOf<NotificationModel?>(null) }
     var showEmptyConfirmation by remember { mutableStateOf(false) }
@@ -154,6 +156,8 @@ fun TrashScreen(mainViewModel: MainViewModel, navController: NavController) {
                     onClick = {
                         selectedNotification = null
                         mainViewModel.restoreNotification(notification)
+                        // Getting back something deleted by mistake: the app just helped
+                        review.onValueMoment()
                     }
                 )
                 ActionTile(

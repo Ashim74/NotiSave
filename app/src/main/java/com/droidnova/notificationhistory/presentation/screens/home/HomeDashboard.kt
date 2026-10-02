@@ -54,7 +54,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.droidnova.notificationhistory.R
-import com.droidnova.notificationhistory.component.RateUsCard
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.components.AnimatedText
@@ -90,7 +89,6 @@ internal fun HomeDashboard(
     todaySummary: HomeTodaySummary,
     recentNotifications: List<NotificationModel>,
     showBatteryWarning: Boolean,
-    showRateCard: Boolean,
     onTrackingChanged: (Boolean) -> Unit,
     onPermissionAction: () -> Unit,
     onReconnect: () -> Unit,
@@ -99,11 +97,7 @@ internal fun HomeDashboard(
     onInsights: () -> Unit,
     onTrash: () -> Unit,
     onBatteryAction: () -> Unit,
-    onNotificationClick: (NotificationModel) -> Unit,
-    onRateCancel: () -> Unit,
-    onRateConfirmed: () -> Unit,
-    onRated: (Int) -> Unit,
-    onFeedback: () -> Unit
+    onNotificationClick: (NotificationModel) -> Unit
 ) {
     val side = Modifier.padding(horizontal = Dimens.ScreenHorizontal)
     val noAppsSelected = state.userToggleTracking && state.selectedAppsCount == 0
@@ -208,20 +202,6 @@ internal fun HomeDashboard(
                     shape = groupedShape(index, recentNotifications.size),
                     spacing = GroupRowGap
                 )
-            }
-        }
-
-        if (showRateCard) {
-            item(key = "rate") {
-                Box(modifier = side.padding(top = 12.dp)) {
-                    RateUsCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        onCancelClicked = onRateCancel,
-                        onOkClicked = onRateConfirmed,
-                        onRated = onRated,
-                        onFeedbackClicked = onFeedback
-                    )
-                }
             }
         }
     }
