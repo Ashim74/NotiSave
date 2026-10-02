@@ -15,12 +15,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.Delete
@@ -58,7 +60,6 @@ import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.components.AnimatedText
 import com.droidnova.notificationhistory.presentation.components.AppCard
 import com.droidnova.notificationhistory.presentation.components.AppCardDefaults
-import com.droidnova.notificationhistory.presentation.components.CountPill
 import com.droidnova.notificationhistory.presentation.components.EmptyState
 import com.droidnova.notificationhistory.presentation.components.GroupRowGap
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
@@ -509,32 +510,38 @@ private fun ShortcutTile(
     badge: Int? = null
 ) {
     AppCard(modifier = modifier, onClick = onClick) {
-        Box(Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box {
                 IconBadge(icon, accent = accent, size = 40.dp)
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    autoSize = fitToWidth(MaterialTheme.typography.labelLarge.fontSize)
-                )
+                // A solid count on the badge's corner, like an app-icon badge
+                if (badge != null) {
+                    AnimatedText(
+                        text = badge.toString(),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 12.dp, y = (-4).dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(accent)
+                            .padding(horizontal = 5.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
-            if (badge != null) {
-                CountPill(
-                    count = badge,
-                    color = accent,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 5.dp, end = 5.dp)
-                )
-            }
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                autoSize = fitToWidth(MaterialTheme.typography.labelLarge.fontSize)
+            )
         }
     }
 }
