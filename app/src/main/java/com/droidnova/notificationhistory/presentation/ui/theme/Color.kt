@@ -1,77 +1,97 @@
 package com.droidnova.notificationhistory.presentation.ui.theme
+
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
-// Material Theme Builder export (green seed). Only the standard-contrast schemes are kept;
-// on Android 12+ dynamic color replaces these entirely.
+// The teal palette shared with the developer's other apps (Secret Calculator's default theme), so
+// every app looks like one family. Dynamic color is not used: it would break that resemblance.
 
-val primaryLight = Color(0xFF36693D)
-val onPrimaryLight = Color(0xFFFFFFFF)
-val primaryContainerLight = Color(0xFFB8F1B9)
-val onPrimaryContainerLight = Color(0xFF1D5128)
-val secondaryLight = Color(0xFF36693D)
-val onSecondaryLight = Color(0xFFFFFFFF)
-val secondaryContainerLight = Color(0xFFB8F1B9)
-val onSecondaryContainerLight = Color(0xFF1E5128)
-val tertiaryLight = Color(0xFF39656C)
-val onTertiaryLight = Color(0xFFFFFFFF)
-val tertiaryContainerLight = Color(0xFFBDEAF3)
-val onTertiaryContainerLight = Color(0xFF1F4D54)
-val errorLight = Color(0xFFBA1A1A)
-val onErrorLight = Color(0xFFFFFFFF)
-val errorContainerLight = Color(0xFFFFDAD6)
-val onErrorContainerLight = Color(0xFF93000A)
-val backgroundLight = Color(0xFFF7FBF2)
-val onBackgroundLight = Color(0xFF181D18)
-val surfaceLight = Color(0xFFF7FBF2)
-val onSurfaceLight = Color(0xFF181D18)
-val surfaceVariantLight = Color(0xFFDDE5D9)
-val onSurfaceVariantLight = Color(0xFF424940)
-val outlineLight = Color(0xFF727970)
-val outlineVariantLight = Color(0xFFC1C9BE)
-val scrimLight = Color(0xFF000000)
-val inverseSurfaceLight = Color(0xFF2D322C)
-val inverseOnSurfaceLight = Color(0xFFEEF2E9)
-val inversePrimaryLight = Color(0xFF9CD49F)
-val surfaceDimLight = Color(0xFFD7DBD3)
-val surfaceBrightLight = Color(0xFFF7FBF2)
-val surfaceContainerLowestLight = Color(0xFFFFFFFF)
-val surfaceContainerLowLight = Color(0xFFF1F5EC)
-val surfaceContainerLight = Color(0xFFEBEFE7)
-val surfaceContainerHighLight = Color(0xFFE5E9E1)
-val surfaceContainerHighestLight = Color(0xFFE0E4DB)
+internal val DarkColors: ColorScheme = darkColorScheme(
+    primary = Color(0xFF80D5D4),
+    onPrimary = Color(0xFF003737),
+    primaryContainer = Color(0xFF004F4F),
+    onPrimaryContainer = Color(0xFF9CF1F0),
+    secondary = Color(0xFFB0CCCB),
+    onSecondary = Color(0xFF1B3534),
+    secondaryContainer = Color(0xFF324B4B),
+    onSecondaryContainer = Color(0xFFCCE8E7),
+    tertiary = Color(0xFFB3C8E8),
+    onTertiary = Color(0xFF1C314B),
+    tertiaryContainer = Color(0xFF334863),
+    onTertiaryContainer = Color(0xFFD3E4FF),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A),
+    onErrorContainer = Color(0xFFFFDAD6),
+    background = Color(0xFF0E1514),
+    onBackground = Color(0xFFDDE4E3),
+    surface = Color(0xFF0E1514),
+    onSurface = Color(0xFFDDE4E3),
+    surfaceVariant = Color(0xFF3F4948),
+    onSurfaceVariant = Color(0xFFBEC9C8),
+    outline = Color(0xFF889392),
+    outlineVariant = Color(0xFF3F4948),
+    inverseSurface = Color(0xFFDDE4E3),
+    inverseOnSurface = Color(0xFF2B3231),
+    inversePrimary = Color(0xFF006A6A),
+    surfaceDim = Color(0xFF0E1514),
+    surfaceBright = Color(0xFF343B3A),
+    surfaceContainerLowest = Color(0xFF090F0F),
+    surfaceContainerLow = Color(0xFF161D1D),
+    surfaceContainer = Color(0xFF1A2121),
+    surfaceContainerHigh = Color(0xFF252B2B),
+    surfaceContainerHighest = Color(0xFF2F3636),
+)
 
-val primaryDark = Color(0xFF9CD49F)
-val onPrimaryDark = Color(0xFF013913)
-val primaryContainerDark = Color(0xFF1D5128)
-val onPrimaryContainerDark = Color(0xFFB8F1B9)
-val secondaryDark = Color(0xFF9DD49E)
-val onSecondaryDark = Color(0xFF013913)
-val secondaryContainerDark = Color(0xFF1E5128)
-val onSecondaryContainerDark = Color(0xFFB8F1B9)
-val tertiaryDark = Color(0xFFA1CED6)
-val onTertiaryDark = Color(0xFF00363D)
-val tertiaryContainerDark = Color(0xFF1F4D54)
-val onTertiaryContainerDark = Color(0xFFBDEAF3)
-val errorDark = Color(0xFFFFB4AB)
-val onErrorDark = Color(0xFF690005)
-val errorContainerDark = Color(0xFF93000A)
-val onErrorContainerDark = Color(0xFFFFDAD6)
-val backgroundDark = Color(0xFF101510)
-val onBackgroundDark = Color(0xFFE0E4DB)
-val surfaceDark = Color(0xFF101510)
-val onSurfaceDark = Color(0xFFE0E4DB)
-val surfaceVariantDark = Color(0xFF424940)
-val onSurfaceVariantDark = Color(0xFFC1C9BE)
-val outlineDark = Color(0xFF8B9389)
-val outlineVariantDark = Color(0xFF424940)
-val scrimDark = Color(0xFF000000)
-val inverseSurfaceDark = Color(0xFFE0E4DB)
-val inverseOnSurfaceDark = Color(0xFF2D322C)
-val inversePrimaryDark = Color(0xFF36693D)
-val surfaceDimDark = Color(0xFF101510)
-val surfaceBrightDark = Color(0xFF363A35)
-val surfaceContainerLowestDark = Color(0xFF0B0F0B)
-val surfaceContainerLowDark = Color(0xFF181D18)
-val surfaceContainerDark = Color(0xFF1C211C)
-val surfaceContainerHighDark = Color(0xFF272B26)
-val surfaceContainerHighestDark = Color(0xFF313630)
+internal val LightColors: ColorScheme = lightColorScheme(
+    primary = Color(0xFF006A6A),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFF9CF1F0),
+    onPrimaryContainer = Color(0xFF002020),
+    secondary = Color(0xFF4A6363),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFCCE8E7),
+    onSecondaryContainer = Color(0xFF051F1F),
+    tertiary = Color(0xFF4B607C),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFD3E4FF),
+    onTertiaryContainer = Color(0xFF041C35),
+    error = Color(0xFFBA1A1A),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF410002),
+    background = Color(0xFFF4FBFA),
+    onBackground = Color(0xFF161D1D),
+    surface = Color(0xFFF4FBFA),
+    onSurface = Color(0xFF161D1D),
+    surfaceVariant = Color(0xFFDAE5E4),
+    onSurfaceVariant = Color(0xFF3F4948),
+    outline = Color(0xFF6F7979),
+    outlineVariant = Color(0xFFBEC9C8),
+    inverseSurface = Color(0xFF2B3231),
+    inverseOnSurface = Color(0xFFECF2F1),
+    inversePrimary = Color(0xFF80D5D4),
+    surfaceDim = Color(0xFFD5DBDA),
+    surfaceBright = Color(0xFFF4FBFA),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFEFF5F4),
+    surfaceContainer = Color(0xFFE9EFEE),
+    surfaceContainerHigh = Color(0xFFE3E9E9),
+    surfaceContainerHighest = Color(0xFFDDE4E3),
+)
+
+/**
+ * Accent colors for icon badges, one per kind of thing, like the category tiles in Secret
+ * Calculator. Readable on both the light and dark backgrounds.
+ */
+object AccentColors {
+    val Blue = Color(0xFF4A7CFF)
+    val Teal = Color(0xFF00A3A3)
+    val Orange = Color(0xFFE07A2E)
+    val Green = Color(0xFF2A9D5C)
+    val Purple = Color(0xFF7A5CFA)
+    val Rose = Color(0xFFC85D7C)
+    val Amber = Color(0xFFD99A1E)
+}

@@ -3,6 +3,11 @@ package com.droidnova.notificationhistory.presentation.components
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -64,36 +69,51 @@ fun NotificationHistoryCard(
     val title = notification.title.ifBlank { appName }
     val body = notification.text.replace('\n', ' ')
     val containerColor by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.secondaryContainer else AppCardDefaults.containerColor(),
+        if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) else AppCardDefaults.containerColor(),
         label = "notificationSelected"
     )
+    val interaction = remember { MutableInteractionSource() }
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = Dimens.ScreenHorizontal, vertical = spacing / 2)
+            .pressScale(interaction, 0.98f)
             .clip(shape)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            .combinedClickable(
+                interactionSource = interaction,
+                indication = ripple(),
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = shape,
         color = containerColor
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
             verticalAlignment = Alignment.Top
         ) {
             Crossfade(targetState = selected, label = "notificationIcon") { isSelected ->
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = stringResource(R.string.content_description_selected),
-                        modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    HistoryAppIcon(
-                        packageName = notification.packageName,
-                        size = 36.dp,
-                        contentDescription = appName
-                    )
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(Dimens.TileCornerRadius))
+                        .background(tileColor()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = stringResource(R.string.content_description_selected),
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        HistoryAppIcon(
+                            packageName = notification.packageName,
+                            size = 30.dp,
+                            contentDescription = appName
+                        )
+                    }
                 }
             }
             Spacer(Modifier.width(12.dp))
@@ -102,8 +122,7 @@ fun NotificationHistoryCard(
                     Text(
                         text = highlightedText(title, searchQuery),
                         modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -118,7 +137,7 @@ fun NotificationHistoryCard(
                 if (body.isNotBlank()) {
                     Text(
                         text = highlightedText(body, searchQuery),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis

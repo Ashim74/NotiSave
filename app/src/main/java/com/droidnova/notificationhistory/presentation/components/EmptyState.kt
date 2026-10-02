@@ -4,11 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,8 +17,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 /**
- * Centered empty/zero-data state: icon, one-line title, optional explanation and one action.
- * Every list in the app should use this rather than a bare Text so empties look the same.
+ * Centered empty/zero-data state: a softly floating icon badge, a one-line title, an optional
+ * short explanation and one action. Every list in the app uses this so empties look the same.
  */
 @Composable
 fun EmptyState(
@@ -33,20 +31,22 @@ fun EmptyState(
 ) {
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
-            modifier = Modifier.padding(32.dp),
+            modifier = Modifier
+                .padding(horizontal = 32.dp, vertical = 24.dp)
+                .appearIn(0),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            IconBadge(
+                icon = icon,
+                containerColor = tintedCardColor(),
+                size = 64.dp,
+                modifier = Modifier.floating()
             )
             Text(
                 text = title,
-                modifier = Modifier.padding(top = 10.dp),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 14.dp),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
             if (!description.isNullOrBlank()) {
@@ -59,7 +59,7 @@ fun EmptyState(
                 )
             }
             if (actionLabel != null && onAction != null) {
-                Button(onClick = onAction, modifier = Modifier.padding(top = 16.dp)) {
+                Button(onClick = onAction, modifier = Modifier.padding(top = 14.dp)) {
                     Text(actionLabel)
                 }
             }

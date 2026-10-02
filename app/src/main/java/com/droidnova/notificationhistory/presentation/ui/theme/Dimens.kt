@@ -8,18 +8,21 @@ import androidx.compose.ui.unit.dp
 /** Spacing and shape tokens shared by every screen so layouts line up across tabs. */
 object Dimens {
     /** Side margin between the screen edge and cards/rows. */
-    val ScreenHorizontal = 16.dp
+    val ScreenHorizontal = 12.dp
 
     /** Gap between two stacked cards. */
-    val CardSpacing = 12.dp
+    val CardSpacing = 8.dp
 
     /** Gap between the last card of one section and the next section. */
-    val SectionSpacing = 24.dp
+    val SectionSpacing = 18.dp
 
-    val CardCornerRadius = 16.dp
+    val CardCornerRadius = 22.dp
+
+    /** Smaller tiles and icon wells that sit inside a card. */
+    val TileCornerRadius = 14.dp
 
     /** Touch-friendly but compact: one title line plus an optional value line. */
-    val ListRowMinHeight = 56.dp
+    val ListRowMinHeight = 52.dp
 }
 
 /**

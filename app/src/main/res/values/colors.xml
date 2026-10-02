@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Matches surfaceLight in Color.kt; values-night overrides with surfaceDark. -->
-    <color name="window_background">#FFF7FBF2</color>
+    <!-- Matches LightColors.surface in Color.kt; values-night overrides with DarkColors.surface. -->
+    <color name="window_background">#FFF4FBFA</color>
 </resources>

@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 import java.time.Instant
@@ -56,17 +57,17 @@ private fun DayHeader(date: LocalDate, first: Boolean, modifier: Modifier = Modi
             today -> stringResource(R.string.date_today)
             today.minusDays(1) -> stringResource(R.string.date_yesterday)
             else -> date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
-        },
+        }.uppercase(),
         modifier = modifier
             .padding(
-                start = Dimens.ScreenHorizontal + 4.dp,
+                start = Dimens.ScreenHorizontal + 6.dp,
                 end = Dimens.ScreenHorizontal,
-                top = if (first) 4.dp else 16.dp,
+                top = if (first) 4.dp else 14.dp,
                 bottom = 6.dp
             )
             .semantics { heading() },
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary
+        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.2.sp),
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }

@@ -9,24 +9,27 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 
 /**
- * Small primary-colored label that introduces a group of cards or rows. Its top padding tops up
- * the normal card gap to [Dimens.SectionSpacing]; pass [first] for a header at the top of a screen.
+ * Small uppercase label that introduces a group of cards or rows (as in Secret Calculator). Its
+ * top padding tops up the normal card gap to [Dimens.SectionSpacing]; pass [first] for a header
+ * at the top of a screen.
  */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier, first: Boolean = false) {
     Text(
-        text = text,
+        text = text.uppercase(),
         modifier = modifier
             .padding(
-                start = 4.dp,
+                start = 6.dp,
                 top = if (first) 0.dp else Dimens.SectionSpacing - Dimens.CardSpacing
             )
             .semantics { heading() },
-        style = MaterialTheme.typography.labelLarge,
+        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.2.sp),
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1
     )
 }
