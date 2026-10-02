@@ -78,6 +78,7 @@ import androidx.navigation.navArgument
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.ads.CollapsibleAdBanner
+import com.droidnova.notificationhistory.ads.rememberShowAds
 import com.droidnova.notificationhistory.presentation.screens.about.AboutScreen
 import com.droidnova.notificationhistory.presentation.screens.app_history.AppHistoryScreen
 import com.droidnova.notificationhistory.presentation.screens.app_settings.AppSettingsScreen
@@ -279,7 +280,8 @@ private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) 
                 }
             }
         }
-        if (!isPremium) {
+        // Hidden for premium users and during an ad-free period earned from a rewarded ad
+        if (rememberShowAds(isPremium)) {
             CollapsibleAdBanner()
         }
         if (isTopLevel) {

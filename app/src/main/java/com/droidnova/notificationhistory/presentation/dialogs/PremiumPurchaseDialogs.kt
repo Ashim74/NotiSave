@@ -1,5 +1,8 @@
 package com.droidnova.notificationhistory.presentation.dialogs
 
+import android.text.format.DateFormat
+import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +22,8 @@ import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Celebration
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.AlertDialog
@@ -29,6 +34,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,11 +46,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.ads.findActivity
+import com.droidnova.notificationhistory.ads.rememberAdFreeUntil
+import com.droidnova.notificationhistory.ads.rememberRewardedAdFree
+import java.util.Date
 import com.droidnova.notificationhistory.presentation.components.IconBadge
 import com.droidnova.notificationhistory.presentation.components.appearIn
 import com.droidnova.notificationhistory.presentation.components.floating
@@ -152,6 +163,77 @@ fun PremiumPurchaseBottomSheet(
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant
                 )
+            }
+
+            RewardedAdFreeOption()
+        }
+    }
+}
+
+/**
+ * The free alternative to buying: watch one rewarded ad for 24 hours without ads. While a
+ * period is running it shows until when instead. Hidden when ads can't be requested.
+ */
+@Composable
+private fun RewardedAdFreeOption() {
+    val context = LocalContext.current
+    val colors = MaterialTheme.colorScheme
+    val earnedMessage = stringResource(R.string.ads_rewarded_earned)
+    val rewarded = rememberRewardedAdFree(
+        onEarned = { Toast.makeText(context, earnedMessage, Toast.LENGTH_LONG).show() }
+    )
+    val adFreeUntil = rememberAdFreeUntil()
+    if (!rewarded.available && adFreeUntil == null) return
+
+    AnimatedContent(targetState = adFreeUntil, label = "adFree") { until ->
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (until != null) {
+                // Already ad-free: say until when, as a small teal pill
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(colors.primaryContainer.copy(alpha = 0.6f))
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Outlined.Timer, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.ads_ad_free_until,
+                            DateFormat.getTimeFormat(context).format(Date(until))
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colors.onPrimaryContainer
+                    )
+                }
+            } else {
+                Text(
+                    text = stringResource(R.string.ads_rewarded_or),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = colors.onSurfaceVariant
+                )
+                OutlinedButton(
+                    onClick = { context.findActivity()?.let(rewarded::show) },
+                    enabled = rewarded.isReady,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    if (rewarded.isReady) {
+                        Icon(Icons.Outlined.PlayCircle, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.ads_rewarded_button), fontWeight = FontWeight.SemiBold)
+                    } else {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.ads_rewarded_loading))
+                    }
+                }
             }
         }
     }

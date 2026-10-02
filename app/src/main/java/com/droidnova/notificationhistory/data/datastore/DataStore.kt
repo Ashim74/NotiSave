@@ -226,6 +226,13 @@ class UserPreferences(private val context: Context) {
         }
     }
 
+    /** When the rewarded ad-free period ends (epoch millis); 0 if never earned. */
+    val adFreeUntil: Flow<Long> = context.dataStore.data.map { it[DataStoreKeys.AD_FREE_UNTIL] ?: 0L }
+
+    suspend fun setAdFreeUntil(until: Long) {
+        context.dataStore.edit { it[DataStoreKeys.AD_FREE_UNTIL] = until }
+    }
+
     suspend fun hideRateUsCard(){
         context.dataStore.edit {
             it[SHOW_RATE_US_CARD] = false

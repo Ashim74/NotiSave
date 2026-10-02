@@ -24,4 +24,7 @@ object DataStoreKeys {
     val REVIEW_LAST_ASKED_AT = longPreferencesKey("review_last_asked_at")
     val REVIEW_ASK_COUNT = intPreferencesKey("review_ask_count")
 
+    // End of the ad-free period earned by watching a rewarded ad (epoch millis)
+    val AD_FREE_UNTIL = longPreferencesKey("ad_free_until")
+
 }

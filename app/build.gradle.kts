@@ -33,6 +33,9 @@ android {
                 "BANNER_AD_UNIT_ID",
                 "\"ca-app-pub-3940256099942544/2014213617\""
             )
+            // Google's public test units for native and rewarded ads.
+            buildConfigField("String", "NATIVE_AD_UNIT_ID", "\"ca-app-pub-3940256099942544/2247696110\"")
+            buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"ca-app-pub-3940256099942544/5224354917\"")
         }
         release {
             isMinifyEnabled = true
@@ -46,6 +49,10 @@ android {
                 "BANNER_AD_UNIT_ID",
                 "\"ca-app-pub-4788231589271799/5044263835\""
             )
+            // Live native and rewarded units come from gradle.properties; left blank, those ads
+            // simply stay off (no request is made).
+            buildConfigField("String", "NATIVE_AD_UNIT_ID", "\"${project.findProperty("NATIVE_AD_UNIT_ID") ?: ""}\"")
+            buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"${project.findProperty("REWARDED_AD_UNIT_ID") ?: ""}\"")
         }
     }
     compileOptions {

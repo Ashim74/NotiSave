@@ -20,6 +20,8 @@ object Analytics {
     const val APP_LOCK_CHANGED = "app_lock_changed"
     const val APP_LOCK_RECOVERED = "app_lock_recovered"
     const val REVIEW_PROMPTED = "review_prompted"
+    const val REWARDED_SHOWN = "rewarded_ad_shown"
+    const val REWARDED_EARNED = "rewarded_ad_free_earned"
     const val APP_LOCK_LOCKOUT = "app_lock_lockout"
 
     // Event params. Never the PIN, its length or any hash.

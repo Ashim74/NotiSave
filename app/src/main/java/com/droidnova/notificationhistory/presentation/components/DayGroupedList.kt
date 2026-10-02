@@ -27,25 +27,47 @@ import java.time.format.FormatStyle
  * Items grouped under "Today" / "Yesterday" / a date, each day drawn as one segmented block
  * (see [groupedShape]). [epochOf] picks the timestamp to group by; [content] draws one item
  * with the shape it should use.
+ *
+ * [slotAfter] can open a gap after an item (by its position in the whole list) for something
+ * else, such as a native ad, drawn by [slot]. The rows on either side of a gap get rounded ends,
+ * so each piece still reads as its own block.
  */
 fun <T> LazyListScope.dayGroupedItems(
     items: List<T>,
     key: (T) -> Any,
     epochOf: (T) -> Long,
+    slotAfter: (globalIndex: Int) -> Int? = { null },
+    slot: @Composable LazyItemScope.(slot: Int) -> Unit = {},
     content: @Composable LazyItemScope.(item: T, shape: Shape) -> Unit
 ) {
     val zone = ZoneId.systemDefault()
     val groups = items.groupBy { Instant.ofEpochMilli(epochOf(it)).atZone(zone).toLocalDate() }
     var first = true
+    var globalIndex = 0
     groups.forEach { (date, dayItems) ->
         val isFirst = first
         first = false
         item(key = "day-$date", contentType = "day-header") {
             DayHeader(date = date, first = isFirst, modifier = Modifier.animateItem())
         }
-        itemsIndexed(dayItems, key = { _, item -> key(item) }, contentType = { _, _ -> "row" }) { index, item ->
-            content(item, groupedShape(index, dayItems.size))
+        // Split the day into runs at every slot; each run is one segmented block
+        var run = mutableListOf<T>()
+        val flush = { runItems: List<T> ->
+            itemsIndexed(runItems, key = { _, item -> key(item) }, contentType = { _, _ -> "row" }) { index, item ->
+                content(item, groupedShape(index, runItems.size))
+            }
         }
+        dayItems.forEach { dayItem ->
+            run += dayItem
+            val slotIndex = slotAfter(globalIndex)
+            globalIndex++
+            if (slotIndex != null) {
+                flush(run)
+                run = mutableListOf()
+                item(key = "slot-$slotIndex", contentType = "slot") { slot(slotIndex) }
+            }
+        }
+        if (run.isNotEmpty()) flush(run)
     }
 }
 

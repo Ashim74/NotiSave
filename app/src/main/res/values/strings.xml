@@ -403,4 +403,11 @@ Find “Notification History” → Turn ON access.
     <string name="set_perm_step_2">Open Notification access</string>
     <string name="set_perm_step_3">Find Notification History</string>
     <string name="set_perm_step_4">Turn it on</string>
+    <!-- Ads: native ad label and the rewarded "24 h ad-free" offer -->
+    <string name="ads_label">Ad</string>
+    <string name="ads_rewarded_or">or</string>
+    <string name="ads_rewarded_button">Watch an ad · 24 h ad-free</string>
+    <string name="ads_rewarded_loading">Getting an ad ready…</string>
+    <string name="ads_ad_free_until">Ad-free until %1$s</string>
+    <string name="ads_rewarded_earned">No ads for the next 24 hours</string>
 </resources>

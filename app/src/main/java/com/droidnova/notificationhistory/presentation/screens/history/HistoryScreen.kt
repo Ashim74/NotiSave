@@ -101,6 +101,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
+import com.droidnova.notificationhistory.ads.NativeAdCard
+import com.droidnova.notificationhistory.ads.NativeAdSlots
+import com.droidnova.notificationhistory.ads.rememberNativeAds
+import com.droidnova.notificationhistory.ads.rememberShowAds
+import com.google.android.gms.ads.nativead.NativeAd
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data.model.HistoryDateFilter
@@ -154,6 +159,9 @@ fun HistoryScreen(
     val historyFilters by mainViewmodel.historyFilters.collectAsState()
     val isRefreshing by mainViewmodel.isHistoryRefreshing.collectAsState()
     val historyLoadState by mainViewmodel.historyLoadState.collectAsState()
+    val isPremium by mainViewmodel.isPremium.collectAsState()
+    // Native ads between notifications for free users (none while premium or ad-free)
+    val nativeAds = rememberNativeAds(enabled = rememberShowAds(isPremium))
     var showMenu by remember { mutableStateOf(false) }
     var showCustomDateRange by remember { mutableStateOf(false) }
     var view by rememberSaveable { mutableStateOf(HistoryView.All) }
@@ -321,6 +329,7 @@ fun HistoryScreen(
                     searchQuery = searchQuery,
                     hasActiveFilters = historyFilters.hasActiveFilters,
                     selectedIds = selectedIds,
+                    nativeAds = nativeAds,
                     onLoadMore = { mainViewmodel.loadMoreHistory() },
                     onItemClick = {
                         if (isSelecting) toggleSelection(it.id) else selectedNotification = it
@@ -453,6 +462,7 @@ fun HistoryScreenContent(
     searchQuery: String,
     hasActiveFilters: Boolean,
     selectedIds: Set<Long>,
+    nativeAds: List<NativeAd> = emptyList(),
     onLoadMore: () -> Unit,
     onItemClick: (NotificationModel) -> Unit,
     onItemLongClick: (NotificationModel) -> Unit,
@@ -515,7 +525,14 @@ fun HistoryScreenContent(
                 dayGroupedItems(
                     items = packages,
                     key = { it.id },
-                    epochOf = { it.receivedAtEpoch }
+                    epochOf = { it.receivedAtEpoch },
+                    // Each loaded ad gets one slot; no ads loaded means no gaps at all
+                    slotAfter = { index ->
+                        NativeAdSlots.slotAfter(index)?.takeIf { it < nativeAds.size }
+                    },
+                    slot = { slot ->
+                        NativeAdCard(nativeAds[slot], Modifier.animateItem())
+                    }
                 ) { item, shape ->
                     NotificationHistoryCard(
                         modifier = Modifier.animateItem(),
