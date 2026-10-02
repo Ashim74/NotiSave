@@ -35,8 +35,13 @@ fun ScreenTopBar(
             Column {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    // Tabs get a large headline; screens with a back arrow a smaller title
+                    style = if (onBack == null) {
+                        MaterialTheme.typography.headlineSmall
+                    } else {
+                        MaterialTheme.typography.titleLarge
+                    },
+                    fontWeight = if (onBack == null) FontWeight.ExtraBold else FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
