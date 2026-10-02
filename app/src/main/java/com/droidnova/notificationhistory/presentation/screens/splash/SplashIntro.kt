@@ -25,6 +25,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +48,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val HOLD_MS = 650L
+private const val HOLD_MS = 450L
 private const val LETTER_STEP_MS = 28
 private val IconSize = 112.dp
 
@@ -53,13 +56,17 @@ private val IconSize = 112.dp
 private const val SYSTEM_SPLASH_SCALE = 1.7f
 
 /**
- * The first thing a cold start shows, right after the system splash (which shows the same icon):
- * the launcher icon pops in and rings like a bell while ripples spread behind it, then the app's
- * name rises in letter by letter. The whole intro then fades and lifts away, revealing the app
- * that has been composing underneath. Calls [onFinished] once it is gone.
+ * The first thing a cold start shows, taking over from the system splash (same icon, same place)
+ * on the very first frame: the icon settles into its rounded tile and rings like a bell while
+ * ripples spread behind it, then the app's name rises in letter by letter.
+ *
+ * The heavy app UI is only built once that entrance has played ([onEntranceDone]), so building it
+ * can't stutter the animation. If the app still isn't [ready] by then, the ripples keep pulsing
+ * so the screen never looks frozen. Then the intro fades and lifts away and calls [onFinished].
  */
 @Composable
-fun SplashIntro(onFinished: () -> Unit) {
+fun SplashIntro(ready: Boolean, onEntranceDone: () -> Unit, onFinished: () -> Unit) {
+    val isReady by rememberUpdatedState(ready)
     val name = stringResource(R.string.app_name)
     // Starts at the size and round shape of the system splash icon, so the handoff is seamless
     val iconScale = remember { Animatable(SYSTEM_SPLASH_SCALE) }
@@ -106,7 +113,16 @@ fun SplashIntro(onFinished: () -> Unit) {
             }
             lettersDone.await()
         }
+        // Build the app underneath now; give it two frames to compose and lay out
+        onEntranceDone()
+        withFrameNanos { }
+        withFrameNanos { }
         delay(HOLD_MS)
+        // Still loading (slow phone, first run): keep the ripples going instead of freezing
+        while (!isReady) {
+            ripple.snapTo(0f)
+            ripple.animateTo(1f, tween(1300, easing = LinearEasing))
+        }
         exit.animateTo(1f, tween(320, easing = FastOutSlowInEasing))
         onFinished()
     }

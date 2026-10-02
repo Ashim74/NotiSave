@@ -54,9 +54,11 @@ class MainActivity : FragmentActivity() {
         Analytics.init(applicationContext)
         // Hold the splash until we know whether to show onboarding or Home, and whether the
         // app is locked; avoids a flash of the wrong screen (or of history) on cold start.
+        // A fresh launch hands over to the animated intro on the first frame (the intro covers the
+        // loading); otherwise (recreated activity) the system splash covers it as before.
+        val playIntro = savedInstanceState == null
         splash.setKeepOnScreenCondition {
-            viewModel.onboardingComplete.value == null ||
-                appLock.controller.gate.value == AppLockController.Gate.Loading
+            !playIntro && !isStartupReady()
         }
         biometricGate = BiometricGate(this, onHandoff = appLock.controller::beginHandoff)
         val launchAction = LaunchAction.from(intent)
@@ -95,15 +97,25 @@ class MainActivity : FragmentActivity() {
                     ) {
                         // The launch action waits behind the lock: AppNavGraph only composes
                         // (and routes the shortcut / alert) once unlocked.
-                        AppLockGate(
-                            gate = gate,
-                            lockContent = { LockScreen() },
-                            appContent = { AppNavGraph(launchAction = launchAction) }
-                        )
-                        // Once per launch (kept across rotation): the icon-and-name intro over
-                        // the app, which keeps loading underneath.
-                        var showIntro by rememberSaveable { mutableStateOf(savedInstanceState == null) }
-                        if (showIntro) SplashIntro(onFinished = { showIntro = false })
+                        // Once per launch (kept across rotation): the icon-and-name intro. The app
+                        // is only built after its entrance, so building can't stutter it.
+                        var showIntro by rememberSaveable { mutableStateOf(playIntro) }
+                        var buildApp by rememberSaveable { mutableStateOf(!playIntro) }
+                        if (buildApp) {
+                            AppLockGate(
+                                gate = gate,
+                                lockContent = { LockScreen() },
+                                appContent = { AppNavGraph(launchAction = launchAction) }
+                            )
+                        }
+                        if (showIntro) {
+                            val onboarding by viewModel.onboardingComplete.collectAsState()
+                            SplashIntro(
+                                ready = onboarding != null && gate != AppLockController.Gate.Loading,
+                                onEntranceDone = { buildApp = true },
+                                onFinished = { showIntro = false }
+                            )
+                        }
                     }
                 }
             }
@@ -111,6 +123,11 @@ class MainActivity : FragmentActivity() {
     }
 
     /** [darkTheme] null → follow the system (used before the preference is known). */
+    /** True once we know whether to show onboarding or Home, and whether the app is locked. */
+    private fun isStartupReady(): Boolean =
+        viewModel.onboardingComplete.value != null &&
+            appLock.controller.gate.value != AppLockController.Gate.Loading
+
     private fun applyEdgeToEdge(darkTheme: Boolean?) {
         val statusBarStyle = if (darkTheme == null) {
             SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
