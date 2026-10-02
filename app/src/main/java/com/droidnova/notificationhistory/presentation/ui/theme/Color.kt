@@ -63,9 +63,10 @@ internal val LightColors: ColorScheme = lightColorScheme(
     errorContainer = Color(0xFFFFDAD6),
     onErrorContainer = Color(0xFF410002),
     background = Color(0xFFF4FBFA),
-    onBackground = Color(0xFF161D1D),
+    // Headings and titles in near-black (not tinted grey) so they stand out crisply
+    onBackground = Color(0xFF0A0A0A),
     surface = Color(0xFFF4FBFA),
-    onSurface = Color(0xFF161D1D),
+    onSurface = Color(0xFF0A0A0A),
     surfaceVariant = Color(0xFFDAE5E4),
     onSurfaceVariant = Color(0xFF3F4948),
     outline = Color(0xFF6F7979),
