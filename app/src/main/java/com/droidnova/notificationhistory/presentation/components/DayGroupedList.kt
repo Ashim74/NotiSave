@@ -52,22 +52,18 @@ fun <T> LazyListScope.dayGroupedItems(
 @Composable
 private fun DayHeader(date: LocalDate, first: Boolean, modifier: Modifier = Modifier) {
     val today = LocalDate.now()
-    Text(
+    SectionHeader(
         text = when (date) {
             today -> stringResource(R.string.date_today)
             today.minusDays(1) -> stringResource(R.string.date_yesterday)
             else -> date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
-        }.uppercase(),
-        modifier = modifier
-            .padding(
-                start = Dimens.ScreenHorizontal + 6.dp,
-                end = Dimens.ScreenHorizontal,
-                top = if (first) 4.dp else 14.dp,
-                bottom = 6.dp
-            )
-            .semantics { heading() },
-        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.2.sp),
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        first = true,
+        modifier = modifier.padding(
+            start = Dimens.ScreenHorizontal,
+            end = Dimens.ScreenHorizontal,
+            top = if (first) 4.dp else 14.dp,
+            bottom = 6.dp
+        )
     )
 }

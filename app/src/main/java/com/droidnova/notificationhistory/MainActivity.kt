@@ -14,6 +14,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
@@ -30,6 +33,7 @@ import com.droidnova.notificationhistory.presentation.screens.lock.LockScreen
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.presentation.navigation.AppNavGraph
 import com.droidnova.notificationhistory.presentation.navigation.LaunchAction
+import com.droidnova.notificationhistory.presentation.screens.splash.SplashIntro
 import com.droidnova.notificationhistory.presentation.ui.theme.AppTheme
 import com.droidnova.notificationhistory.presentation.ui.theme.isDark
 import com.droidnova.notificationhistory.service.ListenerReconnector
@@ -96,6 +100,10 @@ class MainActivity : FragmentActivity() {
                             lockContent = { LockScreen() },
                             appContent = { AppNavGraph(launchAction = launchAction) }
                         )
+                        // Once per launch (kept across rotation): the icon-and-name intro over
+                        // the app, which keeps loading underneath.
+                        var showIntro by rememberSaveable { mutableStateOf(savedInstanceState == null) }
+                        if (showIntro) SplashIntro(onFinished = { showIntro = false })
                     }
                 }
             }
