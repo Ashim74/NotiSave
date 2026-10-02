@@ -12,11 +12,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.droidnova.notificationhistory.R
+import kotlin.math.roundToInt
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -47,6 +48,9 @@ import kotlinx.coroutines.launch
 private const val HOLD_MS = 650L
 private const val LETTER_STEP_MS = 28
 private val IconSize = 112.dp
+
+// The system splash shows the icon as a ~190dp circle; the intro shrinks from there
+private const val SYSTEM_SPLASH_SCALE = 1.7f
 
 /**
  * The first thing a cold start shows, right after the system splash (which shows the same icon):
@@ -57,8 +61,10 @@ private val IconSize = 112.dp
 @Composable
 fun SplashIntro(onFinished: () -> Unit) {
     val name = stringResource(R.string.app_name)
-    val iconScale = remember { Animatable(0.6f) }
-    val iconAlpha = remember { Animatable(0f) }
+    // Starts at the size and round shape of the system splash icon, so the handoff is seamless
+    val iconScale = remember { Animatable(SYSTEM_SPLASH_SCALE) }
+    val iconMorph = remember { Animatable(0f) }
+
     val ring = remember { Animatable(0f) }
     val ripple = remember { Animatable(0f) }
     val letters = remember(name) { name.map { Animatable(0f) } }
@@ -66,7 +72,7 @@ fun SplashIntro(onFinished: () -> Unit) {
 
     LaunchedEffect(Unit) {
         coroutineScope {
-            launch { iconAlpha.animateTo(1f, tween(180)) }
+            launch { iconMorph.animateTo(1f, tween(420, easing = FastOutSlowInEasing)) }
             launch {
                 iconScale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
             }
@@ -125,7 +131,8 @@ fun SplashIntro(onFinished: () -> Unit) {
             .clearAndSetSemantics { },
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // The icon sits at the exact center, where the system splash drew it; the name hangs below
+        Box(contentAlignment = Alignment.Center) {
             Box(contentAlignment = Alignment.Center) {
                 // Three rings spreading out from the icon, one after another
                 val rippleColor = colors.primary
@@ -143,8 +150,9 @@ fun SplashIntro(onFinished: () -> Unit) {
                     }
                 }
                 LauncherIcon(
+                    morph = iconMorph.value,
                     modifier = Modifier.graphicsLayer {
-                        alpha = iconAlpha.value
+                        alpha = 1f
                         scaleX = iconScale.value
                         scaleY = iconScale.value
                         rotationZ = ring.value
@@ -153,8 +161,10 @@ fun SplashIntro(onFinished: () -> Unit) {
                     }
                 )
             }
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.Center) {
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.offset(y = IconSize / 2 + 44.dp)
+            ) {
                 name.forEachIndexed { index, char ->
                     val progress = letters[index]
                     Text(
@@ -178,19 +188,21 @@ fun SplashIntro(onFinished: () -> Unit) {
  * to that tile, so it looks exactly like the icon on the home screen.
  */
 @Composable
-private fun LauncherIcon(modifier: Modifier = Modifier) {
+private fun LauncherIcon(morph: Float, modifier: Modifier = Modifier) {
+    // morph 0: the system splash's circle, flat; morph 1: the launcher's rounded tile, raised
+    val shape = RoundedCornerShape(percent = (50 - 23 * morph).roundToInt())
     Box(
         modifier = modifier
             .size(IconSize)
-            .shadow(16.dp, RoundedCornerShape(30.dp), clip = false)
-            .clip(RoundedCornerShape(30.dp)),
+            .shadow(16.dp * morph, shape, clip = false)
+            .clip(shape),
         contentAlignment = Alignment.Center
     ) {
         Image(
             painter = painterResource(R.mipmap.ic_launcher_foreground),
             contentDescription = null,
-            // The tile fills about two thirds of the foreground; scale so it fills the box
-            modifier = Modifier.requiredSize(IconSize * 1.47f)
+            // The tile spans ~280 of the foreground's 432 px; scale so it fills the box edge to edge
+            modifier = Modifier.requiredSize(IconSize * 1.55f)
         )
     }
 }
