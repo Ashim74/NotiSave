@@ -6,11 +6,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.WorkspacePremium
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarHost
@@ -40,6 +43,7 @@ import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
 import com.droidnova.notificationhistory.presentation.components.NotificationPermissionBottomSheet
 import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
+import com.droidnova.notificationhistory.presentation.components.HeaderButton
 import com.droidnova.notificationhistory.presentation.components.rememberBatteryOptimizationState
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
@@ -176,6 +180,7 @@ fun HomeScreen(
             onSeeAllHistory = { navController.navigateToTab(Screens.History.route) },
             onManageApps = { navController.navigate(Screens.ManageNotifications.route) },
             onInsights = { navController.navigateToTab(Screens.Insights.route) },
+            onTrash = { navController.navigate(Screens.Trash.route) },
             onBatteryAction = batteryOptimization.requestExemption,
             onNotificationClick = { showDetailsDialog = it },
             onRateCancel = viewmodel::resetLaunchCount,
@@ -261,29 +266,41 @@ private fun HomeTopBar(
     ScreenTopBar(
         title = stringResource(R.string.app_name),
         actions = {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(
-                    Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.content_description_menu)
+            // Premium is one tap away, like the star in Secret Calculator's vault header
+            if (!isPremium) {
+                HeaderButton(
+                    icon = Icons.Outlined.WorkspacePremium,
+                    contentDescription = stringResource(R.string.premium_menu_remove_ads),
+                    onClick = onRemoveAds
                 )
             }
-            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                if (!isPremium) {
+            Box {
+                HeaderButton(
+                    icon = Icons.Default.MoreVert,
+                    contentDescription = stringResource(R.string.content_description_menu),
+                    onClick = { showMenu = true },
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    if (!isPremium) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.premium_menu_remove_ads)) },
+                            leadingIcon = { Icon(Icons.Outlined.WorkspacePremium, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                onRemoveAds()
+                            }
+                        )
+                    }
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.premium_menu_remove_ads)) },
+                        text = { Text(stringResource(R.string.about_title)) },
+                        leadingIcon = { Icon(Icons.Outlined.Info, contentDescription = null) },
                         onClick = {
                             showMenu = false
-                            onRemoveAds()
+                            onAbout()
                         }
                     )
                 }
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.about_title)) },
-                    onClick = {
-                        showMenu = false
-                        onAbout()
-                    }
-                )
             }
         }
     )

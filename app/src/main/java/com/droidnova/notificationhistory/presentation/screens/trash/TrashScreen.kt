@@ -1,28 +1,30 @@
 package com.droidnova.notificationhistory.presentation.screens.trash
 
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,20 +32,28 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.mapper.toReadableTime
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.presentation.components.ActionTile
 import com.droidnova.notificationhistory.presentation.components.EmptyState
 import com.droidnova.notificationhistory.presentation.components.GroupRowGap
-import com.droidnova.notificationhistory.presentation.components.dayGroupedItems
+import com.droidnova.notificationhistory.presentation.components.HeaderButton
 import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
+import com.droidnova.notificationhistory.presentation.components.IconBadge
 import com.droidnova.notificationhistory.presentation.components.NotificationHistoryCard
+import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
+import com.droidnova.notificationhistory.presentation.components.appearIn
+import com.droidnova.notificationhistory.presentation.components.dayGroupedItems
+import com.droidnova.notificationhistory.presentation.components.tintedCardColor
+import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,25 +67,26 @@ fun TrashScreen(mainViewModel: MainViewModel, navController: NavController) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.trash_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
-                    }
-                },
+            ScreenTopBar(
+                title = stringResource(R.string.trash_title),
+                onBack = { navController.popBackStack() },
                 actions = {
-                    if (notifications.isNotEmpty()) {
-                        TextButton(onClick = { showRestoreAllConfirmation = true }) {
-                            Text(stringResource(R.string.trash_restore_all))
-                        }
-                        IconButton(onClick = { showEmptyConfirmation = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.trash_empty_action)
+                    AnimatedVisibility(
+                        visible = notifications.isNotEmpty(),
+                        enter = fadeIn() + scaleIn(),
+                        exit = fadeOut() + scaleOut()
+                    ) {
+                        Row(modifier = Modifier.padding(end = 8.dp)) {
+                            HeaderButton(
+                                icon = Icons.Outlined.Restore,
+                                contentDescription = stringResource(R.string.trash_restore_all),
+                                onClick = { showRestoreAllConfirmation = true }
+                            )
+                            HeaderButton(
+                                icon = Icons.Outlined.DeleteSweep,
+                                contentDescription = stringResource(R.string.trash_empty_action),
+                                onClick = { showEmptyConfirmation = true },
+                                tint = MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -93,6 +104,7 @@ fun TrashScreen(mainViewModel: MainViewModel, navController: NavController) {
                 notifications.isEmpty() -> EmptyState(
                     title = stringResource(R.string.trash_empty),
                     modifier = Modifier.fillMaxSize(),
+                    icon = Icons.Outlined.DeleteSweep,
                     description = stringResource(
                         R.string.trash_empty_description,
                         SettingState.TRASH_RETENTION_DAYS
@@ -126,97 +138,126 @@ fun TrashScreen(mainViewModel: MainViewModel, navController: NavController) {
 
     selectedNotification?.let { notification ->
         ModalBottomSheet(onDismissRequest = { selectedNotification = null }) {
-            Column(modifier = Modifier.padding(bottom = 12.dp)) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.trash_restore)) },
-                    leadingContent = {
-                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
-                    },
-                    modifier = Modifier.clickable {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 24.dp, end = 24.dp, bottom = 20.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                ActionTile(
+                    icon = Icons.Outlined.Restore,
+                    label = stringResource(R.string.trash_restore),
+                    accent = AccentColors.Green,
+                    modifier = Modifier
+                        .weight(1f)
+                        .appearIn(0),
+                    onClick = {
                         selectedNotification = null
                         mainViewModel.restoreNotification(notification)
-                    },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+                    }
                 )
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.trash_delete_permanently)) },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    },
-                    modifier = Modifier.clickable {
+                ActionTile(
+                    icon = Icons.Outlined.DeleteForever,
+                    label = stringResource(R.string.trash_delete_permanently),
+                    destructive = true,
+                    modifier = Modifier
+                        .weight(1f)
+                        .appearIn(1),
+                    onClick = {
                         selectedNotification = null
                         permanentDeleteTarget = notification
-                    },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface)
+                    }
                 )
             }
         }
     }
 
     permanentDeleteTarget?.let { notification ->
-        AlertDialog(
-            onDismissRequest = { permanentDeleteTarget = null },
-            title = { Text(stringResource(R.string.trash_delete_permanently_question)) },
-            text = { Text(stringResource(R.string.trash_delete_confirmation)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        permanentDeleteTarget = null
-                        mainViewModel.permanentlyDeleteNotification(notification)
-                    }
-                ) { Text(stringResource(R.string.trash_delete_permanently)) }
+        TrashConfirmDialog(
+            icon = Icons.Outlined.DeleteForever,
+            title = stringResource(R.string.trash_delete_permanently_question),
+            message = stringResource(R.string.trash_delete_confirmation),
+            confirmLabel = stringResource(R.string.trash_delete_permanently),
+            destructive = true,
+            onConfirm = {
+                permanentDeleteTarget = null
+                mainViewModel.permanentlyDeleteNotification(notification)
             },
-            dismissButton = {
-                TextButton(onClick = { permanentDeleteTarget = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            onDismiss = { permanentDeleteTarget = null }
         )
     }
 
     if (showEmptyConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showEmptyConfirmation = false },
-            title = { Text(stringResource(R.string.trash_empty_question)) },
-            text = { Text(stringResource(R.string.trash_empty_confirmation)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showEmptyConfirmation = false
-                        mainViewModel.emptyTrash()
-                    }
-                ) { Text(stringResource(R.string.trash_empty_action)) }
+        TrashConfirmDialog(
+            icon = Icons.Outlined.DeleteSweep,
+            title = stringResource(R.string.trash_empty_question),
+            message = stringResource(R.string.trash_empty_confirmation),
+            confirmLabel = stringResource(R.string.trash_empty_action),
+            destructive = true,
+            onConfirm = {
+                showEmptyConfirmation = false
+                mainViewModel.emptyTrash()
             },
-            dismissButton = {
-                TextButton(onClick = { showEmptyConfirmation = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            onDismiss = { showEmptyConfirmation = false }
         )
     }
 
     if (showRestoreAllConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showRestoreAllConfirmation = false },
-            title = { Text(stringResource(R.string.trash_restore_all_question)) },
-            text = { Text(stringResource(R.string.trash_restore_all_confirmation)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showRestoreAllConfirmation = false
-                        mainViewModel.restoreAllNotifications()
-                    }
-                ) { Text(stringResource(R.string.trash_restore_all)) }
+        TrashConfirmDialog(
+            icon = Icons.Outlined.Restore,
+            title = stringResource(R.string.trash_restore_all_question),
+            message = stringResource(R.string.trash_restore_all_confirmation),
+            confirmLabel = stringResource(R.string.trash_restore_all),
+            destructive = false,
+            onConfirm = {
+                showRestoreAllConfirmation = false
+                mainViewModel.restoreAllNotifications()
             },
-            dismissButton = {
-                TextButton(onClick = { showRestoreAllConfirmation = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            onDismiss = { showRestoreAllConfirmation = false }
         )
     }
+}
+
+/** Confirmation with an icon badge above a centered title; red when [destructive]. */
+@Composable
+private fun TrashConfirmDialog(
+    icon: ImageVector,
+    title: String,
+    message: String,
+    confirmLabel: String,
+    destructive: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            if (destructive) {
+                IconBadge(
+                    icon,
+                    containerColor = colors.errorContainer.copy(alpha = 0.5f),
+                    contentColor = colors.error,
+                    size = 52.dp
+                )
+            } else {
+                IconBadge(icon, containerColor = tintedCardColor(), size = 52.dp)
+            }
+        },
+        title = { Text(title, textAlign = TextAlign.Center) },
+        text = { Text(message, textAlign = TextAlign.Center) },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = if (destructive) {
+                    ButtonDefaults.textButtonColors(contentColor = colors.error)
+                } else {
+                    ButtonDefaults.textButtonColors()
+                }
+            ) { Text(confirmLabel) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        }
+    )
 }

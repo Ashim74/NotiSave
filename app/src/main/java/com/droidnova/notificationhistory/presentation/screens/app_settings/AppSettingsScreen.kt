@@ -2,41 +2,51 @@ package com.droidnova.notificationhistory.presentation.screens.app_settings
 
 import android.app.Activity
 import android.widget.Toast
-import androidx.compose.animation.animateColorAsState
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AccountBox
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.AutoDelete
+import androidx.compose.material.icons.outlined.BatteryAlert
+import androidx.compose.material.icons.outlined.BatteryChargingFull
+import androidx.compose.material.icons.outlined.BrightnessAuto
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.Feedback
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,15 +58,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -68,23 +78,30 @@ import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.core.lock.AppLock
 import com.droidnova.notificationhistory.data_shared.ThemeMode
-import com.droidnova.notificationhistory.presentation.components.AnimatedText
 import com.droidnova.notificationhistory.presentation.components.AppCard
 import com.droidnova.notificationhistory.presentation.components.AppCardDefaults
+import com.droidnova.notificationhistory.presentation.components.ChoicePill
+import com.droidnova.notificationhistory.presentation.components.GradientBanner
 import com.droidnova.notificationhistory.presentation.components.IconBadge
-import com.droidnova.notificationhistory.presentation.components.ListGroup
 import com.droidnova.notificationhistory.presentation.components.ListRow
 import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
 import com.droidnova.notificationhistory.presentation.components.SectionHeader
+import com.droidnova.notificationhistory.presentation.components.appearIn
+import com.droidnova.notificationhistory.presentation.components.pulsing
 import com.droidnova.notificationhistory.presentation.components.rememberBatteryOptimizationState
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDialog
 import com.droidnova.notificationhistory.presentation.navigation.Screens
-import com.droidnova.notificationhistory.presentation.navigation.navigateToTab
+import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 
+/**
+ * Settings in the Secret Calculator style: a Premium banner, then small labelled groups, each one
+ * tinted card of one-line, icon-led rows. Choices (theme, retention) are pills right under their
+ * row instead of dialogs.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController) {
@@ -107,8 +124,6 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     val consentManager = remember { AdsConsentManager.getInstance(context) }
     val privacyOptionsRequired by consentManager.privacyOptionsRequired.collectAsState()
     val themeMode by mainViewModel.themeMode.collectAsState()
-    var showThemeDialog by remember { mutableStateOf(false) }
-    var showRetentionDialog by remember { mutableStateOf(false) }
     val appLockEnabled by remember { AppLock.get(context).isEnabled }.collectAsState(initial = false)
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -131,233 +146,211 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
             ScreenTopBar(title = stringResource(R.string.settings_title))
         }
     ) { padding ->
-        val onRemoveAds: (() -> Unit)? = if (isPremium) null else {
-            {
-                if (billingManager != null) {
-                    mainViewModel.onRemoveAdsClicked()
-                    showPurchaseSheet = true
-                    billingManager.queryProductDetails()
-                } else {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.billing_unavailable),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+        val onRemoveAds: () -> Unit = {
+            if (billingManager != null) {
+                mainViewModel.onRemoveAdsClicked()
+                showPurchaseSheet = true
+                billingManager.queryProductDetails()
+            } else {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.billing_unavailable),
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
         val openAccess = {
             mainViewModel.onPermissionSettingsOpened()
             openNotificationAccessSettings(context)
         }
-        val errorBadge: @Composable (ImageVector) -> Unit = {
-            IconBadge(
-                it,
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer
-            )
-        }
 
-        // Grouped blocks with one-word values instead of a card and a sentence per setting.
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(horizontal = Dimens.ScreenHorizontal, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            contentPadding = PaddingValues(start = Dimens.ScreenHorizontal, end = Dimens.ScreenHorizontal, top = 4.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            if (!isPremium) {
+                item(key = "premium") {
+                    GradientBanner(
+                        modifier = Modifier.appearIn(0),
+                        icon = Icons.Filled.WorkspacePremium,
+                        title = stringResource(R.string.premium_sheet_title),
+                        subtitle = stringResource(R.string.premium_sheet_subtitle),
+                        onClick = onRemoveAds
+                    )
+                }
+            }
+
             item(key = "tracking") {
-                val checked = state.userToggleTracking && hasPermission
-                val container by animateColorAsState(
-                    if (checked) MaterialTheme.colorScheme.primaryContainer
-                    else AppCardDefaults.containerColor(),
-                    label = "trackingContainer"
-                )
-                ListRow(
-                    title = stringResource(
+                TrackingRow(
+                    modifier = Modifier.appearIn(1),
+                    checked = state.userToggleTracking && hasPermission,
+                    hasPermission = hasPermission,
+                    onCheckedChange = { enabled ->
                         when {
-                            !hasPermission -> R.string.home_status_access_needed
-                            checked -> R.string.home_status_recording
-                            else -> R.string.home_status_paused
+                            !enabled -> mainViewModel.setToggleTracking(false)
+                            hasPermission -> mainViewModel.onEnableClick()
+                            else -> openAccess()
                         }
-                    ),
-                    containerColor = container,
-                    leading = { IconBadge(Icons.Default.Notifications) },
-                    trailing = {
-                        Switch(
-                            checked = checked,
-                            onCheckedChange = { enabled ->
-                                when {
-                                    !enabled -> mainViewModel.setToggleTracking(false)
-                                    hasPermission -> mainViewModel.onEnableClick()
-                                    else -> openAccess()
-                                }
-                            }
-                        )
                     }
                 )
             }
 
             item(key = "capture") {
-                ListGroup(title = stringResource(R.string.settings_tracking_section)) {
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(R.string.settings_notification_access),
-                            value = stringResource(
-                                if (hasPermission) R.string.settings_permission_granted
-                                else R.string.settings_value_needed
-                            ),
-                            valueColor = if (hasPermission) {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            } else {
-                                MaterialTheme.colorScheme.error
-                            },
-                            leading = { IconBadge(Icons.Default.Notifications) },
-                            onClick = if (hasPermission) null else openAccess
-                        )
-                    }
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(R.string.home_manage_apps),
-                            value = pluralStringResource(
-                                R.plurals.settings_apps_count,
-                                state.selectedAppsCount,
-                                state.selectedAppsCount
-                            ),
-                            leading = { IconBadge(ImageVector.vectorResource(R.drawable.ic_apps)) },
-                            onClick = { navController.navigate(Screens.ManageNotifications.route) }
-                        )
-                    }
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(R.string.settings_battery_optimization),
-                            value = stringResource(
-                                if (batteryOptimization.isIgnored) R.string.settings_battery_unrestricted
-                                else R.string.settings_battery_restricted
-                            ),
-                            valueColor = if (batteryOptimization.isIgnored) {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            } else {
-                                MaterialTheme.colorScheme.error
-                            },
-                            leading = {
-                                IconBadge(
-                                    if (batteryOptimization.isIgnored) Icons.Default.CheckCircle
-                                    else Icons.Default.Warning
-                                )
-                            },
-                            onClick = if (batteryOptimization.isIgnored) null else batteryOptimization.requestExemption
-                        )
-                    }
+                SettingsGroup(stringResource(R.string.settings_tracking_section), Modifier.appearIn(2)) {
+                    SettingRow(
+                        icon = Icons.Outlined.NotificationsActive,
+                        accent = if (hasPermission) AccentColors.Blue else MaterialTheme.colorScheme.error,
+                        title = stringResource(R.string.settings_notification_access),
+                        value = stringResource(
+                            if (hasPermission) R.string.settings_permission_granted
+                            else R.string.settings_value_needed
+                        ),
+                        valueColor = if (hasPermission) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                        onClick = if (hasPermission) null else openAccess
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.Apps,
+                        accent = AccentColors.Purple,
+                        title = stringResource(R.string.home_manage_apps),
+                        value = pluralStringResource(
+                            R.plurals.settings_apps_count,
+                            state.selectedAppsCount,
+                            state.selectedAppsCount
+                        ),
+                        onClick = { navController.navigate(Screens.ManageNotifications.route) }
+                    )
+                    SettingRow(
+                        icon = if (batteryOptimization.isIgnored) Icons.Outlined.BatteryChargingFull else Icons.Outlined.BatteryAlert,
+                        accent = if (batteryOptimization.isIgnored) AccentColors.Green else AccentColors.Amber,
+                        title = stringResource(R.string.settings_battery_optimization),
+                        value = stringResource(
+                            if (batteryOptimization.isIgnored) R.string.settings_battery_unrestricted
+                            else R.string.settings_battery_restricted
+                        ),
+                        valueColor = if (batteryOptimization.isIgnored) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                        onClick = if (batteryOptimization.isIgnored) null else batteryOptimization.requestExemption
+                    )
                 }
             }
 
             item(key = "history") {
-                ListGroup(title = stringResource(R.string.settings_history_section)) {
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(R.string.settings_retention),
-                            value = retentionLabel(state.historyRetentionDays),
-                            leading = { IconBadge(ImageVector.vectorResource(R.drawable.ic_history)) },
-                            onClick = { showRetentionDialog = true }
-                        )
+                SettingsGroup(stringResource(R.string.settings_history_section), Modifier.appearIn(3)) {
+                    SettingRow(
+                        icon = Icons.Outlined.AutoDelete,
+                        accent = AccentColors.Teal,
+                        title = stringResource(R.string.settings_retention),
+                        value = stringResource(R.string.set_retention_summary)
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(start = 62.dp, end = 8.dp),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        items(RETENTION_OPTIONS_DAYS) { days ->
+                            ChoicePill(
+                                label = retentionShortLabel(days),
+                                selected = days == state.historyRetentionDays,
+                                onClick = { mainViewModel.updateHistoryRetentionDays(days) }
+                            )
+                        }
                     }
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(R.string.trash_title),
-                            leading = { IconBadge(Icons.Default.Delete) },
-                            onClick = { navController.navigate(Screens.Trash.route) }
-                        )
-                    }
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(R.string.settings_clear_history),
-                            titleColor = MaterialTheme.colorScheme.error,
-                            leading = { errorBadge(Icons.Default.Delete) },
-                            showChevron = false,
-                            onClick = { showClearConfirmation = true }
-                        )
-                    }
+                    SettingRow(
+                        icon = Icons.Outlined.DeleteOutline,
+                        accent = AccentColors.Rose,
+                        title = stringResource(R.string.trash_title),
+                        onClick = { navController.navigate(Screens.Trash.route) }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.DeleteSweep,
+                        accent = MaterialTheme.colorScheme.error,
+                        title = stringResource(R.string.settings_clear_history),
+                        titleColor = MaterialTheme.colorScheme.error,
+                        showChevron = false,
+                        onClick = { showClearConfirmation = true }
+                    )
                 }
             }
 
             item(key = "general") {
-                ListGroup(title = stringResource(R.string.settings_general_section)) {
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(R.string.settings_theme),
-                            value = stringResource(themeMode.labelRes()),
-                            leading = { IconBadge(ImageVector.vectorResource(R.drawable.ic_theme)) },
-                            onClick = { showThemeDialog = true }
-                        )
+                SettingsGroup(stringResource(R.string.settings_general_section), Modifier.appearIn(4)) {
+                    SettingRow(
+                        icon = Icons.Outlined.Palette,
+                        accent = AccentColors.Orange,
+                        title = stringResource(R.string.settings_theme)
+                    )
+                    SingleChoiceSegmentedButtonRow(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, end = 12.dp, bottom = 8.dp)
+                    ) {
+                        ThemeMode.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = mode == themeMode,
+                                onClick = { mainViewModel.setThemeMode(mode) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = ThemeMode.entries.size),
+                                icon = {
+                                    SegmentedButtonDefaults.Icon(active = mode == themeMode) {
+                                        Icon(mode.icon(), contentDescription = null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
+                                    }
+                                }
+                            ) {
+                                Text(stringResource(mode.shortLabelRes()), maxLines = 1)
+                            }
+                        }
                     }
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(R.string.settings_app_lock),
-                            value = stringResource(
-                                if (appLockEnabled) R.string.settings_value_on else R.string.settings_value_off
-                            ),
-                            leading = { IconBadge(Icons.Default.Lock) },
-                            onClick = { navController.navigate(Screens.AppLock.route) }
-                        )
-                    }
+                    SettingRow(
+                        icon = Icons.Outlined.Lock,
+                        accent = AccentColors.Blue,
+                        title = stringResource(R.string.settings_app_lock),
+                        value = stringResource(
+                            if (appLockEnabled) R.string.settings_value_on else R.string.settings_value_off
+                        ),
+                        onClick = { navController.navigate(Screens.AppLock.route) }
+                    )
                 }
             }
 
             item(key = "app") {
-                ListGroup(title = stringResource(R.string.settings_app_section)) {
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(
-                                if (isPremium) R.string.settings_premium_active
-                                else R.string.premium_menu_remove_ads
-                            ),
-                            leading = {
-                                IconBadge(
-                                    Icons.Default.Star,
-                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                            },
-                            onClick = onRemoveAds
+                SettingsGroup(stringResource(R.string.settings_app_section), Modifier.appearIn(5)) {
+                    if (isPremium) {
+                        SettingRow(
+                            icon = Icons.Default.Star,
+                            accent = AccentColors.Amber,
+                            title = stringResource(R.string.settings_premium_active)
                         )
                     }
                     // UMP mandates a privacy-options entry point while consent is revocable (EEA/UK/US states).
                     if (privacyOptionsRequired) {
-                        row { shape ->
-                            ListRow(
-                                shape = shape,
-                                title = stringResource(R.string.settings_privacy_options),
-                                leading = { IconBadge(Icons.Default.AccountBox) },
-                                onClick = { activity?.let { consentManager.showPrivacyOptionsForm(it) } }
-                            )
-                        }
-                    }
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(R.string.settings_feedback),
-                            leading = { IconBadge(Icons.Default.Email) },
-                            onClick = { IntentUtil.sendSupportMail(context, isBug = false) }
+                        SettingRow(
+                            icon = Icons.Outlined.PrivacyTip,
+                            accent = AccentColors.Teal,
+                            title = stringResource(R.string.settings_privacy_options),
+                            onClick = { activity?.let { consentManager.showPrivacyOptionsForm(it) } }
                         )
                     }
-                    row { shape ->
-                        ListRow(
-                            shape = shape,
-                            title = stringResource(R.string.about_title),
-                            leading = { IconBadge(Icons.Outlined.Info) },
-                            onClick = { navController.navigate(Screens.AboutScreen.route) }
-                        )
-                    }
+                    SettingRow(
+                        icon = Icons.Outlined.Feedback,
+                        accent = AccentColors.Green,
+                        title = stringResource(R.string.settings_feedback),
+                        onClick = { IntentUtil.sendSupportMail(context, isBug = false) }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.Info,
+                        accent = AccentColors.Purple,
+                        title = stringResource(R.string.about_title),
+                        onClick = { navController.navigate(Screens.AboutScreen.route) }
+                    )
                 }
             }
         }
@@ -366,98 +359,27 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     if (showClearConfirmation) {
         AlertDialog(
             onDismissRequest = { showClearConfirmation = false },
-            title = { Text(stringResource(R.string.clear_history_confirmation_title)) },
+            icon = {
+                IconBadge(
+                    Icons.Default.Delete,
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                    contentColor = MaterialTheme.colorScheme.error,
+                    size = 52.dp
+                )
+            },
+            title = { Text(stringResource(R.string.clear_history_confirmation_title), textAlign = TextAlign.Center) },
             text = { Text(stringResource(R.string.clear_history_confirmation)) },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showClearConfirmation = false
                         mainViewModel.clearAllHistory()
-                    }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) { Text(stringResource(R.string.move_to_trash)) }
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirmation = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
-    if (showRetentionDialog) {
-        AlertDialog(
-            onDismissRequest = { showRetentionDialog = false },
-            title = { Text(stringResource(R.string.settings_retention_dialog_title)) },
-            text = {
-                Column {
-                    RETENTION_OPTIONS_DAYS.forEach { days ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    mainViewModel.updateHistoryRetentionDays(days)
-                                    showRetentionDialog = false
-                                }
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = days == state.historyRetentionDays,
-                                onClick = {
-                                    mainViewModel.updateHistoryRetentionDays(days)
-                                    showRetentionDialog = false
-                                }
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(retentionLabel(days))
-                        }
-                    }
-                    Text(
-                        text = stringResource(R.string.settings_retention_description),
-                        modifier = Modifier.padding(top = 8.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showRetentionDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
-    if (showThemeDialog) {
-        AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            title = { Text(stringResource(R.string.settings_theme_dialog_title)) },
-            text = {
-                Column {
-                    ThemeMode.entries.forEach { mode ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    mainViewModel.setThemeMode(mode)
-                                    showThemeDialog = false
-                                }
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = mode == themeMode,
-                                onClick = {
-                                    mainViewModel.setThemeMode(mode)
-                                    showThemeDialog = false
-                                }
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(mode.labelRes()))
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -486,20 +408,109 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     }
 }
 
+/**
+ * The capture switch as one highlighted row: the whole row toggles, the badge breathes while
+ * notifications are being saved, and the card fills with the accent when on.
+ */
+@Composable
+private fun TrackingRow(
+    checked: Boolean,
+    hasPermission: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scheme = MaterialTheme.colorScheme
+    val container by animateColorAsState(
+        if (checked) scheme.primaryContainer else AppCardDefaults.containerColor(),
+        label = "trackingContainer"
+    )
+    val shape = MaterialTheme.shapes.medium
+    ListRow(
+        modifier = modifier
+            .clip(shape)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+        shape = shape,
+        title = stringResource(
+            when {
+                !hasPermission -> R.string.home_status_access_needed
+                checked -> R.string.home_status_recording
+                else -> R.string.home_status_paused
+            }
+        ),
+        containerColor = container,
+        titleColor = if (checked) scheme.onPrimaryContainer else scheme.onSurface,
+        leading = {
+            IconBadge(
+                Icons.Default.Notifications,
+                accent = if (hasPermission) scheme.primary else scheme.error,
+                modifier = if (checked) Modifier.pulsing() else Modifier
+            )
+        },
+        trailing = { Switch(checked = checked, onCheckedChange = null) }
+    )
+}
+
+/** A small uppercase label over one tinted card that holds a group of rows. */
+@Composable
+private fun SettingsGroup(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier) {
+        SectionHeader(title, Modifier.padding(bottom = 6.dp), first = true)
+        AppCard(Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .padding(vertical = 4.dp)
+                    .animateContentSize(),
+                content = content
+            )
+        }
+    }
+}
+
+/** One setting on one line inside a [SettingsGroup]: colored badge, title, optional value. */
+@Composable
+private fun SettingRow(
+    icon: ImageVector,
+    accent: Color,
+    title: String,
+    value: String? = null,
+    valueColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    showChevron: Boolean? = null,
+    onClick: (() -> Unit)? = null
+) {
+    ListRow(
+        title = title,
+        value = value,
+        valueColor = valueColor,
+        titleColor = titleColor,
+        shape = RoundedCornerShape(16.dp),
+        containerColor = Color.Transparent,
+        leading = { IconBadge(icon, accent = accent, modifier = Modifier.size(38.dp)) },
+        onClick = onClick,
+        showChevron = showChevron ?: (onClick != null)
+    )
+}
+
 /** 0 means "never delete"; see the retention gate in the listener and MainViewModel. */
 private val RETENTION_OPTIONS_DAYS = listOf(7, 14, 30, 90, 0)
 
 @Composable
-private fun retentionLabel(days: Int): String =
+private fun retentionShortLabel(days: Int): String =
     if (days <= 0) {
-        stringResource(R.string.settings_retention_forever)
+        stringResource(R.string.set_retention_forever_short)
     } else {
         pluralStringResource(R.plurals.settings_retention_days, days, days)
     }
 
 @StringRes
-private fun ThemeMode.labelRes(): Int = when (this) {
-    ThemeMode.System -> R.string.theme_system
+private fun ThemeMode.shortLabelRes(): Int = when (this) {
+    ThemeMode.System -> R.string.set_theme_system
     ThemeMode.Light -> R.string.theme_light
     ThemeMode.Dark -> R.string.theme_dark
+}
+
+private fun ThemeMode.icon(): ImageVector = when (this) {
+    ThemeMode.System -> Icons.Outlined.BrightnessAuto
+    ThemeMode.Light -> Icons.Outlined.LightMode
+    ThemeMode.Dark -> Icons.Outlined.DarkMode
 }

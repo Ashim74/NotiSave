@@ -23,7 +23,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,6 +49,21 @@ import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.core.lock.AppLockController
 import com.droidnova.notificationhistory.core.lock.LocalBiometricGate
 import com.droidnova.notificationhistory.core.lock.RecoveryCodes
+import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
+import com.droidnova.notificationhistory.presentation.components.GroupRowGap
+import com.droidnova.notificationhistory.presentation.components.IconBadge
+import com.droidnova.notificationhistory.presentation.components.ListRow
+import com.droidnova.notificationhistory.presentation.components.appearIn
+import com.droidnova.notificationhistory.presentation.components.groupedShape
+import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
+import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 
 private const val APP_CONTENT_KEY = "app_content"
 
@@ -171,7 +185,9 @@ fun LockScreenContent(
             AnimatedContent(
                 targetState = state.stage,
                 modifier = Modifier.widthIn(max = 420.dp),
-                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) },
+                transitionSpec = {
+                    (fadeIn(tween(240)) + scaleIn(tween(240), initialScale = 0.96f)) togetherWith fadeOut(tween(120))
+                },
                 contentKey = { it::class },
                 label = "lockStage"
             ) { stage ->
@@ -200,9 +216,9 @@ private fun UnlockStage(state: LockScreenState, biometricAvailable: Boolean, act
         title = stringResource(R.string.lock_screen_title),
         subtitle = stringResource(R.string.lock_screen_subtitle)
     )
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(4.dp))
     VerifyFeedbackText(feedback)
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(4.dp))
     PinEntry(
         onComplete = actions.onSubmitPin,
         enabled = !feedback.isChecking && !feedback.isLockedOut,
@@ -210,7 +226,7 @@ private fun UnlockStage(state: LockScreenState, biometricAvailable: Boolean, act
         errorKey = feedback.errorKey,
         onFingerprint = if (biometricAvailable) actions.onBiometric else null
     )
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(12.dp))
     TextButton(onClick = actions.onForgot) {
         Text(stringResource(R.string.lock_forgot_pin))
     }
@@ -221,32 +237,42 @@ private fun ForgotStage(state: LockScreenState, deviceLockAvailable: Boolean, ac
     FlowBackButton(onBack = actions.onBack)
     LockHeader(
         title = stringResource(R.string.lock_forgot_title),
-        subtitle = stringResource(R.string.lock_forgot_subtitle)
+        subtitle = stringResource(R.string.lock_forgot_subtitle),
+        icon = Icons.Default.Refresh
     )
-    Spacer(Modifier.height(32.dp))
-    if (deviceLockAvailable) {
-        Button(onClick = actions.onUseDeviceLock, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.lock_use_screen_lock))
+    Spacer(Modifier.height(24.dp))
+    // Each way back in is one icon-led row, the most convenient first.
+    Column(verticalArrangement = Arrangement.spacedBy(GroupRowGap)) {
+        val count = if (deviceLockAvailable) 2 else 1
+        if (deviceLockAvailable) {
+            ListRow(
+                modifier = Modifier.appearIn(0),
+                shape = groupedShape(0, count),
+                title = stringResource(R.string.lock_use_screen_lock),
+                leading = { IconBadge(ImageVector.vectorResource(R.drawable.ic_fingerprint), accent = AccentColors.Blue) },
+                onClick = actions.onUseDeviceLock
+            )
         }
-        if (state.deviceCheckFailed) {
-            Spacer(Modifier.height(8.dp))
-            ErrorLine(stringResource(R.string.lock_device_failed))
-        }
+        ListRow(
+            modifier = Modifier.appearIn(1),
+            shape = groupedShape(count - 1, count),
+            title = stringResource(R.string.lock_use_recovery_code),
+            leading = { IconBadge(ImageVector.vectorResource(R.drawable.ic_reset), accent = AccentColors.Green) },
+            onClick = actions.onUseRecoveryCode
+        )
+    }
+    if (deviceLockAvailable && state.deviceCheckFailed) {
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = actions.onUseRecoveryCode, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.lock_use_recovery_code))
-        }
-    } else {
+        ErrorLine(stringResource(R.string.lock_device_failed))
+    }
+    if (!deviceLockAvailable) {
+        Spacer(Modifier.height(12.dp))
         Text(
             stringResource(R.string.lock_no_screen_lock),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = actions.onUseRecoveryCode, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.lock_use_recovery_code))
-        }
     }
 }
 
@@ -264,18 +290,21 @@ private fun RecoveryCodeStage(state: LockScreenState, actions: LockScreenActions
     FlowBackButton(onBack = actions.onBack)
     LockHeader(
         title = stringResource(R.string.lock_recover_code_title),
-        subtitle = stringResource(R.string.lock_recover_code_desc)
+        subtitle = stringResource(R.string.lock_recover_code_desc),
+        icon = ImageVector.vectorResource(R.drawable.ic_reset)
     )
-    Spacer(Modifier.height(24.dp))
+    Spacer(Modifier.height(20.dp))
     OutlinedTextField(
         value = code,
         onValueChange = { if (it.length <= RECOVERY_INPUT_MAX) code = it },
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Dimens.TileCornerRadius),
         singleLine = true,
         enabled = !feedback.isChecking && !feedback.isLockedOut,
         isError = feedback.attemptsLeft != null,
         label = { Text(stringResource(R.string.lock_recovery_code_label)) },
         placeholder = { Text(stringResource(R.string.lock_recovery_code_hint)) },
+        textStyle = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Monospace, letterSpacing = 2.sp),
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.Characters,
             autoCorrectEnabled = false,
@@ -286,7 +315,13 @@ private fun RecoveryCodeStage(state: LockScreenState, actions: LockScreenActions
     Spacer(Modifier.height(4.dp))
     VerifyFeedbackText(feedback)
     Spacer(Modifier.height(4.dp))
-    Button(onClick = submit, enabled = canSubmit, modifier = Modifier.fillMaxWidth()) {
+    Button(
+        onClick = submit,
+        enabled = canSubmit,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+    ) {
         Text(stringResource(R.string.lock_continue))
     }
 }

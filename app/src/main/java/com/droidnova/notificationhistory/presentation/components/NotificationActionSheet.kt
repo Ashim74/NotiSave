@@ -1,25 +1,25 @@
 package com.droidnova.notificationhistory.presentation.components
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 
+/** One row of round actions, Secret Calculator style: icon on top, a one-word label under it. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationActionSheet(
@@ -31,46 +31,48 @@ fun NotificationActionSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.padding(bottom = 12.dp)) {
-            NotificationActionRow(
-                label = "View Details",
-                icon = { Icon(imageVector = Icons.Default.Info, contentDescription = null) },
-                onClick = onViewDetails
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 12.dp, bottom = 20.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            val tile = Modifier.weight(1f)
+            ActionTile(
+                icon = Icons.Outlined.Info,
+                label = stringResource(R.string.hist_action_details),
+                onClick = onViewDetails,
+                accent = AccentColors.Blue,
+                modifier = tile.appearIn(0)
             )
-            NotificationActionRow(
-                label = "Open App",
-                icon = { Icon(painter = painterResource(id = R.drawable.ic_open_in_new), contentDescription = null) },
-                onClick = onOpenApp
+            ActionTile(
+                icon = Icons.AutoMirrored.Outlined.OpenInNew,
+                label = stringResource(R.string.hist_action_open),
+                onClick = onOpenApp,
+                accent = AccentColors.Teal,
+                modifier = tile.appearIn(1)
             )
-            NotificationActionRow(
-                label = "Copy",
-                icon = { Icon(painter = painterResource(id = R.drawable.ic_content_copy), contentDescription = null) },
-                onClick = onCopy
+            ActionTile(
+                icon = Icons.Outlined.ContentCopy,
+                label = stringResource(R.string.content_description_copy),
+                onClick = onCopy,
+                accent = AccentColors.Purple,
+                modifier = tile.appearIn(2)
             )
-            NotificationActionRow(
-                label = "Share",
-                icon = { Icon(imageVector = Icons.Default.Share, contentDescription = null) },
-                onClick = onShare
+            ActionTile(
+                icon = Icons.Outlined.Share,
+                label = stringResource(R.string.content_description_share),
+                onClick = onShare,
+                accent = AccentColors.Green,
+                modifier = tile.appearIn(3)
             )
-            NotificationActionRow(
-                label = "Move to Trash",
-                icon = { Icon(imageVector = Icons.Default.Delete, contentDescription = null) },
-                onClick = onDelete
+            ActionTile(
+                icon = Icons.Outlined.DeleteOutline,
+                label = stringResource(R.string.hist_action_trash),
+                onClick = onDelete,
+                destructive = true,
+                modifier = tile.appearIn(4)
             )
         }
     }
-}
-
-@Composable
-private fun NotificationActionRow(
-    label: String,
-    icon: @Composable () -> Unit,
-    onClick: () -> Unit,
-) {
-    ListItem(
-        headlineContent = { Text(text = label) },
-        leadingContent = icon,
-        modifier = Modifier.clickable(onClick = onClick),
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    )
 }

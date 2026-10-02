@@ -9,13 +9,17 @@ import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +30,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,8 +40,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -55,6 +61,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -64,10 +71,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.core.lock.PinRules
+import com.droidnova.notificationhistory.presentation.components.IconBadge
+import com.droidnova.notificationhistory.presentation.components.floating
+import com.droidnova.notificationhistory.presentation.components.pressScale
+import com.droidnova.notificationhistory.presentation.components.tintedCardColor
 import java.util.Locale
-import kotlin.math.roundToInt
 
 /**
  * Four dots and a number pad. The PIN submits itself on the last digit — there is no confirm
@@ -103,7 +114,7 @@ fun PinEntry(
             checking = checking,
             modifier = Modifier.offset { IntOffset(shake.value.dp.roundToPx(), 0) }
         )
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(28.dp))
         PinPad(
             enabled = enabled,
             onDigit = { digit ->
@@ -127,9 +138,12 @@ private fun PinDots(length: Int, isError: Boolean, checking: Boolean, modifier: 
         animationSpec = infiniteRepeatable(tween(450), RepeatMode.Reverse),
         label = "pinCheckAlpha"
     )
+    // The dots sit in a soft pill, like the display of a calculator.
     Row(
         modifier = modifier
-            .height(20.dp)
+            .clip(CircleShape)
+            .background(tintedCardColor())
+            .padding(horizontal = 22.dp, vertical = 14.dp)
             .graphicsLayer { alpha = if (checking) pulse.value else 1f }
             .clearAndSetSemantics { contentDescription = description },
         horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -145,12 +159,19 @@ private fun PinDots(length: Int, isError: Boolean, checking: Boolean, modifier: 
                 },
                 label = "pinDot"
             )
+            // Each dot pops a little as it fills.
+            val scale by animateFloatAsState(
+                targetValue = if (filled) 1.2f else 1f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+                label = "pinDotScale"
+            )
             Box(
                 modifier = Modifier
                     .size(14.dp)
+                    .graphicsLayer { scaleX = scale; scaleY = scale }
                     .clip(CircleShape)
                     .then(
-                        if (filled) Modifier.background(color)
+                        if (filled || isError) Modifier.background(color)
                         else Modifier.border(1.5.dp, color, CircleShape)
                     )
             )
@@ -166,20 +187,21 @@ private fun PinPad(
     onFingerprint: (() -> Unit)?
 ) {
     val rows = listOf("123", "456", "789")
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         rows.forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                 row.forEach { digit ->
                     PinKey(label = digit.toString(), enabled = enabled, onClick = { onDigit(digit) })
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             if (onFingerprint != null) {
                 PinIconKey(
                     icon = ImageVector.vectorResource(R.drawable.ic_fingerprint),
                     description = stringResource(R.string.pin_pad_fingerprint),
                     enabled = enabled,
+                    highlighted = true,
                     onClick = onFingerprint
                 )
             } else {
@@ -196,20 +218,29 @@ private fun PinPad(
     }
 }
 
-private val KEY_SIZE = 72.dp
+private val KEY_SIZE = 68.dp
 
+/** A round tinted key that shrinks softly while pressed. */
 @Composable
 private fun PinKey(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        modifier = Modifier.size(KEY_SIZE)
+    val interaction = remember { MutableInteractionSource() }
+    Box(
+        modifier = Modifier
+            .size(KEY_SIZE)
+            .pressScale(interaction, 0.9f)
+            .clip(CircleShape)
+            .background(tintedCardColor())
+            .clickable(
+                interactionSource = interaction,
+                indication = ripple(),
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick
+            )
+            .alpha(if (enabled) 1f else 0.5f),
+        contentAlignment = Alignment.Center
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.headlineSmall)
-        }
+        Text(label, style = MaterialTheme.typography.headlineSmall.copy(fontSize = 26.sp))
     }
 }
 
@@ -218,19 +249,34 @@ private fun PinIconKey(
     icon: ImageVector,
     description: String,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    /** The fingerprint key: tinted in the accent so it reads as the quick way in. */
+    highlighted: Boolean = false
 ) {
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.size(KEY_SIZE)
+    val interaction = remember { MutableInteractionSource() }
+    Box(
+        modifier = Modifier
+            .size(KEY_SIZE)
+            .pressScale(interaction, 0.9f)
+            .clip(CircleShape)
+            .then(
+                if (highlighted) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
+                else Modifier
+            )
+            .clickable(
+                interactionSource = interaction,
+                indication = ripple(),
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = description)
-        }
+        Icon(
+            icon,
+            contentDescription = description,
+            tint = if (highlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -258,7 +304,7 @@ fun ErrorLine(text: String, modifier: Modifier = Modifier) {
         text = text,
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.error,
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.bodySmall,
         textAlign = TextAlign.Center,
         minLines = 2
     )
@@ -269,28 +315,31 @@ fun formatCountdown(ms: Long): String {
     return String.format(Locale.getDefault(), "%d:%02d", totalSeconds / 60, totalSeconds % 60)
 }
 
+/** A big softly floating badge over a bold title and one short line. */
 @Composable
-fun LockHeader(title: String, subtitle: String?, modifier: Modifier = Modifier) {
+fun LockHeader(
+    title: String,
+    subtitle: String?,
+    modifier: Modifier = Modifier,
+    icon: ImageVector = Icons.Default.Lock
+) {
     Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.size(64.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(30.dp))
-            }
-        }
-        Spacer(Modifier.height(16.dp))
+        IconBadge(
+            icon = icon,
+            containerColor = tintedCardColor(),
+            size = 68.dp,
+            modifier = Modifier.floating(distance = 4.dp)
+        )
+        Spacer(Modifier.height(14.dp))
         Text(
             title,
             style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             modifier = Modifier.semantics { heading() }
         )
         if (subtitle != null) {
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 subtitle,
                 style = MaterialTheme.typography.bodyMedium,
@@ -319,9 +368,9 @@ fun NewPinContent(
             ),
             subtitle = if (state.stage == NewPinStage.Enter) subtitle else null
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
         ErrorLine(if (state.showMismatch) stringResource(R.string.lock_error_mismatch) else "")
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
         // Keyed on the step, so the dots start empty on "enter it again"; only a mismatch shakes.
         key(state.stage) {
             PinEntry(
@@ -342,23 +391,24 @@ fun RecoveryCodeContent(code: String, onDone: () -> Unit, modifier: Modifier = M
     Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         LockHeader(
             title = stringResource(R.string.lock_recovery_code_title),
-            subtitle = stringResource(R.string.lock_recovery_code_body)
+            subtitle = stringResource(R.string.lock_recovery_code_body),
+            icon = ImageVector.vectorResource(R.drawable.ic_reset)
         )
-        Spacer(Modifier.height(24.dp))
-        Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-        ) {
-            Text(
-                text = code,
-                modifier = Modifier.padding(horizontal = 28.dp, vertical = 18.dp),
-                style = MaterialTheme.typography.headlineMedium,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
+        Text(
+            text = code,
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.medium)
+                .background(tintedCardColor())
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), MaterialTheme.shapes.medium)
+                .padding(horizontal = 28.dp, vertical = 16.dp),
+            style = MaterialTheme.typography.headlineMedium,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            letterSpacing = 2.sp
+        )
+        Spacer(Modifier.height(20.dp))
         OutlinedButton(
             onClick = {
                 val clip = ClipData.newPlainText(copiedMessage, code).apply {
@@ -373,10 +423,21 @@ fun RecoveryCodeContent(code: String, onDone: () -> Unit, modifier: Modifier = M
                     Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
                 }
             },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text(stringResource(R.string.lock_copy_code)) }
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+        ) {
+            Icon(ImageVector.vectorResource(R.drawable.ic_content_copy), contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.lock_copy_code))
+        }
         Spacer(Modifier.height(8.dp))
-        Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = onDone,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+        ) {
             Text(stringResource(R.string.lock_code_saved))
         }
     }

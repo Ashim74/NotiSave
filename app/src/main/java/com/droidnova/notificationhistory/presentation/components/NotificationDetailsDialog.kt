@@ -2,14 +2,23 @@ package com.droidnova.notificationhistory.presentation.components
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -83,16 +92,40 @@ fun NotificationDetailsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(Dimens.TileCornerRadius))
+                    .background(tintedCardColor()),
+                contentAlignment = Alignment.Center
+            ) {
+                HistoryAppIcon(
+                    packageName = notification.packageName,
+                    size = 38.dp,
+                    contentDescription = notification.appName.ifBlank { notification.packageName }
+                )
+            }
+        },
         title = {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = notification.title.ifBlank { stringResource(R.string.notification_fallback_title) },
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
-                HorizontalDivider(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.outlineVariant
+                Text(
+                    text = listOf(notification.appName, notification.receivedAt)
+                        .filter { it.isNotBlank() }
+                        .joinToString(" · "),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         },
@@ -103,10 +136,13 @@ fun NotificationDetailsDialog(
                     text = annotatedText,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 80.dp, max = 360.dp)
-                        .verticalScroll(rememberScrollState()),
+                        .clip(RoundedCornerShape(Dimens.TileCornerRadius))
+                        .background(tintedCardColor())
+                        .heightIn(min = 64.dp, max = 360.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(14.dp),
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 )
             }

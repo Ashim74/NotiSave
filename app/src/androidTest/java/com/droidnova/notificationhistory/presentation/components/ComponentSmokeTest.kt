@@ -69,7 +69,7 @@ class ComponentSmokeTest {
                 }
             }
         }
-        compose.onNodeWithText("History").assertIsDisplayed()
+        compose.onNodeWithText("HISTORY").assertIsDisplayed()
         compose.onNodeWithText("Retention").assertIsDisplayed()
         compose.onNodeWithText("Trash").assertIsDisplayed()
     }

@@ -377,4 +377,30 @@ Find “Notification History” → Turn ON access.
     <string name="lock_copy_code">Copy</string>
     <string name="lock_code_copied">Recovery code copied</string>
     <string name="lock_code_saved">I\'ve saved it</string>
+    <string name="lock_timeout_short_now">Now</string>
+    <string name="lock_timeout_short_30s">30 sec</string>
+    <string name="lock_timeout_short_1m">1 min</string>
+    <string name="lock_timeout_short_5m">5 min</string>
+    <string name="lock_feature_pin">PIN</string>
+    <string name="lock_feature_fingerprint">Fingerprint</string>
+    <string name="lock_feature_recovery">Recovery</string>
+    <string name="hist_action_details">Details</string>
+    <string name="hist_action_open">Open</string>
+    <string name="hist_action_trash">Trash</string>
+    <!-- Settings redesign -->
+    <string name="set_retention_summary">Older items auto-delete · Trash is kept</string>
+    <string name="set_retention_forever_short">Forever</string>
+    <string name="set_theme_system">System</string>
+    <string name="set_filter_all">All</string>
+    <string name="set_filter_saved">Saved</string>
+    <string name="set_filter_not_saved">Not saved</string>
+    <string name="set_no_apps_match">No apps here</string>
+    <string name="set_instagram">Instagram</string>
+    <string name="set_whatsapp">WhatsApp</string>
+    <string name="set_more_apps">More apps</string>
+    <string name="set_perm_subtitle">Needed to save your notifications</string>
+    <string name="set_perm_step_1">Tap Go to settings</string>
+    <string name="set_perm_step_2">Open Notification access</string>
+    <string name="set_perm_step_3">Find Notification History</string>
+    <string name="set_perm_step_4">Turn it on</string>
 </resources>

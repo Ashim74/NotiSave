@@ -1,6 +1,28 @@
 package com.droidnova.notificationhistory.presentation.screens.app_history
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.draw.clip
+import com.droidnova.notificationhistory.presentation.components.EmptyState
+import com.droidnova.notificationhistory.presentation.components.HeaderButton
+import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
+import com.droidnova.notificationhistory.presentation.components.tintedCardColor
+import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,7 +73,7 @@ import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.presentation.components.DeleteConfirmationDialog
 import com.droidnova.notificationhistory.presentation.components.GroupRowGap
-import com.droidnova.notificationhistory.presentation.components.HistoryEmptyState
+import androidx.compose.material.icons.outlined.Notifications
 import com.droidnova.notificationhistory.presentation.components.dayGroupedItems
 import com.droidnova.notificationhistory.presentation.components.HistoryLoadingState
 import com.droidnova.notificationhistory.presentation.components.NotificationActionSheet
@@ -116,79 +138,119 @@ fun AppHistoryScreen(
 
     Scaffold(
         topBar = {
-            if (isSearchActive) {
-                TopAppBar(
-                    title = {
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = {
-                                searchQuery = it
-                                mainViewModel.updateAppHistorySearchQuery(packageName, it)
-                            },
-                            placeholder = { Text(stringResource(R.string.search_notifications_hint)) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester),
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                disabledIndicatorColor = Color.Transparent,
+            AnimatedContent(
+                targetState = isSearchActive,
+                transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
+                label = "appHistoryTopBar"
+            ) { searching ->
+                if (searching) {
+                    TopAppBar(
+                        title = {
+                            TextField(
+                                value = searchQuery,
+                                onValueChange = {
+                                    searchQuery = it
+                                    mainViewModel.updateAppHistorySearchQuery(packageName, it)
+                                },
+                                placeholder = { Text(stringResource(R.string.search_notifications_hint), maxLines = 1) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                },
+                                trailingIcon = {
+                                    AnimatedVisibility(
+                                        visible = searchQuery.isNotEmpty(),
+                                        enter = fadeIn() + scaleIn(),
+                                        exit = fadeOut() + scaleOut()
+                                    ) {
+                                        IconButton(onClick = {
+                                            searchQuery = ""
+                                            mainViewModel.updateAppHistorySearchQuery(packageName, "")
+                                        }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = stringResource(R.string.content_description_clear_search)
+                                            )
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(end = 12.dp)
+                                    .height(52.dp)
+                                    .focusRequester(focusRequester),
+                                singleLine = true,
+                                shape = RoundedCornerShape(50),
+                                textStyle = MaterialTheme.typography.bodyLarge,
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = tintedCardColor(),
+                                    unfocusedContainerColor = tintedCardColor(),
+                                    disabledContainerColor = tintedCardColor(),
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent,
+                                )
                             )
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            isSearchActive = false
-                            searchQuery = ""
-                            mainViewModel.updateAppHistorySearchQuery(packageName, "")
-                        }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.content_description_close_search)
-                            )
-                        }
-                    },
-                    actions = {
-                        if (searchQuery.isNotEmpty()) {
+                        },
+                        navigationIcon = {
                             IconButton(onClick = {
+                                isSearchActive = false
                                 searchQuery = ""
                                 mainViewModel.updateAppHistorySearchQuery(packageName, "")
                             }) {
                                 Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = stringResource(R.string.content_description_clear_search)
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(R.string.content_description_close_search)
                                 )
                             }
-                        }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+                    )
+                    LaunchedEffect(Unit) {
+                        focusRequester.requestFocus()
                     }
-                )
-                LaunchedEffect(Unit) {
-                    focusRequester.requestFocus()
+                } else {
+                    TopAppBar(
+                        title = {
+                            // The app's own icon next to its name, so the screen is recognizable at a glance
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(RoundedCornerShape(Dimens.TileCornerRadius))
+                                        .background(tintedCardColor()),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    HistoryAppIcon(packageName = packageName, size = 24.dp)
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    title,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(R.string.back)
+                                )
+                            }
+                        },
+                        actions = {
+                            HeaderButton(
+                                icon = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.content_description_search),
+                                onClick = { isSearchActive = true },
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+                    )
                 }
-            } else {
-                TopAppBar(
-                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back)
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { isSearchActive = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = stringResource(R.string.content_description_search)
-                            )
-                        }
-                    }
-                )
             }
         },
         contentWindowInsets = WindowInsets(bottom = 4.dp)
@@ -215,12 +277,13 @@ fun AppHistoryScreen(
                             if (isRefreshing) {
                                 HistoryLoadingState(Modifier.fillParentMaxSize())
                             } else {
-                                HistoryEmptyState(
-                                    message = if (searchQuery.isNotBlank()) {
+                                EmptyState(
+                                    title = if (searchQuery.isNotBlank()) {
                                         stringResource(R.string.history_empty_search)
                                     } else {
                                         stringResource(R.string.history_empty)
                                     },
+                                    icon = if (searchQuery.isNotBlank()) Icons.Default.Search else Icons.Outlined.Notifications,
                                     modifier = Modifier.fillParentMaxSize()
                                 )
                             }
@@ -248,7 +311,12 @@ fun AppHistoryScreen(
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    LinearProgressIndicator(
+                                        modifier = Modifier
+                                            .width(96.dp)
+                                            .clip(RoundedCornerShape(50)),
+                                        trackColor = tintedCardColor()
+                                    )
                                 }
                             }
                         }

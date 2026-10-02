@@ -1,6 +1,21 @@
 package com.droidnova.notificationhistory.presentation.screens.conversations
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ripple
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
+import com.droidnova.notificationhistory.presentation.components.CountPill
+import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
+import com.droidnova.notificationhistory.presentation.components.appearIn
+import com.droidnova.notificationhistory.presentation.components.pressScale
+import com.droidnova.notificationhistory.presentation.components.tileColor
+import com.droidnova.notificationhistory.presentation.components.tintedCardColor
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,17 +30,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Badge
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,7 +56,6 @@ import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.ConversationModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
-import com.droidnova.notificationhistory.presentation.components.AppCard
 import com.droidnova.notificationhistory.presentation.components.AppCardDefaults
 import com.droidnova.notificationhistory.presentation.components.GroupRowGap
 import com.droidnova.notificationhistory.presentation.components.groupedShape
@@ -149,11 +156,7 @@ fun ConversationListContent(
             }
             if (state.isLoadingMore) {
                 item(key = "conversation-loading") {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    )
+                    LoadingMoreIndicator()
                 }
             }
         }
@@ -172,21 +175,23 @@ private fun ConversationRow(
     val time = remember(conversation.latestReceivedAtEpoch, yesterdayLabel) {
         formatConversationTime(conversation.latestReceivedAtEpoch, yesterdayLabel)
     }
+    val interaction = remember { MutableInteractionSource() }
     Surface(
-        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = Dimens.ScreenHorizontal, vertical = GroupRowGap / 2),
+            .padding(horizontal = Dimens.ScreenHorizontal, vertical = GroupRowGap / 2)
+            .pressScale(interaction, 0.98f)
+            .clip(shape)
+            .clickable(interactionSource = interaction, indication = ripple(), onClick = onClick),
         shape = shape,
         color = AppCardDefaults.containerColor()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            HistoryAppIcon(
+            AppIconTile(
                 packageName = conversation.packageName,
-                size = 36.dp,
                 contentDescription = conversation.appName.ifBlank { conversation.packageName }
             )
             Spacer(Modifier.width(12.dp))
@@ -195,8 +200,7 @@ private fun ConversationRow(
                     Text(
                         text = conversation.title,
                         modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -212,24 +216,55 @@ private fun ConversationRow(
                     Text(
                         text = conversation.latestMessage.replace('\n', ' '),
                         modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     if (conversation.messageCount > 1) {
-                        Badge(
-                            modifier = Modifier.padding(start = 8.dp),
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        ) {
-                            Text(conversation.messageCount.toString())
-                        }
+                        CountPill(
+                            count = conversation.messageCount,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
                     }
                 }
             }
         }
     }
+}
+
+/** The app's launcher icon on a small rounded tile, like the rows in History. */
+@Composable
+private fun AppIconTile(
+    packageName: String?,
+    contentDescription: String?,
+    size: Dp = 40.dp
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(RoundedCornerShape(Dimens.TileCornerRadius))
+            .background(tileColor()),
+        contentAlignment = Alignment.Center
+    ) {
+        HistoryAppIcon(
+            packageName = packageName,
+            size = size * 0.75f,
+            contentDescription = contentDescription
+        )
+    }
+}
+
+/** A thin rounded progress line for "loading more", inset like the cards. */
+@Composable
+private fun LoadingMoreIndicator() {
+    LinearProgressIndicator(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Dimens.ScreenHorizontal + 24.dp, vertical = 14.dp)
+            .clip(RoundedCornerShape(50)),
+        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    )
 }
 
 private sealed interface TimelineRow {
@@ -261,7 +296,6 @@ private fun buildTimelineRows(newestFirst: List<NotificationModel>, zoneId: Zone
     return rows
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationDetailScreen(
     mainViewModel: MainViewModel,
@@ -307,41 +341,21 @@ fun ConversationDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        HistoryAppIcon(packageName = state.packageName.ifBlank { null })
-                        Spacer(Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = state.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (state.appName.isNotBlank()) {
-                                Text(
-                                    text = state.appName,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
-                    }
+            ScreenTopBar(
+                title = state.title,
+                subtitle = state.appName.takeIf { it.isNotBlank() },
+                onBack = { navController.popBackStack() },
+                actions = {
+                    AppIconTile(
+                        packageName = state.packageName.ifBlank { null },
+                        contentDescription = null,
+                        size = 36.dp
+                    )
+                    Spacer(Modifier.width(12.dp))
                 }
             )
         },
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(bottom = 4.dp)
     ) { innerPadding ->
         Box(
@@ -372,11 +386,7 @@ fun ConversationDetailScreen(
                     }
                     if (state.isLoadingMore) {
                         item(key = "timeline-loading") {
-                            LinearProgressIndicator(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                            )
+                            LoadingMoreIndicator()
                         }
                     }
                 }
@@ -444,14 +454,25 @@ private fun TimelineDateHeader(date: LocalDate) {
         today.minusDays(1) -> stringResource(R.string.date_yesterday)
         else -> remember(date) { date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) }
     }
-    Text(
-        text = label,
+    // A centered pill between days, like a messaging app.
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+            .padding(vertical = 8.dp)
+            .semantics { heading() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(tintedCardColor())
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+    }
 }
 
 @Composable
@@ -470,39 +491,43 @@ private fun TimelineMessage(
         it.isNotBlank() && !it.startsWith(conversationTitle, ignoreCase = true)
     }
     // A chat bubble: as wide as its text needs, sender on top, time tucked in the corner.
+    val interaction = remember { MutableInteractionSource() }
+    val bubbleShape = RoundedCornerShape(topStart = 6.dp, topEnd = 20.dp, bottomEnd = 20.dp, bottomStart = 20.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Dimens.ScreenHorizontal, vertical = 3.dp)
+            .appearIn(0)
     ) {
-        Surface(
-            onClick = onClick,
-            modifier = Modifier.widthIn(max = 320.dp),
-            shape = RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp),
-            color = AppCardDefaults.containerColor()
+        Column(
+            modifier = Modifier
+                .widthIn(max = 320.dp)
+                .pressScale(interaction, 0.97f)
+                .clip(bubbleShape)
+                .background(tintedCardColor())
+                .clickable(interactionSource = interaction, indication = ripple(), onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 7.dp)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+            if (subtitle != null) {
                 Text(
-                    text = notification.text.ifBlank { notification.title },
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = time,
-                    modifier = Modifier.align(Alignment.End),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+            Text(
+                text = notification.text.ifBlank { notification.title },
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = time,
+                modifier = Modifier.align(Alignment.End),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

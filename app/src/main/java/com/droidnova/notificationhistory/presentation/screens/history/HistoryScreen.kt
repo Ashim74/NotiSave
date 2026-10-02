@@ -2,6 +2,46 @@ package com.droidnova.notificationhistory.presentation.screens.history
 
 import android.app.DatePickerDialog
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import com.droidnova.notificationhistory.presentation.components.AnimatedText
+import com.droidnova.notificationhistory.presentation.components.ChoicePill
+import com.droidnova.notificationhistory.presentation.components.HeaderButton
+import com.droidnova.notificationhistory.presentation.components.IconBadge
+import com.droidnova.notificationhistory.presentation.components.appearIn
+import com.droidnova.notificationhistory.presentation.components.tileColor
+import com.droidnova.notificationhistory.presentation.components.tintedCardColor
+import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,13 +62,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,11 +72,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -65,8 +97,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -175,124 +205,95 @@ fun HistoryScreen(
     Scaffold(
         topBar = {
             Column {
-                if (isSelecting) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            pluralStringResource(
-                                R.plurals.history_selected_count,
-                                selectedIds.size,
-                                selectedIds.size
-                            )
-                        )
+                AnimatedContent(
+                    targetState = when {
+                        isSelecting -> HistoryBarMode.Selecting
+                        isSearchActive -> HistoryBarMode.Searching
+                        else -> HistoryBarMode.Normal
                     },
-                    navigationIcon = {
-                        IconButton(onClick = { selectedIds = emptySet() }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = stringResource(R.string.content_description_cancel_selection)
-                            )
-                        }
-                    },
-                    actions = {
-                        TextButton(onClick = {
-                            selectedIds = packages.value.mapTo(HashSet()) { it.id }
-                        }) {
-                            Text(stringResource(R.string.history_select_all))
-                        }
-                        IconButton(onClick = { showBulkDeleteConfirm = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.move_to_trash)
-                            )
-                        }
-                    }
-                )
-                } else if (isSearchActive) {
-                TopAppBar(
-                    title = {
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = {
-                                searchQuery = it
-                                mainViewmodel.updateHistorySearchQuery(it)
+                    transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
+                    label = "historyTopBar"
+                ) { mode ->
+                    when (mode) {
+                        HistoryBarMode.Selecting -> TopAppBar(
+                            title = {
+                                AnimatedText(
+                                    text = pluralStringResource(
+                                        R.plurals.history_selected_count,
+                                        selectedIds.size,
+                                        selectedIds.size
+                                    ),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
                             },
-                            placeholder = { Text(stringResource(R.string.search_notifications_hint)) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester),
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                disabledIndicatorColor = Color.Transparent,
+                            navigationIcon = {
+                                IconButton(onClick = { selectedIds = emptySet() }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.content_description_cancel_selection)
+                                    )
+                                }
+                            },
+                            actions = {
+                                TextButton(onClick = {
+                                    selectedIds = packages.value.mapTo(HashSet()) { it.id }
+                                }) {
+                                    Text(stringResource(R.string.history_select_all))
+                                }
+                                HeaderButton(
+                                    icon = Icons.Outlined.DeleteOutline,
+                                    contentDescription = stringResource(R.string.move_to_trash),
+                                    onClick = { showBulkDeleteConfirm = true },
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.background
                             )
                         )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            isSearchActive = false
-                            searchQuery = ""
-                            mainViewmodel.updateHistorySearchQuery("")
-                        }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.content_description_close_search)
+                        HistoryBarMode.Searching -> {
+                            SearchBarRow(
+                                query = searchQuery,
+                                focusRequester = focusRequester,
+                                onQueryChange = {
+                                    searchQuery = it
+                                    mainViewmodel.updateHistorySearchQuery(it)
+                                },
+                                onClose = {
+                                    isSearchActive = false
+                                    searchQuery = ""
+                                    mainViewmodel.updateHistorySearchQuery("")
+                                },
+                                onClear = {
+                                    searchQuery = ""
+                                    mainViewmodel.updateHistorySearchQuery("")
+                                }
                             )
-                        }
-                    },
-                    actions = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = {
-                                searchQuery = ""
-                                mainViewmodel.updateHistorySearchQuery("")
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = stringResource(R.string.content_description_clear_search)
-                                )
+                            LaunchedEffect(Unit) {
+                                focusRequester.requestFocus()
                             }
                         }
+                        HistoryBarMode.Normal -> ScreenTopBar(
+                            title = stringResource(R.string.history_title),
+                            actions = {
+                                if (view != HistoryView.Apps) {
+                                    HeaderButton(
+                                        icon = Icons.Default.Search,
+                                        contentDescription = stringResource(R.string.content_description_search),
+                                        onClick = { isSearchActive = true }
+                                    )
+                                }
+                                HeaderButton(
+                                    icon = Icons.Outlined.DeleteOutline,
+                                    contentDescription = stringResource(R.string.trash_title),
+                                    onClick = { navController.navigate(Screens.Trash.route) },
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                            }
+                        )
                     }
-                )
-                LaunchedEffect(Unit) {
-                    focusRequester.requestFocus()
-                }
-                } else {
-                ScreenTopBar(
-                    title = stringResource(R.string.history_title),
-                    actions = {
-                        if (view != HistoryView.Apps) {
-                            IconButton(onClick = { isSearchActive = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = stringResource(R.string.content_description_search)
-                                )
-                            }
-                            IconButton(onClick = { showMenu = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = stringResource(R.string.content_description_menu)
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.trash_title)) },
-                                    onClick = {
-                                        showMenu = false
-                                        navController.navigate(Screens.Trash.route)
-                                    }
-                                )
-                            }
-                        }
-                    }
-                )
                 }
                 HistoryViewSelector(selected = view, onSelected = { view = it })
             }
@@ -535,20 +536,39 @@ fun HistoryScreenContent(
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            LinearProgressIndicator(
+                                modifier = Modifier
+                                    .width(96.dp)
+                                    .clip(RoundedCornerShape(50)),
+                                trackColor = tintedCardColor()
+                            )
                         }
                     }
                 }
                 if (isCapped) {
                     item {
-                        Text(
-                            text = stringResource(R.string.history_cap_hint, packages.size),
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 16.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                                .padding(horizontal = Dimens.ScreenHorizontal, vertical = 12.dp)
+                                .clip(RoundedCornerShape(Dimens.TileCornerRadius))
+                                .background(tintedCardColor())
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Outlined.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = stringResource(R.string.history_cap_hint, packages.size),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -576,15 +596,16 @@ private fun HistoryFilterBar(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = Dimens.ScreenHorizontal),
+            .padding(horizontal = Dimens.ScreenHorizontal, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Box {
-            FilterChip(
+            ChoicePill(
+                label = appLabel,
                 selected = filters.packageName != null,
-                onClick = { showAppMenu = true },
-                label = { Text(appLabel, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                leadingIcon = Icons.Outlined.Apps,
+                onClick = { showAppMenu = true }
             )
             DropdownMenu(
                 expanded = showAppMenu,
@@ -603,18 +624,11 @@ private fun HistoryFilterBar(
                     val label = app.appName.ifBlank { app.packageName }
                     DropdownMenuItem(
                         leadingIcon = { HistoryAppIcon(packageName = app.packageName) },
-                        text = {
-                            Column {
-                                Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                if (label != app.packageName) {
-                                    Text(
-                                        app.packageName,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
+                        text = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        trailingIcon = if (app.packageName == filters.packageName) {
+                            { Icon(Icons.Default.Check, contentDescription = null) }
+                        } else {
+                            null
                         },
                         onClick = {
                             showAppMenu = false
@@ -626,10 +640,11 @@ private fun HistoryFilterBar(
         }
 
         Box {
-            FilterChip(
+            ChoicePill(
+                label = filters.dateFilter.displayName(),
                 selected = filters.dateFilter != HistoryDateFilter.AllTime,
-                onClick = { showDateMenu = true },
-                label = { Text(filters.dateFilter.displayName()) }
+                leadingIcon = Icons.Outlined.DateRange,
+                onClick = { showDateMenu = true }
             )
             DropdownMenu(
                 expanded = showDateMenu,
@@ -638,6 +653,11 @@ private fun HistoryFilterBar(
                 HistoryDateFilter.entries.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option.displayName()) },
+                        trailingIcon = if (option == filters.dateFilter) {
+                            { Icon(Icons.Default.Check, contentDescription = null) }
+                        } else {
+                            null
+                        },
                         onClick = {
                             showDateMenu = false
                             if (option == HistoryDateFilter.Custom) {
@@ -651,34 +671,86 @@ private fun HistoryFilterBar(
             }
         }
 
-        if (filters.hasActiveFilters) {
-            TextButton(onClick = onClearFilters) {
-                Text(stringResource(R.string.history_clear_filters))
-            }
+        AnimatedVisibility(
+            visible = filters.hasActiveFilters,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut()
+        ) {
+            ChoicePill(
+                label = stringResource(R.string.history_clear_filters),
+                selected = false,
+                leadingIcon = Icons.Default.Close,
+                onClick = onClearFilters
+            )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * All / Chats / Apps as one rounded track with a sliding highlight, each option an icon and a
+ * short word (replaces the Material segmented buttons).
+ */
 @Composable
 private fun HistoryViewSelector(
     selected: HistoryView,
     onSelected: (HistoryView) -> Unit
 ) {
     val options = HistoryView.entries
-    // The row gives every segment weight(1f), so widths are equal; labels are short and pinned to
-    // one line so a large font scale ellipsizes instead of wrapping out of the pill.
-    SingleChoiceSegmentedButtonRow(
+    val colors = MaterialTheme.colorScheme
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Dimens.ScreenHorizontal, vertical = 8.dp)
+            .padding(horizontal = Dimens.ScreenHorizontal, vertical = 4.dp)
+            .clip(RoundedCornerShape(50))
+            .background(tintedCardColor())
+            .padding(4.dp)
     ) {
-        options.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = selected == option,
-                onClick = { onSelected(option) },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                label = {
+        val segment = maxWidth / options.size
+        val offset by animateDpAsState(
+            targetValue = segment * options.indexOf(selected),
+            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
+            label = "historyViewIndicator"
+        )
+        Box(
+            Modifier
+                .offset(x = offset)
+                .width(segment)
+                .height(40.dp)
+                .clip(RoundedCornerShape(50))
+                .background(colors.primary)
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .selectableGroup()
+        ) {
+            options.forEach { option ->
+                val isSelected = selected == option
+                val content by animateColorAsState(
+                    if (isSelected) colors.onPrimary else colors.onSurfaceVariant,
+                    label = "historyViewContent"
+                )
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(50))
+                        .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelected(option) })
+                        .padding(horizontal = 6.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = when (option) {
+                            HistoryView.All -> Icons.Outlined.Notifications
+                            HistoryView.Conversations -> Icons.Outlined.Forum
+                            HistoryView.Apps -> Icons.Outlined.Apps
+                        },
+                        contentDescription = null,
+                        tint = content,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
                     Text(
                         text = stringResource(
                             when (option) {
@@ -687,13 +759,15 @@ private fun HistoryViewSelector(
                                 HistoryView.Apps -> R.string.history_tab_apps
                             }
                         ),
+                        color = content,
+                        style = MaterialTheme.typography.labelLarge,
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis,
                         autoSize = fitToWidth(MaterialTheme.typography.labelLarge.fontSize)
                     )
                 }
-            )
+            }
         }
     }
 }
@@ -727,18 +801,26 @@ private fun CustomDateRangeDialog(
     val rangeError = stringResource(R.string.history_date_range_error)
     AlertDialog(
         onDismissRequest = onDismiss,
+        icon = { IconBadge(Icons.Outlined.DateRange, containerColor = tintedCardColor(), size = 52.dp) },
         title = { Text(stringResource(R.string.history_custom_date_range)) },
         text = {
-            Column {
-                TextButton(onClick = { showDatePicker(startDate) { startDate = it } }) {
-                    Text(stringResource(R.string.history_date_start, startDate.format(formatter)))
-                }
-                TextButton(onClick = { showDatePicker(endDate) { endDate = it } }) {
-                    Text(stringResource(R.string.history_date_end, endDate.format(formatter)))
-                }
-                errorMessage?.let {
+            Column(verticalArrangement = Arrangement.spacedBy(GroupRowGap)) {
+                ListRow(
+                    title = stringResource(R.string.history_date_start, startDate.format(formatter)),
+                    shape = groupedShape(0, 2),
+                    leading = { IconBadge(Icons.Outlined.Event, accent = AccentColors.Teal, size = 34.dp) },
+                    onClick = { showDatePicker(startDate) { startDate = it } }
+                )
+                ListRow(
+                    title = stringResource(R.string.history_date_end, endDate.format(formatter)),
+                    shape = groupedShape(1, 2),
+                    leading = { IconBadge(Icons.Outlined.Event, accent = AccentColors.Orange, size = 34.dp) },
+                    onClick = { showDatePicker(endDate) { endDate = it } }
+                )
+                AnimatedVisibility(visible = errorMessage != null) {
                     Text(
-                        text = it,
+                        text = errorMessage.orEmpty(),
+                        modifier = Modifier.padding(start = 6.dp, top = 6.dp),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -763,6 +845,7 @@ private fun CustomDateRangeDialog(
         }
     )
 }
+
 
 @Composable
 private fun HistoryDateFilter.displayName(): String = stringResource(
@@ -809,15 +892,91 @@ fun AppHistoryContent(
                     ListRow(
                         modifier = Modifier
                             .animateItem()
+                            .appearIn(index)
                             .padding(horizontal = Dimens.ScreenHorizontal, vertical = GroupRowGap / 2),
                         shape = groupedShape(index, packages.size),
                         title = name,
                         value = latest.receivedAt,
-                        leading = { HistoryAppIcon(latest.packageName, size = 36.dp) },
+                        leading = { AppIconTile(latest.packageName) },
                         onClick = { onAppClick(latest.packageName) }
                     )
                 }
             }
         }
     }
+}
+
+/** An app's launcher icon on a small rounded tile, the lead of app rows. */
+@Composable
+private fun AppIconTile(packageName: String) {
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(Dimens.TileCornerRadius))
+            .background(tileColor()),
+        contentAlignment = Alignment.Center
+    ) {
+        HistoryAppIcon(packageName, size = 28.dp)
+    }
+}
+
+private enum class HistoryBarMode { Normal, Searching, Selecting }
+
+/** The search field as a rounded pill in place of the title bar. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchBarRow(
+    query: String,
+    focusRequester: FocusRequester,
+    onQueryChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onClear: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            TextField(
+                value = query,
+                onValueChange = onQueryChange,
+                placeholder = { Text(stringResource(R.string.search_notifications_hint), maxLines = 1) },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                },
+                trailingIcon = {
+                    AnimatedVisibility(visible = query.isNotEmpty(), enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
+                        IconButton(onClick = onClear) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = stringResource(R.string.content_description_clear_search)
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 12.dp)
+                    .height(52.dp)
+                    .focusRequester(focusRequester),
+                singleLine = true,
+                shape = RoundedCornerShape(50),
+                textStyle = MaterialTheme.typography.bodyLarge,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = tintedCardColor(),
+                    unfocusedContainerColor = tintedCardColor(),
+                    disabledContainerColor = tintedCardColor(),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                )
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.content_description_close_search)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+    )
 }
