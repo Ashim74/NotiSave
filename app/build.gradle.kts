@@ -49,10 +49,9 @@ android {
                 "BANNER_AD_UNIT_ID",
                 "\"ca-app-pub-4788231589271799/5044263835\""
             )
-            // Live native and rewarded units come from gradle.properties; left blank, those ads
-            // simply stay off (no request is made).
-            buildConfigField("String", "NATIVE_AD_UNIT_ID", "\"${project.findProperty("NATIVE_AD_UNIT_ID") ?: ""}\"")
-            buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"${project.findProperty("REWARDED_AD_UNIT_ID") ?: ""}\"")
+            // Live native advanced (History list) and rewarded (24 h ad-free) units.
+            buildConfigField("String", "NATIVE_AD_UNIT_ID", "\"ca-app-pub-4788231589271799/3362293337\"")
+            buildConfigField("String", "REWARDED_AD_UNIT_ID", "\"ca-app-pub-4788231589271799/4104615081\"")
         }
     }
     compileOptions {
