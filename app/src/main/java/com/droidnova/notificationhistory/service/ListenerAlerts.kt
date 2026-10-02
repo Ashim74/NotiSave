@@ -38,7 +38,7 @@ object ListenerAlerts {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_history)
+            .setSmallIcon(R.drawable.ic_nh_history)
             .setContentTitle(context.getString(R.string.alert_listener_stopped_title))
             .setContentText(context.getString(R.string.alert_listener_stopped_text))
             .setStyle(

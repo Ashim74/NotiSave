@@ -163,7 +163,7 @@ fun InsightsScreen(
                                 title = stringResource(R.string.insights_empty),
                                 modifier = Modifier.animateItem(),
                                 description = stringResource(R.string.insights_empty_description),
-                                icon = ImageVector.vectorResource(R.drawable.ic_insights)
+                                icon = ImageVector.vectorResource(R.drawable.ic_nh_insights)
                             )
                         }
                     } else {
@@ -323,7 +323,7 @@ private fun ActivityChartCard(data: InsightsData, modifier: Modifier = Modifier)
     AppCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             CardHeader(
-                icon = ImageVector.vectorResource(R.drawable.ic_insights),
+                icon = ImageVector.vectorResource(R.drawable.ic_nh_insights),
                 accent = AccentColors.Teal,
                 title = stringResource(R.string.insights_activity),
                 trailing = {

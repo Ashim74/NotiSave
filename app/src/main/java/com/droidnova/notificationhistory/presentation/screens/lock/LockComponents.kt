@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.os.Build
 import android.os.PersistableBundle
 import android.widget.Toast
+import androidx.compose.material.icons.outlined.Key
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
@@ -392,7 +393,7 @@ fun RecoveryCodeContent(code: String, onDone: () -> Unit, modifier: Modifier = M
         LockHeader(
             title = stringResource(R.string.lock_recovery_code_title),
             subtitle = stringResource(R.string.lock_recovery_code_body),
-            icon = ImageVector.vectorResource(R.drawable.ic_reset)
+            icon = Icons.Outlined.Key
         )
         Spacer(Modifier.height(20.dp))
         Text(

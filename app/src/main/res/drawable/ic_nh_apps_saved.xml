@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Saved apps: an app grid whose last tile is a check, i.e. apps whose notifications are kept. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M5.2,3h3.6c1.21506,0 2.2,0.98494 2.2,2.2v3.6c0,1.21506 -0.98494,2.2 -2.2,2.2h-3.6c-1.21506,0 -2.2,-0.98494 -2.2,-2.2v-3.6c0,-1.21506 0.98494,-2.2 2.2,-2.2zM15.2,3h3.6c1.21506,0 2.2,0.98494 2.2,2.2v3.6c0,1.21506 -0.98494,2.2 -2.2,2.2h-3.6c-1.21506,0 -2.2,-0.98494 -2.2,-2.2v-3.6c0,-1.21506 0.98494,-2.2 2.2,-2.2zM5.2,13h3.6c1.21506,0 2.2,0.98494 2.2,2.2v3.6c0,1.21506 -0.98494,2.2 -2.2,2.2h-3.6c-1.21506,0 -2.2,-0.98494 -2.2,-2.2v-3.6c0,-1.21506 0.98494,-2.2 2.2,-2.2z" />
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M17,12.2A4.8,4.8 0,1 1,17 21.8A4.8,4.8 0,1 1,17 12.2ZM14.4,17.1L15.5,16L16.5,17L18.9,14.6L20,15.7L16.5,19.2Z" />
+</vector>

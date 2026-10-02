@@ -2,6 +2,7 @@ package com.droidnova.notificationhistory.presentation.screens.app_settings
 
 import android.app.Activity
 import android.widget.Toast
+import androidx.compose.ui.res.vectorResource
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -216,7 +217,7 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                         onClick = if (hasPermission) null else openAccess
                     )
                     SettingRow(
-                        icon = Icons.Outlined.Apps,
+                        icon = ImageVector.vectorResource(R.drawable.ic_nh_apps_saved),
                         accent = AccentColors.Purple,
                         title = stringResource(R.string.home_manage_apps),
                         value = pluralStringResource(
@@ -441,7 +442,7 @@ private fun TrackingRow(
         titleColor = if (checked) scheme.onPrimaryContainer else scheme.onSurface,
         leading = {
             IconBadge(
-                Icons.Default.Notifications,
+                ImageVector.vectorResource(R.drawable.ic_nh_recording),
                 accent = if (hasPermission) scheme.primary else scheme.error,
                 modifier = if (checked) Modifier.pulsing() else Modifier
             )

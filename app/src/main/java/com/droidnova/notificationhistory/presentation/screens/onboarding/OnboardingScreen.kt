@@ -273,7 +273,7 @@ private fun IntroStep() {
         Spacer(Modifier.height(20.dp))
         // Three icon lines instead of a paragraph.
         Column(verticalArrangement = Arrangement.spacedBy(GroupRowGap)) {
-            FeatureRow(0, Icons.Default.Notifications, AccentColors.Blue, stringResource(R.string.onboarding_feature_saves))
+            FeatureRow(0, ImageVector.vectorResource(R.drawable.ic_nh_history), AccentColors.Blue, stringResource(R.string.onboarding_feature_saves))
             FeatureRow(1, Icons.Default.Delete, AccentColors.Orange, stringResource(R.string.onboarding_feature_deleted))
             FeatureRow(2, Icons.Default.Lock, AccentColors.Green, stringResource(R.string.onboarding_feature_private))
         }
@@ -352,7 +352,7 @@ private fun AppsStep(mainViewModel: MainViewModel) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
             IconBadge(
-                ImageVector.vectorResource(R.drawable.ic_apps),
+                ImageVector.vectorResource(R.drawable.ic_nh_apps_saved),
                 containerColor = tintedCardColor(),
                 size = 44.dp
             )

@@ -119,8 +119,8 @@ private enum class TopLevelDestination(
     @param:DrawableRes val iconRes: Int? = null
 ) {
     Home(Screens.Home.route, R.string.nav_home, iconVector = Icons.Default.Home),
-    History(Screens.History.ROUTE_PATTERN, R.string.history_title, iconRes = R.drawable.ic_history),
-    Insights(Screens.Insights.route, R.string.insights_title, iconRes = R.drawable.ic_insights),
+    History(Screens.History.ROUTE_PATTERN, R.string.history_title, iconRes = R.drawable.ic_nh_history),
+    Insights(Screens.Insights.route, R.string.insights_title, iconRes = R.drawable.ic_nh_insights),
     Settings(Screens.AppSettings.route, R.string.settings_title, iconVector = Icons.Default.Settings);
 
     /** The route to navigate to; History's pattern must be navigated without its arg. */

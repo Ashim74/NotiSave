@@ -1,6 +1,7 @@
 package com.droidnova.notificationhistory.presentation.screens.lock
 
 import android.app.Activity
+import androidx.compose.material.icons.outlined.Key
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -257,7 +258,7 @@ private fun ForgotStage(state: LockScreenState, deviceLockAvailable: Boolean, ac
             modifier = Modifier.appearIn(1),
             shape = groupedShape(count - 1, count),
             title = stringResource(R.string.lock_use_recovery_code),
-            leading = { IconBadge(ImageVector.vectorResource(R.drawable.ic_reset), accent = AccentColors.Green) },
+            leading = { IconBadge(Icons.Outlined.Key, accent = AccentColors.Green) },
             onClick = actions.onUseRecoveryCode
         )
     }
@@ -291,7 +292,7 @@ private fun RecoveryCodeStage(state: LockScreenState, actions: LockScreenActions
     LockHeader(
         title = stringResource(R.string.lock_recover_code_title),
         subtitle = stringResource(R.string.lock_recover_code_desc),
-        icon = ImageVector.vectorResource(R.drawable.ic_reset)
+        icon = Icons.Outlined.Key
     )
     Spacer(Modifier.height(20.dp))
     OutlinedTextField(

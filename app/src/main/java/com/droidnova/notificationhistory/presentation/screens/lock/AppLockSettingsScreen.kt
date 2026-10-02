@@ -1,6 +1,8 @@
 package com.droidnova.notificationhistory.presentation.screens.lock
 
 import android.widget.Toast
+import androidx.compose.material.icons.outlined.LockClock
+import androidx.compose.material.icons.outlined.Key
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
@@ -224,7 +226,7 @@ private fun LockSettingsList(
                     ListRow(
                         shape = shape,
                         title = stringResource(R.string.app_lock_new_recovery_code),
-                        leading = { IconBadge(ImageVector.vectorResource(R.drawable.ic_reset), accent = AccentColors.Green) },
+                        leading = { IconBadge(Icons.Outlined.Key, accent = AccentColors.Green) },
                         onClick = { viewModel.startProtected(ProtectedAction.NewRecoveryCode) }
                     )
                 }
@@ -329,7 +331,7 @@ private fun LockIntroCard(onTurnOn: () -> Unit) {
                     2
                 )
                 FeatureChip(
-                    ImageVector.vectorResource(R.drawable.ic_reset),
+                    Icons.Outlined.Key,
                     stringResource(R.string.lock_feature_recovery),
                     AccentColors.Green,
                     3
@@ -412,7 +414,7 @@ private fun TimeoutCard(
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(ImageVector.vectorResource(R.drawable.ic_history), accent = AccentColors.Orange)
+            IconBadge(Icons.Outlined.LockClock, accent = AccentColors.Orange)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(

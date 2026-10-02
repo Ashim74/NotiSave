@@ -255,8 +255,8 @@ private fun CaptureStatusCard(
         CaptureState.AccessNeeded -> stringResource(R.string.home_status_access_needed)
     }
     val icon = when (captureState) {
-        CaptureState.Recording -> Icons.Default.Notifications
-        CaptureState.Paused -> Icons.Default.Pause
+        CaptureState.Recording -> ImageVector.vectorResource(R.drawable.ic_nh_recording)
+        CaptureState.Paused -> ImageVector.vectorResource(R.drawable.ic_nh_paused)
         CaptureState.Reconnecting -> Icons.Default.Sync
         CaptureState.AccessNeeded -> Icons.Default.Warning
     }
@@ -470,21 +470,21 @@ private fun ShortcutTiles(
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ShortcutTile(
             Modifier.weight(1f).appearIn(4),
-            ImageVector.vectorResource(R.drawable.ic_history),
+            ImageVector.vectorResource(R.drawable.ic_nh_history),
             stringResource(R.string.history_title),
             AccentColors.Blue,
             onHistory
         )
         ShortcutTile(
             Modifier.weight(1f).appearIn(5),
-            ImageVector.vectorResource(R.drawable.ic_insights),
+            ImageVector.vectorResource(R.drawable.ic_nh_insights),
             stringResource(R.string.insights_title),
             AccentColors.Orange,
             onInsights
         )
         ShortcutTile(
             Modifier.weight(1f).appearIn(6),
-            ImageVector.vectorResource(R.drawable.ic_apps),
+            ImageVector.vectorResource(R.drawable.ic_nh_apps_saved),
             stringResource(R.string.home_stat_apps),
             AccentColors.Green,
             onManageApps,
