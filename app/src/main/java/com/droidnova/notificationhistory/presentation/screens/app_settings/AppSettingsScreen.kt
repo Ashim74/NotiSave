@@ -214,181 +214,8 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
             contentPadding = PaddingValues(start = Dimens.ScreenHorizontal, end = Dimens.ScreenHorizontal, top = 4.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            if (!isPremium) {
-                item(key = "premium") {
-                    GradientBanner(
-                        modifier = Modifier.appearIn(0),
-                        icon = Icons.Filled.WorkspacePremium,
-                        title = stringResource(R.string.premium_sheet_title),
-                        subtitle = stringResource(R.string.premium_sheet_subtitle),
-                        onClick = onRemoveAds
-                    )
-                }
-            }
-
-            item(key = "tracking") {
-                TrackingRow(
-                    modifier = Modifier.appearIn(1),
-                    checked = state.userToggleTracking && hasPermission,
-                    hasPermission = hasPermission,
-                    onCheckedChange = { enabled ->
-                        when {
-                            !enabled -> mainViewModel.setToggleTracking(false)
-                            hasPermission -> mainViewModel.onEnableClick()
-                            else -> openAccess()
-                        }
-                    }
-                )
-            }
-
-            item(key = "capture") {
-                SettingsGroup(stringResource(R.string.settings_tracking_section), Modifier.appearIn(2)) {
-                    SettingRow(
-                        icon = Icons.Outlined.NotificationsActive,
-                        accent = if (hasPermission) AccentColors.Blue else MaterialTheme.colorScheme.error,
-                        title = stringResource(R.string.settings_notification_access),
-                        value = stringResource(
-                            if (hasPermission) R.string.settings_permission_granted
-                            else R.string.settings_value_needed
-                        ),
-                        valueColor = if (hasPermission) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        },
-                        onClick = if (hasPermission) null else openAccess
-                    )
-                    SettingRow(
-                        icon = ImageVector.vectorResource(R.drawable.ic_nh_apps_saved),
-                        accent = AccentColors.Purple,
-                        title = stringResource(R.string.home_manage_apps),
-                        value = pluralStringResource(
-                            R.plurals.settings_apps_count,
-                            state.selectedAppsCount,
-                            state.selectedAppsCount
-                        ),
-                        onClick = { navController.navigate(Screens.ManageNotifications.route) }
-                    )
-                    SettingRow(
-                        icon = if (batteryOptimization.isIgnored) Icons.Outlined.BatteryChargingFull else Icons.Outlined.BatteryAlert,
-                        accent = if (batteryOptimization.isIgnored) AccentColors.Green else AccentColors.Amber,
-                        title = stringResource(R.string.settings_battery_optimization),
-                        value = stringResource(
-                            if (batteryOptimization.isIgnored) R.string.settings_battery_unrestricted
-                            else R.string.settings_battery_restricted
-                        ),
-                        valueColor = if (batteryOptimization.isIgnored) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        },
-                        onClick = if (batteryOptimization.isIgnored) null else batteryOptimization.requestExemption
-                    )
-                }
-            }
-
-            item(key = "history") {
-                SettingsGroup(stringResource(R.string.settings_history_section), Modifier.appearIn(3)) {
-                    SettingRow(
-                        icon = Icons.Outlined.AutoDelete,
-                        accent = AccentColors.Teal,
-                        title = stringResource(R.string.settings_retention),
-                        value = stringResource(R.string.set_retention_summary)
-                    )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(start = 62.dp, end = 8.dp),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    ) {
-                        items(RETENTION_OPTIONS_DAYS) { days ->
-                            val selected = days == state.historyRetentionDays
-                            val locked = !isPremium && !selected && days in PRO_RETENTION_DAYS
-                            ChoicePill(
-                                label = retentionShortLabel(days),
-                                selected = selected,
-                                locked = locked,
-                                onClick = { if (locked) onRemoveAds() else mainViewModel.updateHistoryRetentionDays(days) }
-                            )
-                        }
-                    }
-                    SettingRow(
-                        icon = Icons.Outlined.DeleteOutline,
-                        accent = AccentColors.Rose,
-                        title = stringResource(R.string.trash_title),
-                        onClick = { navController.navigate(Screens.Trash.route) }
-                    )
-                    SettingRow(
-                        icon = Icons.Outlined.DeleteSweep,
-                        accent = MaterialTheme.colorScheme.error,
-                        title = stringResource(R.string.settings_clear_history),
-                        titleColor = MaterialTheme.colorScheme.error,
-                        showChevron = false,
-                        onClick = { showClearConfirmation = true }
-                    )
-                }
-            }
-
-            item(key = "backup") {
-                val busyValue = if (isTransferring) stringResource(R.string.settings_transfer_running) else null
-                SettingsGroup(stringResource(R.string.settings_backup_section), Modifier.appearIn(4)) {
-                    SettingRow(
-                        icon = Icons.Outlined.CloudUpload,
-                        accent = AccentColors.Blue,
-                        title = stringResource(R.string.settings_backup),
-                        value = busyValue,
-                        locked = !isPremium,
-                        onClick = { if (isPremium) backupLauncher.launch(backupFileName("json")) else onRemoveAds() }
-                    )
-                    SettingRow(
-                        icon = Icons.Outlined.SettingsBackupRestore,
-                        accent = AccentColors.Green,
-                        title = stringResource(R.string.settings_restore),
-                        locked = !isPremium,
-                        onClick = { if (isPremium) restoreLauncher.launch(BACKUP_MIME_TYPES) else onRemoveAds() }
-                    )
-                    SettingRow(
-                        icon = Icons.Outlined.TableChart,
-                        accent = AccentColors.Teal,
-                        title = stringResource(R.string.settings_export_csv),
-                        locked = !isPremium,
-                        onClick = { if (isPremium) csvLauncher.launch(backupFileName("csv")) else onRemoveAds() }
-                    )
-                }
-            }
-
-            item(key = "alerts") {
-                SettingsGroup(stringResource(R.string.settings_alerts_section), Modifier.appearIn(4)) {
-                    SettingRow(
-                        icon = Icons.Outlined.DeleteForever,
-                        accent = AccentColors.Purple,
-                        title = stringResource(R.string.deleted_title),
-                        onClick = { navController.navigate(Screens.DeletedMessages.route) }
-                    )
-                    SettingRow(
-                        icon = Icons.Outlined.NotificationImportant,
-                        accent = AccentColors.Rose,
-                        title = stringResource(R.string.settings_deleted_alerts),
-                        locked = !isPremium,
-                        trailing = { Switch(checked = deletedAlertsEnabled, onCheckedChange = null) },
-                        onClick = {
-                            if (isPremium) mainViewModel.setDeletedAlertsEnabled(!deletedAlertsEnabled) else onRemoveAds()
-                        }
-                    )
-                    SettingRow(
-                        icon = Icons.Outlined.Sell,
-                        accent = AccentColors.Amber,
-                        title = stringResource(R.string.settings_keyword_alerts),
-                        value = if (isPremium && keywordAlerts.isNotEmpty()) keywordAlerts.size.toString() else null,
-                        locked = !isPremium,
-                        onClick = {
-                            if (isPremium) navController.navigate(Screens.KeywordAlerts.route) else onRemoveAds()
-                        }
-                    )
-                }
-            }
-
             item(key = "general") {
-                SettingsGroup(stringResource(R.string.settings_general_section), Modifier.appearIn(4)) {
+                SettingsGroup(stringResource(R.string.settings_general_section), Modifier.appearIn(0)) {
                     SettingRow(
                         icon = Icons.Outlined.Palette,
                         accent = AccentColors.Orange,
@@ -454,8 +281,181 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                 }
             }
 
+            if (!isPremium) {
+                item(key = "premium") {
+                    GradientBanner(
+                        modifier = Modifier.appearIn(1),
+                        icon = Icons.Filled.WorkspacePremium,
+                        title = stringResource(R.string.premium_sheet_title),
+                        subtitle = stringResource(R.string.premium_sheet_subtitle),
+                        onClick = onRemoveAds
+                    )
+                }
+            }
+
+            item(key = "tracking") {
+                TrackingRow(
+                    modifier = Modifier.appearIn(2),
+                    checked = state.userToggleTracking && hasPermission,
+                    hasPermission = hasPermission,
+                    onCheckedChange = { enabled ->
+                        when {
+                            !enabled -> mainViewModel.setToggleTracking(false)
+                            hasPermission -> mainViewModel.onEnableClick()
+                            else -> openAccess()
+                        }
+                    }
+                )
+            }
+
+            item(key = "capture") {
+                SettingsGroup(stringResource(R.string.settings_tracking_section), Modifier.appearIn(3)) {
+                    SettingRow(
+                        icon = Icons.Outlined.NotificationsActive,
+                        accent = if (hasPermission) AccentColors.Blue else MaterialTheme.colorScheme.error,
+                        title = stringResource(R.string.settings_notification_access),
+                        value = stringResource(
+                            if (hasPermission) R.string.settings_permission_granted
+                            else R.string.settings_value_needed
+                        ),
+                        valueColor = if (hasPermission) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                        onClick = if (hasPermission) null else openAccess
+                    )
+                    SettingRow(
+                        icon = ImageVector.vectorResource(R.drawable.ic_nh_apps_saved),
+                        accent = AccentColors.Purple,
+                        title = stringResource(R.string.home_manage_apps),
+                        value = pluralStringResource(
+                            R.plurals.settings_apps_count,
+                            state.selectedAppsCount,
+                            state.selectedAppsCount
+                        ),
+                        onClick = { navController.navigate(Screens.ManageNotifications.route) }
+                    )
+                    SettingRow(
+                        icon = if (batteryOptimization.isIgnored) Icons.Outlined.BatteryChargingFull else Icons.Outlined.BatteryAlert,
+                        accent = if (batteryOptimization.isIgnored) AccentColors.Green else AccentColors.Amber,
+                        title = stringResource(R.string.settings_battery_optimization),
+                        value = stringResource(
+                            if (batteryOptimization.isIgnored) R.string.settings_battery_unrestricted
+                            else R.string.settings_battery_restricted
+                        ),
+                        valueColor = if (batteryOptimization.isIgnored) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                        onClick = if (batteryOptimization.isIgnored) null else batteryOptimization.requestExemption
+                    )
+                }
+            }
+
+            item(key = "history") {
+                SettingsGroup(stringResource(R.string.settings_history_section), Modifier.appearIn(4)) {
+                    SettingRow(
+                        icon = Icons.Outlined.AutoDelete,
+                        accent = AccentColors.Teal,
+                        title = stringResource(R.string.settings_retention),
+                        value = stringResource(R.string.set_retention_summary)
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(start = 62.dp, end = 8.dp),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        items(RETENTION_OPTIONS_DAYS) { days ->
+                            val selected = days == state.historyRetentionDays
+                            val locked = !isPremium && !selected && days in PRO_RETENTION_DAYS
+                            ChoicePill(
+                                label = retentionShortLabel(days),
+                                selected = selected,
+                                locked = locked,
+                                onClick = { if (locked) onRemoveAds() else mainViewModel.updateHistoryRetentionDays(days) }
+                            )
+                        }
+                    }
+                    SettingRow(
+                        icon = Icons.Outlined.DeleteOutline,
+                        accent = AccentColors.Rose,
+                        title = stringResource(R.string.trash_title),
+                        onClick = { navController.navigate(Screens.Trash.route) }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.DeleteSweep,
+                        accent = MaterialTheme.colorScheme.error,
+                        title = stringResource(R.string.settings_clear_history),
+                        titleColor = MaterialTheme.colorScheme.error,
+                        showChevron = false,
+                        onClick = { showClearConfirmation = true }
+                    )
+                }
+            }
+
+            item(key = "backup") {
+                val busyValue = if (isTransferring) stringResource(R.string.settings_transfer_running) else null
+                SettingsGroup(stringResource(R.string.settings_backup_section), Modifier.appearIn(5)) {
+                    SettingRow(
+                        icon = Icons.Outlined.CloudUpload,
+                        accent = AccentColors.Blue,
+                        title = stringResource(R.string.settings_backup),
+                        value = busyValue,
+                        locked = !isPremium,
+                        onClick = { if (isPremium) backupLauncher.launch(backupFileName("json")) else onRemoveAds() }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.SettingsBackupRestore,
+                        accent = AccentColors.Green,
+                        title = stringResource(R.string.settings_restore),
+                        locked = !isPremium,
+                        onClick = { if (isPremium) restoreLauncher.launch(BACKUP_MIME_TYPES) else onRemoveAds() }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.TableChart,
+                        accent = AccentColors.Teal,
+                        title = stringResource(R.string.settings_export_csv),
+                        locked = !isPremium,
+                        onClick = { if (isPremium) csvLauncher.launch(backupFileName("csv")) else onRemoveAds() }
+                    )
+                }
+            }
+
+            item(key = "alerts") {
+                SettingsGroup(stringResource(R.string.settings_alerts_section), Modifier.appearIn(5)) {
+                    SettingRow(
+                        icon = Icons.Outlined.DeleteForever,
+                        accent = AccentColors.Purple,
+                        title = stringResource(R.string.deleted_title),
+                        onClick = { navController.navigate(Screens.DeletedMessages.route) }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.NotificationImportant,
+                        accent = AccentColors.Rose,
+                        title = stringResource(R.string.settings_deleted_alerts),
+                        locked = !isPremium,
+                        trailing = { Switch(checked = deletedAlertsEnabled, onCheckedChange = null) },
+                        onClick = {
+                            if (isPremium) mainViewModel.setDeletedAlertsEnabled(!deletedAlertsEnabled) else onRemoveAds()
+                        }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.Sell,
+                        accent = AccentColors.Amber,
+                        title = stringResource(R.string.settings_keyword_alerts),
+                        value = if (isPremium && keywordAlerts.isNotEmpty()) keywordAlerts.size.toString() else null,
+                        locked = !isPremium,
+                        onClick = {
+                            if (isPremium) navController.navigate(Screens.KeywordAlerts.route) else onRemoveAds()
+                        }
+                    )
+                }
+            }
+
             item(key = "app") {
-                SettingsGroup(stringResource(R.string.settings_app_section), Modifier.appearIn(5)) {
+                SettingsGroup(stringResource(R.string.settings_app_section), Modifier.appearIn(6)) {
                     if (isPremium) {
                         SettingRow(
                             icon = Icons.Default.Star,
