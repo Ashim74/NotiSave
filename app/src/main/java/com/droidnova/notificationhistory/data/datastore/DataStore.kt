@@ -7,7 +7,11 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.ALLOWED_APPS_KEY
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.BLOCK_PREFIX
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.DELETED_ALERTS
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.FILTERS_PREFIX
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HIDDEN_APPS
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.KEYWORD_ALERTS
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.KEY_USER_WANTS_TRACKING
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LAUNCH_COUNT
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.HISTORY_RETENTION_DAYS
@@ -15,11 +19,14 @@ import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.IS_PREMIUM
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LISTENER_CONNECTED
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.ONBOARDING_COMPLETE
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
+import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.THEME_COLOR
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.THEME_MODE
 import com.droidnova.notificationhistory.core.review.ReviewState
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.data_shared.ThemeColor
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 
@@ -107,9 +114,10 @@ class UserPreferences(private val context: Context) {
     }
 
     /**
-     * The flag is only written by the onboarding flow (added in 0.20). Users upgrading from
-     * older versions have no flag, so anyone who already selected apps or launched the app
-     * more than once is treated as onboarded instead of being shown the intro.
+     * The flag is written by the onboarding flow (added in 0.20) and, for users upgrading from
+     * older versions, by [incrementLaunchCount] at startup: anyone who already selected apps or
+     * launched the app more than once is treated as onboarded instead of being shown the intro.
+     * The fallback only covers the moment before that first write lands.
      */
     val onboardingComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
         resolveOnboardingComplete(
@@ -132,6 +140,77 @@ class UserPreferences(private val context: Context) {
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { prefs ->
             prefs[THEME_MODE] = mode.storageKey
+        }
+    }
+
+    val themeColor: Flow<ThemeColor> = context.dataStore.data.map { prefs ->
+        ThemeColor.fromStorageKey(prefs[THEME_COLOR])
+    }
+
+    suspend fun setThemeColor(color: ThemeColor) {
+        context.dataStore.edit { prefs ->
+            prefs[THEME_COLOR] = color.storageKey
+        }
+    }
+
+    // ---- Premium features ----
+
+    /** Words that raise an alert when a saved notification contains one. */
+    val keywordAlerts: Flow<Set<String>> = context.dataStore.data.map { it[KEYWORD_ALERTS] ?: emptySet() }
+
+    suspend fun addKeywordAlert(word: String) = editStringSet(KEYWORD_ALERTS) { it + word.trim() }
+
+    suspend fun removeKeywordAlert(word: String) = editStringSet(KEYWORD_ALERTS) { it - word }
+
+    /** On by default: recovering a deleted message is worth a heads-up. */
+    val deletedAlertsEnabled: Flow<Boolean> = context.dataStore.data.map { it[DELETED_ALERTS] ?: true }
+
+    suspend fun setDeletedAlertsEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[DELETED_ALERTS] = enabled }
+    }
+
+    /** Apps the user chose to hide, whether or not Premium is active. */
+    val hiddenApps: Flow<Set<String>> = context.dataStore.data.map { it[HIDDEN_APPS] ?: emptySet() }
+
+    /**
+     * The apps to keep out of History, Home and Insights right now: hiding is a Premium feature,
+     * so nothing stays hidden without it. Premium and the set come from the same snapshot, so a
+     * Premium user never sees hidden apps flash in while preferences load.
+     */
+    val effectiveHiddenApps: Flow<Set<String>> = context.dataStore.data
+        .map { prefs -> if (prefs[IS_PREMIUM] == true) prefs[HIDDEN_APPS] ?: emptySet() else emptySet() }
+        .distinctUntilChanged()
+
+    suspend fun setAppHidden(packageName: String, hidden: Boolean) =
+        editStringSet(HIDDEN_APPS) { if (hidden) it + packageName else it - packageName }
+
+    /** Per-app block words: a notification containing any of them is never saved. */
+    val allBlockWords: Flow<Map<String, Set<String>>> = context.dataStore.data.map { prefs ->
+        buildMap {
+            prefs.asMap().forEach { (key, value) ->
+                if (key.name.startsWith(BLOCK_PREFIX)) {
+                    @Suppress("UNCHECKED_CAST")
+                    put(key.name.removePrefix(BLOCK_PREFIX), value as? Set<String> ?: emptySet())
+                }
+            }
+        }
+    }
+
+    suspend fun addBlockWord(packageName: String, word: String) =
+        editStringSet(stringSetPreferencesKey(BLOCK_PREFIX + packageName)) { it + word.trim() }
+
+    suspend fun removeBlockWord(packageName: String, word: String) =
+        editStringSet(stringSetPreferencesKey(BLOCK_PREFIX + packageName)) { it - word }
+
+    suspend fun clearBlockWords(packageName: String) {
+        context.dataStore.edit { it.remove(stringSetPreferencesKey(BLOCK_PREFIX + packageName)) }
+    }
+
+    /** Applies [change] to a string set, dropping blank entries; an empty result removes the key. */
+    private suspend fun editStringSet(key: Preferences.Key<Set<String>>, change: (Set<String>) -> Set<String>) {
+        context.dataStore.edit { prefs ->
+            val next = change(prefs[key] ?: emptySet()).filterTo(linkedSetOf()) { it.isNotBlank() }
+            if (next.isEmpty()) prefs.remove(key) else prefs[key] = next
         }
     }
 
@@ -187,10 +266,23 @@ class UserPreferences(private val context: Context) {
         }
     }
 
-    /** Atomic read-modify-write; the previous read-then-write could lose concurrent increments. */
+    /**
+     * Atomic read-modify-write; the previous read-then-write could lose concurrent increments.
+     * Also settles the onboarding flag on the first launch that lacks one, so the upgrade
+     * heuristic is judged once instead of live: otherwise ticking apps mid-onboarding jumped to
+     * Home without saving the flag, and clearing every app later brought onboarding back.
+     */
     suspend fun incrementLaunchCount() {
         context.dataStore.edit { preference ->
-            preference[LAUNCH_COUNT] = (preference[LAUNCH_COUNT] ?: 0) + 1
+            val launchCount = (preference[LAUNCH_COUNT] ?: 0) + 1
+            preference[LAUNCH_COUNT] = launchCount
+            if (preference[ONBOARDING_COMPLETE] == null) {
+                preference[ONBOARDING_COMPLETE] = resolveOnboardingComplete(
+                    storedFlag = null,
+                    hasAllowedApps = preference[allowedAppsKey]?.isNotEmpty() == true,
+                    launchCount = launchCount
+                )
+            }
         }
     }
 

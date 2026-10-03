@@ -49,7 +49,7 @@ class NotificationDaoTest {
         var cursorId: Long? = null
         while (true) {
             val page = dao.getHistoryPage(
-                packageName = null, searchQuery = "",
+                packageName = null, excludedPackages = emptyList(), searchQuery = "",
                 startInclusive = Long.MIN_VALUE, endExclusive = Long.MAX_VALUE,
                 cursorReceivedAt = cursorAt, cursorId = cursorId, limit = 3
             )
@@ -69,7 +69,7 @@ class NotificationDaoTest {
         insert("com.b", "Hello again", 300)
 
         val page = dao.getHistoryPage(
-            packageName = "com.a", searchQuery = "hello",
+            packageName = "com.a", excludedPackages = emptyList(), searchQuery = "hello",
             startInclusive = 50, endExclusive = 250,
             cursorReceivedAt = null, cursorId = null, limit = 10
         )
@@ -121,7 +121,47 @@ class NotificationDaoTest {
     @Test
     fun recentActiveIsNewestFirstAndBounded() = runBlocking {
         repeat(8) { i -> insert("com.a", "n$i", receivedAt = i.toLong()) }
-        val recent = dao.observeRecentActive(limit = 5).first()
+        val recent = dao.observeRecentActive(limit = 5, excludedPackages = emptyList()).first()
         assertEquals(listOf("n7", "n6", "n5", "n4", "n3"), recent.map { it.title })
+    }
+    @Test
+    fun hiddenAppsLeaveHistoryRecentAndTopApps() = runBlocking {
+        insert("com.a", "visible", 100)
+        insert("com.secret", "hidden", 200)
+        insert("com.secret", "hidden again", 300)
+
+        val page = dao.getHistoryPage(
+            packageName = null, excludedPackages = listOf("com.secret"), searchQuery = "",
+            startInclusive = Long.MIN_VALUE, endExclusive = Long.MAX_VALUE,
+            cursorReceivedAt = null, cursorId = null, limit = 10
+        )
+        assertEquals(listOf("visible"), page.map { it.title })
+        assertEquals(
+            listOf("visible"),
+            dao.observeRecentActive(limit = 5, excludedPackages = listOf("com.secret")).first().map { it.title }
+        )
+        assertEquals(
+            listOf("com.a"),
+            dao.observeTopApps(0, Long.MAX_VALUE, 5, listOf("com.secret")).first().map { it.packageName }
+        )
+    }
+
+    @Test
+    fun deletedMessageIsFoundByKeyAndTimeAndMarkedOnce() = runBlocking {
+        dao.insertApp(
+            NotificationEntity(
+                packageName = "com.whatsapp", title = "Ali", message = "secret plan",
+                receivedAt = 500, notificationKey = "thread"
+            )
+        )
+        val original = checkNotNull(dao.findStandingMessage("thread", 500))
+        assertEquals(1, dao.markDeleted(original.id, deletedAt = 900))
+        // A second re-post of the same deletion finds nothing left to mark.
+        assertEquals(null, dao.findStandingMessage("thread", 500))
+        assertEquals(0, dao.markDeleted(original.id, deletedAt = 950))
+
+        val deleted = dao.observeDeleted().first()
+        assertEquals(listOf("secret plan"), deleted.map { it.message })
+        assertEquals(900L, deleted.single().deletedAt)
     }
 }

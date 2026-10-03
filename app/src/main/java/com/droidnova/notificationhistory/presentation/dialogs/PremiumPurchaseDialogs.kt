@@ -2,6 +2,7 @@ package com.droidnova.notificationhistory.presentation.dialogs
 
 import android.text.format.DateFormat
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,13 +20,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.outlined.AllInclusive
 import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.Sell
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Celebration
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material.icons.outlined.SupportAgent
-import androidx.compose.material.icons.outlined.Update
+import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,8 +70,8 @@ import com.droidnova.notificationhistory.presentation.components.tintedCardColor
 import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 
 /**
- * Premium offer: a floating gradient crown, one line of pitch, the three benefits as icon tiles
- * side by side, then the buy button.
+ * Premium offer: a floating gradient crown, one line of pitch, the benefits as a grid of icon tiles,
+ * then the buy button.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,16 +120,27 @@ fun PremiumPurchaseBottomSheet(
                 )
             }
 
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.medium)
                     .background(tintedCardColor())
-                    .padding(vertical = 12.dp, horizontal = 4.dp)
+                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                BenefitTile(Icons.Outlined.Block, stringResource(R.string.premium_sheet_benefit_no_ads), AccentColors.Rose, 0, Modifier.weight(1f))
-                BenefitTile(Icons.Outlined.Update, stringResource(R.string.premium_sheet_benefit_updates), AccentColors.Blue, 1, Modifier.weight(1f))
-                BenefitTile(Icons.Outlined.SupportAgent, stringResource(R.string.premium_sheet_benefit_support), AccentColors.Green, 2, Modifier.weight(1f))
+                premiumBenefits().chunked(3).forEachIndexed { rowIndex, row ->
+                    Row(Modifier.fillMaxWidth()) {
+                        row.forEachIndexed { column, benefit ->
+                            BenefitTile(
+                                benefit.icon,
+                                stringResource(benefit.label),
+                                benefit.accent,
+                                rowIndex * 3 + column,
+                                Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
             }
 
             Button(
@@ -239,10 +257,26 @@ private fun RewardedAdFreeOption() {
     }
 }
 
+private class Benefit(val icon: ImageVector, @StringRes val label: Int, val accent: Color)
+
+/** What Premium unlocks, strongest first; shown three to a row. */
+@Composable
+private fun premiumBenefits(): List<Benefit> = listOf(
+    Benefit(Icons.Outlined.DeleteForever, R.string.premium_sheet_benefit_deleted, AccentColors.Purple),
+    Benefit(Icons.Outlined.AllInclusive, R.string.premium_sheet_benefit_forever, AccentColors.Teal),
+    Benefit(Icons.Outlined.CloudUpload, R.string.premium_sheet_benefit_backup, AccentColors.Blue),
+    Benefit(Icons.Outlined.Sell, R.string.premium_sheet_benefit_keywords, AccentColors.Amber),
+    Benefit(Icons.Outlined.VisibilityOff, R.string.premium_sheet_benefit_hidden, AccentColors.Rose),
+    Benefit(Icons.Outlined.Insights, R.string.premium_sheet_benefit_insights, AccentColors.Orange),
+    Benefit(Icons.Outlined.Fingerprint, R.string.premium_sheet_benefit_fingerprint, AccentColors.Green),
+    Benefit(Icons.Outlined.Palette, R.string.premium_sheet_benefit_themes, AccentColors.Purple),
+    Benefit(Icons.Outlined.Block, R.string.premium_sheet_benefit_no_ads, AccentColors.Rose),
+)
+
 @Composable
 private fun BenefitTile(icon: ImageVector, label: String, accent: Color, index: Int, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.appearIn(index, stepMillis = 80),
+        modifier = modifier.appearIn(index, stepMillis = 50),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {

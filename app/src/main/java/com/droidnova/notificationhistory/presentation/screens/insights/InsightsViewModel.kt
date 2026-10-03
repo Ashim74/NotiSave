@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.insights.InsightsData
 import com.droidnova.notificationhistory.data.insights.InsightsRange
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
@@ -35,7 +37,8 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
 
     private val repository = InsightsRepository(
         dao = AppDatabase.getInstance(application).notificationDao(),
-        packageManager = application.packageManager
+        packageManager = application.packageManager,
+        hiddenApps = UserPreferences(application).effectiveHiddenApps
     )
 
     private val selectedRange = MutableStateFlow(InsightsRange.Last7Days)
@@ -63,9 +66,15 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
                     .map { result -> range to result }
             }
             .flowOn(Dispatchers.IO)
-            .map { (range, result) ->
+            .scan(InsightsUiState()) { previous, (range, result) ->
                 when (result) {
-                    Result.Loading -> InsightsUiState(range = range, isLoading = true)
+                    // A refresh of the same range keeps the figures on screen instead of flashing
+                    // the loader again; only a new range (or the first load) starts blank.
+                    Result.Loading -> if (range == previous.range && previous.data != null) {
+                        previous.copy(isLoading = true, hasError = false)
+                    } else {
+                        InsightsUiState(range = range, isLoading = true)
+                    }
                     Result.Error -> InsightsUiState(range = range, isLoading = false, hasError = true)
                     is Result.Loaded -> InsightsUiState(
                         range = range,

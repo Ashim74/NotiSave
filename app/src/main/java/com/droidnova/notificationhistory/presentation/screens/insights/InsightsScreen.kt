@@ -43,6 +43,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,7 +64,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.presentation.dialogs.PremiumUpsell
 import com.droidnova.notificationhistory.data.insights.AppStat
 import com.droidnova.notificationhistory.data.insights.BucketUnit
 import com.droidnova.notificationhistory.data.insights.ChartBucket
@@ -107,16 +111,24 @@ private const val GROW_MS = 650
 @Composable
 fun InsightsScreen(
     viewModel: InsightsViewModel,
-    navController: NavController
+    navController: NavController,
+    mainViewModel: MainViewModel
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val isPremium by mainViewModel.isPremium.collectAsStateWithLifecycle()
+    var showPremium by remember { mutableStateOf(false) }
 
-    // Day boundaries can move while the app is in the background; re-plan on every resume.
+    // Day boundaries can move while the app is in the background; re-plan on every resume. The
+    // observer is told ON_RESUME as soon as it is added, but the first load is already running,
+    // so that one is skipped (it used to load the screen twice).
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         Analytics.log(Analytics.INSIGHTS_OPEN)
+        var firstResume = true
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (firstResume) firstResume = false else viewModel.refresh()
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -137,6 +149,8 @@ fun InsightsScreen(
                 RangeSelector(
                     selected = state.range,
                     onSelected = viewModel::selectRange,
+                    lockedRanges = if (isPremium) emptySet() else PRO_RANGES,
+                    onLocked = { showPremium = true },
                     modifier = Modifier.listItemPadding()
                 )
             }
@@ -197,13 +211,17 @@ fun InsightsScreen(
             }
         }
     }
+
+    PremiumUpsell(mainViewModel, visible = showPremium, onDismiss = { showPremium = false })
 }
 
-/** The ranges as pills in one line; the selected one is tinted and outlined. */
+/** The ranges as pills in one line; Pro ones carry a lock until Premium. */
 @Composable
 private fun RangeSelector(
     selected: InsightsRange,
     onSelected: (InsightsRange) -> Unit,
+    lockedRanges: Set<InsightsRange>,
+    onLocked: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -213,14 +231,19 @@ private fun RangeSelector(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         InsightsRange.entries.forEach { range ->
+            val locked = range in lockedRanges
             ChoicePill(
                 label = range.shortLabel(),
                 selected = selected == range,
-                onClick = { onSelected(range) }
+                locked = locked,
+                onClick = { if (locked) onLocked() else onSelected(range) }
             )
         }
     }
 }
+
+/** Longer views of the data are part of Premium; Today and 7 days stay free. */
+private val PRO_RANGES = setOf(InsightsRange.Last30Days, InsightsRange.AllTime)
 
 /** Three compact tiles: total, apps, and the busiest hour, each with its own colored badge. */
 @Composable

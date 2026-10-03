@@ -80,6 +80,9 @@ import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.ads.CollapsibleAdBanner
 import com.droidnova.notificationhistory.ads.rememberShowAds
 import com.droidnova.notificationhistory.presentation.screens.about.AboutScreen
+import com.droidnova.notificationhistory.presentation.screens.alerts.KeywordAlertsScreen
+import com.droidnova.notificationhistory.presentation.screens.deleted.DeletedMessagesScreen
+import com.droidnova.notificationhistory.presentation.screens.hidden.HiddenAppsScreen
 import com.droidnova.notificationhistory.presentation.screens.app_history.AppHistoryScreen
 import com.droidnova.notificationhistory.presentation.screens.app_settings.AppSettingsScreen
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationDetailScreen
@@ -191,6 +194,7 @@ private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) 
                 mainViewModel.requestHistorySearchFocus()
                 navController.navigateToTab(Screens.History.route)
             }
+            LaunchAction.OpenDeleted -> navController.navigate(Screens.DeletedMessages.route)
             LaunchAction.Reconnect, LaunchAction.None -> Unit
         }
     }
@@ -235,7 +239,7 @@ private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) 
                 }
                 composable(Screens.Insights.route) {
                     val insightsViewModel: InsightsViewModel = viewModel()
-                    InsightsScreen(insightsViewModel, navController)
+                    InsightsScreen(insightsViewModel, navController, mainViewModel)
                 }
                 composable(Screens.AppSettings.route) {
                     AppSettingsScreen(mainViewModel, navController)
@@ -251,7 +255,16 @@ private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) 
                     AboutScreen(navController)
                 }
                 composable(Screens.AppLock.route) {
-                    AppLockSettingsScreen(navController)
+                    AppLockSettingsScreen(navController, mainViewModel)
+                }
+                composable(Screens.DeletedMessages.route) {
+                    DeletedMessagesScreen(navController, mainViewModel)
+                }
+                composable(Screens.KeywordAlerts.route) {
+                    KeywordAlertsScreen(navController, mainViewModel)
+                }
+                composable(Screens.HiddenApps.route) {
+                    HiddenAppsScreen(navController, mainViewModel)
                 }
                 composable(
                     route = Screens.AppsNotificationListScreen.route,

@@ -10,5 +10,7 @@ data class NotificationModel(
     val receivedAt: String,
     val receivedAtEpoch: Long,
     val isTrashed: Boolean = false,
-    val trashedAtEpoch: Long? = null
+    val trashedAtEpoch: Long? = null,
+    /** When the sender deleted it; null while the message stands. */
+    val deletedAtEpoch: Long? = null
 )

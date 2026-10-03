@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.apps.AppInfoCache
+import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
 import com.droidnova.notificationhistory.data.model.NotificationModel
@@ -40,6 +41,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dao = AppDatabase.getInstance(application).notificationDao()
     private val packageManager = application.packageManager
+    private val hiddenApps = UserPreferences(application).effectiveHiddenApps.map { it.toList() }
 
     // Midnight can pass while the app is backgrounded; refresh() re-anchors the window.
     private val dayStart = MutableStateFlow(startOfTodayMillis())
@@ -48,11 +50,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         dayStart.value = startOfTodayMillis()
     }
 
-    val todaySummary: StateFlow<HomeTodaySummary> = dayStart
-        .flatMapLatest { start ->
+    val todaySummary: StateFlow<HomeTodaySummary> = combine(dayStart, hiddenApps) { start, hidden -> start to hidden }
+        .flatMapLatest { (start, hidden) ->
             combine(
                 dao.observeInsightsSummary(start, Long.MAX_VALUE),
-                dao.observeTopApps(start, Long.MAX_VALUE, 1)
+                // A hidden app must not surface as today's most active one.
+                dao.observeTopApps(start, Long.MAX_VALUE, 1, hidden)
             ) { summary, topApps ->
                 val top = topApps.firstOrNull()
                 HomeTodaySummary(
@@ -71,8 +74,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeTodaySummary())
 
-    val recentNotifications: StateFlow<List<NotificationModel>> = dao
-        .observeRecentActive(RECENT_LIMIT)
+    val recentNotifications: StateFlow<List<NotificationModel>> = hiddenApps
+        .flatMapLatest { hidden -> dao.observeRecentActive(RECENT_LIMIT, hidden) }
         .map { entities -> entities.map { convertEntityToModel(getApplication(), it) } }
         .flowOn(Dispatchers.IO)
         .catch { error ->

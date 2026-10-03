@@ -63,6 +63,12 @@ class NotificationListener : NotificationListenerService() {
     @Volatile private var historyRetentionDays: Int = SettingState.DEFAULT_HISTORY_RETENTION_DAYS
     @Volatile private var titleFilters: Map<String, Set<String>> = emptyMap()
 
+    // Premium features; each only acts while isPremium is true.
+    @Volatile private var isPremium: Boolean = false
+    @Volatile private var blockWords: Map<String, Set<String>> = emptyMap()
+    @Volatile private var keywordAlerts: Set<String> = emptySet()
+    @Volatile private var deletedAlertsEnabled: Boolean = true
+
     override fun onCreate() {
         super.onCreate()
         prefs = UserPreferences(applicationContext)
@@ -74,6 +80,8 @@ class NotificationListener : NotificationListenerService() {
                 trackingEnabled = state.userToggleTracking
                 historyRetentionDays = state.historyRetentionDays.coerceAtLeast(0)
                 titleFilters = prefs.allTitleFilters.first()
+                isPremium = prefs.isPremium.first()
+                blockWords = prefs.allBlockWords.first()
             } catch (t: Throwable) {
                 CrashReporter.record(t)
             } finally {
@@ -100,6 +108,10 @@ class NotificationListener : NotificationListenerService() {
         serviceScope.launch {
             prefs.allTitleFilters.collect { titleFilters = it }
         }
+        serviceScope.launch { prefs.isPremium.collect { isPremium = it } }
+        serviceScope.launch { prefs.allBlockWords.collect { blockWords = it } }
+        serviceScope.launch { prefs.keywordAlerts.collect { keywordAlerts = it } }
+        serviceScope.launch { prefs.deletedAlertsEnabled.collect { deletedAlertsEnabled = it } }
     }
 
     override fun onListenerConnected() {
@@ -175,6 +187,9 @@ class NotificationListener : NotificationListenerService() {
             if (!matchesTitleFilter(content.title, titleFilters[packageName].orEmpty())) {
                 return@launch
             }
+            if (isPremium &&
+                containsBlockedWord(content.title, content.message, blockWords[packageName].orEmpty())
+            ) return@launch
 
             if (!cache.allowAndReserve(notificationKey, content.normalizedForDedupe())) {
                 return@launch
@@ -211,15 +226,23 @@ class NotificationListener : NotificationListenerService() {
 
             try {
                 val dao = AppDatabase.getInstance(applicationContext).notificationDao()
+                val outcome = CaptureOutcome()
                 // Apps fire several posts per message within milliseconds; checking and
                 // inserting under one lock stops parallel posts from each saving a copy.
                 persistMutex.withLock {
-                    if (messages.isNotEmpty()) {
-                        saveNewMessages(dao, row, messages)
-                    } else {
-                        saveNotification(dao, row, verdict)
+                    when {
+                        messages.isNotEmpty() -> saveNewMessages(dao, row, messages, outcome)
+                        isDeletedPlaceholder(row.message) -> {
+                            // Only a fresh change of this very notification counts: after a
+                            // restart (Unknown) the newest row may not be the one that went.
+                            if (verdict == ActiveContentTracker.Verdict.Changed) {
+                                recoverDeleted(dao, row, timestamp = null)?.let(outcome.recovered::add)
+                            }
+                        }
+                        else -> saveNotification(dao, row, verdict, outcome)
                     }
                 }
+                raiseAlerts(outcome)
                 enforceRetentionIfDue(dao)
             } catch (t: Throwable) {
                 // A failing disk/DB (full, locked, mid-migration) must never crash the
@@ -237,7 +260,8 @@ class NotificationListener : NotificationListenerService() {
     private suspend fun saveNewMessages(
         dao: NotificationDao,
         row: NotificationEntity,
-        messages: List<ExtractedMessage>
+        messages: List<ExtractedMessage>,
+        outcome: CaptureOutcome
     ) {
         val latestSaved = row.notificationKey?.let {
             dao.latestReceivedAtForKey(it, since = row.receivedAt - KEY_DEDUPE_WINDOW_MS)
@@ -247,6 +271,12 @@ class NotificationListener : NotificationListenerService() {
             val receivedAt = message.timestamp
                 .takeIf { it > 0 && it <= row.receivedAt }
                 ?: row.receivedAt
+            // A deleted message keeps its place (and time) in the re-posted thread with its text
+            // swapped for "This message was deleted": flag the saved original, save nothing.
+            if (isDeletedPlaceholder(message.text)) {
+                recoverDeleted(dao, row, timestamp = receivedAt)?.let(outcome.recovered::add)
+                return@forEach
+            }
             // Anything at or before the newest saved row of this thread was already captured.
             if (latestSaved != null && receivedAt <= latestSaved) return@forEach
             val fingerprint = message.fingerprint()
@@ -257,20 +287,76 @@ class NotificationListener : NotificationListenerService() {
                     to = receivedAt + CONTENT_DEDUPE_WINDOW_MS
                 )
             ) return@forEach
-            dao.insertApp(
-                row.copy(
-                    message = message.displayText(row.title),
-                    receivedAt = receivedAt,
-                    contentFingerprint = fingerprint
-                )
+            val saved = row.copy(
+                message = message.displayText(row.title),
+                receivedAt = receivedAt,
+                contentFingerprint = fingerprint
             )
+            dao.insertApp(saved)
+            outcome.saved += saved
         }
+    }
+
+    /**
+     * Flags the saved message a sender deleted and returns it. With a [timestamp] (chat threads)
+     * only that exact message qualifies; without one, the notification's newest saved row does.
+     */
+    private suspend fun recoverDeleted(
+        dao: NotificationDao,
+        row: NotificationEntity,
+        timestamp: Long?
+    ): NotificationEntity? {
+        val key = row.notificationKey ?: return null
+        val now = System.currentTimeMillis()
+        val target = if (timestamp != null) {
+            dao.findStandingMessage(key, timestamp)
+        } else {
+            dao.recentStandingForKey(key, since = now - KEY_DEDUPE_WINDOW_MS, limit = 1).firstOrNull()
+        } ?: return null
+        if (isDeletedPlaceholder(target.message)) return null
+        return if (dao.markDeleted(target.id, now) > 0) target else null
+    }
+
+    /** Premium alerts for what this post saved or recovered. */
+    private fun raiseAlerts(outcome: CaptureOutcome) {
+        if (!isPremium) return
+        val context = applicationContext
+        if (deletedAlertsEnabled) {
+            outcome.recovered.forEach { original ->
+                SmartAlerts.showDeletedMessage(
+                    context,
+                    appName = fetchAppName(packageManager, original.packageName),
+                    sender = original.title,
+                    original = original.message
+                )
+            }
+        }
+        val keywords = keywordAlerts
+        if (keywords.isNotEmpty()) {
+            outcome.saved.forEach { saved ->
+                val keyword = matchedKeyword("${saved.title}\n${saved.message}", keywords) ?: return@forEach
+                SmartAlerts.showKeyword(
+                    context,
+                    keyword = keyword,
+                    appName = fetchAppName(packageManager, saved.packageName),
+                    sender = saved.title,
+                    message = saved.message
+                )
+            }
+        }
+    }
+
+    /** What one post changed: rows saved (keyword alerts) and originals recovered (deleted alerts). */
+    private class CaptureOutcome {
+        val saved = mutableListOf<NotificationEntity>()
+        val recovered = mutableListOf<NotificationEntity>()
     }
 
     private suspend fun saveNotification(
         dao: NotificationDao,
         row: NotificationEntity,
-        verdict: ActiveContentTracker.Verdict
+        verdict: ActiveContentTracker.Verdict,
+        outcome: CaptureOutcome
     ) {
         val key = row.notificationKey ?: return
         val fingerprint = row.contentFingerprint ?: return
@@ -288,6 +374,7 @@ class NotificationListener : NotificationListenerService() {
             )
         ) return
         dao.insertApp(row)
+        outcome.saved += row
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {

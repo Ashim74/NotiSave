@@ -11,10 +11,10 @@
     <string name="remove">Remove</string>
     <string name="back">Back</string>
     <string name="premium_sheet_title">Go Premium</string>
-    <string name="premium_sheet_subtitle">Remove ads and support future improvements.</string>
+    <string name="premium_sheet_subtitle">Read deleted messages, keep history forever, no ads and more.</string>
     <string name="premium_sheet_benefit_no_ads">Ad-free experience</string>
-    <string name="premium_sheet_benefit_updates">Support ongoing updates</string>
-    <string name="premium_sheet_benefit_support">Priority support</string>
+    <string name="premium_sheet_benefit_themes">All color themes</string>
+    <string name="premium_sheet_benefit_fingerprint">Fingerprint unlock</string>
     <string name="premium_sheet_button_with_price">Unlock for %1$s</string>
     <string name="premium_sheet_button_loading">Loading price…</string>
     <string name="premium_sheet_secure_note">Reinstall anytime — Premium will restore with the same Google account.</string>
@@ -222,6 +222,13 @@ Find “Notification History” → Turn ON access.
     <string name="theme_system">System default</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="theme_color_teal">Teal</string>
+    <string name="theme_color_blue">Blue</string>
+    <string name="theme_color_forest">Forest</string>
+    <string name="theme_color_purple">Purple</string>
+    <string name="theme_color_rose">Rose</string>
+    <string name="theme_color_sunset">Sunset</string>
+    <string name="theme_color_gold">Gold</string>
 
     <!-- Shared -->
     <string name="close">Close</string>
@@ -410,4 +417,87 @@ Find “Notification History” → Turn ON access.
     <string name="ads_rewarded_loading">Getting an ad ready…</string>
     <string name="ads_ad_free_until">Ad-free until %1$s</string>
     <string name="ads_rewarded_earned">No ads for the next 24 hours</string>
+
+    <!-- Premium: deleted-message recovery -->
+    <string name="deleted_title">Deleted messages</string>
+    <string name="deleted_intro">When someone deletes a WhatsApp message while its notification is still showing, NotiSave keeps the original here.</string>
+    <string name="deleted_empty_title">No deleted messages yet</string>
+    <string name="deleted_locked_text">Unlock Premium to read this deleted message</string>
+    <plurals name="deleted_unlock_button">
+        <item quantity="one">Unlock to read %d deleted message</item>
+        <item quantity="other">Unlock to read %d deleted messages</item>
+    </plurals>
+    <string name="deleted_at">Deleted %1$s</string>
+    <string name="home_deleted_none">Read messages people delete</string>
+    <plurals name="home_deleted_count">
+        <item quantity="one">%d message recovered</item>
+        <item quantity="other">%d messages recovered</item>
+    </plurals>
+    <string name="alert_deleted_title">%1$s deleted a message</string>
+    <string name="alert_keyword_title">“%1$s” from %2$s</string>
+    <string name="smart_alert_channel_name">Deleted message &amp; keyword alerts</string>
+    <string name="smart_alert_channel_description">Alerts when a deleted message is recovered or a keyword shows up</string>
+
+    <!-- Premium: settings -->
+    <string name="pro_badge">PRO</string>
+    <string name="settings_alerts_section">Smart alerts</string>
+    <string name="settings_deleted_alerts">Deleted message alerts</string>
+    <string name="settings_keyword_alerts">Keyword alerts</string>
+    <string name="settings_hidden_apps">Hidden apps</string>
+    <string name="settings_backup_section">Backup &amp; export</string>
+    <string name="settings_backup">Back up</string>
+    <string name="settings_restore">Restore from backup</string>
+    <string name="settings_export_csv">Export as spreadsheet (CSV)</string>
+    <string name="settings_transfer_running">Working…</string>
+    <plurals name="backup_done">
+        <item quantity="one">Backed up %d notification</item>
+        <item quantity="other">Backed up %d notifications</item>
+    </plurals>
+    <plurals name="restore_done">
+        <item quantity="one">Restored %d notification</item>
+        <item quantity="other">Restored %d notifications</item>
+    </plurals>
+    <plurals name="export_done">
+        <item quantity="one">Exported %d notification</item>
+        <item quantity="other">Exported %d notifications</item>
+    </plurals>
+    <string name="transfer_failed">Couldn\'t finish. Please try again.</string>
+    <string name="restore_invalid">That file isn\'t a NotiSave backup</string>
+    <string name="set_retention_year_short">1 year</string>
+
+    <!-- Premium: keyword alerts -->
+    <string name="keyword_intro">Get an alert when a saved notification contains one of these words: an OTP, a name, “urgent”.</string>
+    <string name="keyword_add_hint">Add a keyword</string>
+    <string name="keyword_empty">No keywords yet</string>
+    <string name="alerts_blocked">NotiSave can\'t show alerts right now</string>
+    <string name="alerts_allow">Allow</string>
+
+    <!-- Premium: hidden apps -->
+    <string name="hidden_intro">Hidden apps stay out of History, Home and Insights. Their notifications are still saved; open them from here.</string>
+    <string name="hidden_section">Hidden</string>
+    <string name="hidden_add_section">Saved apps</string>
+    <string name="hidden_hide">Hide</string>
+    <string name="hidden_unhide">Unhide</string>
+    <string name="hidden_empty">Select apps to save first</string>
+    <string name="hidden_verify_title">Unlock hidden apps</string>
+    <string name="hidden_verify_desc">Confirm it\'s you to see hidden apps</string>
+
+    <!-- Premium: smarter filters -->
+    <string name="filters_only_section">Only save titles containing</string>
+    <string name="filters_block_section">Never save if it contains</string>
+    <string name="label_add_block_word">Add a word to block</string>
+    <string name="label_no_block_words">No blocked words</string>
+    <plurals name="filters_free_limit">
+        <item quantity="one">Free plan: %d filter per app</item>
+        <item quantity="other">Free plan: up to %d filters per app</item>
+    </plurals>
+
+    <!-- Premium sheet benefits -->
+    <string name="premium_sheet_benefit_deleted">Read deleted messages</string>
+    <string name="premium_sheet_benefit_forever">Keep history forever</string>
+    <string name="premium_sheet_benefit_backup">Backup &amp; export</string>
+    <string name="premium_sheet_benefit_keywords">Keyword alerts</string>
+    <string name="premium_sheet_benefit_hidden">Hidden apps</string>
+    <string name="premium_sheet_benefit_insights">Advanced insights</string>
+    <string name="premium_sheet_benefit_block">Block words</string>
 </resources>

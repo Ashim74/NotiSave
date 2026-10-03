@@ -4,6 +4,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 
 object DataStoreKeys {
     const val PREF_NAME = "notification_prefs"
@@ -15,8 +16,16 @@ object DataStoreKeys {
     val IS_PREMIUM = booleanPreferencesKey("is_premium")
     val LISTENER_CONNECTED = booleanPreferencesKey("listener_connected")
     val THEME_MODE = stringPreferencesKey("theme_mode")
+    val THEME_COLOR = stringPreferencesKey("theme_color")
     val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
     const val FILTERS_PREFIX = "filters_"
+    /** Per-app "never save if it contains" words (Premium). */
+    const val BLOCK_PREFIX = "block_"
+
+    // Premium features
+    val KEYWORD_ALERTS = stringSetPreferencesKey("keyword_alerts")
+    val DELETED_ALERTS = booleanPreferencesKey("deleted_message_alerts")
+    val HIDDEN_APPS = stringSetPreferencesKey("hidden_apps")
 
     // In-app review timing (see ReviewPolicy)
     val FIRST_OPEN_AT = longPreferencesKey("first_open_at")

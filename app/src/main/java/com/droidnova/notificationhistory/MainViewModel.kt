@@ -2,10 +2,13 @@ package com.droidnova.notificationhistory
 
 import android.app.Application
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.apps.AppInfoCache
 import com.droidnova.notificationhistory.core.permission.NotificationAccessChecker
+import com.droidnova.notificationhistory.data.backup.BackupFormatException
+import com.droidnova.notificationhistory.data.backup.BackupManager
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
 import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
@@ -14,6 +17,7 @@ import com.droidnova.notificationhistory.data.model.HistoryFilterState
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data.model.toDateBounds
 import com.droidnova.notificationhistory.data_shared.SettingState
+import com.droidnova.notificationhistory.data_shared.ThemeColor
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationDetailUiState
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationHistoryController
@@ -37,6 +41,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -144,6 +149,101 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { userPrefs.setThemeMode(mode) }
     }
 
+    /** The saved color, falling back to teal if it is a Pro one and Premium is gone (refund). */
+    val themeColor: StateFlow<ThemeColor> =
+        combine(userPrefs.themeColor, userPrefs.isPremium) { color, premium ->
+            if (color.pro && !premium) ThemeColor.Teal else color
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, ThemeColor.Teal)
+
+    /** Callers route Pro colors to the Premium sheet for non-Premium users before calling this. */
+    fun setThemeColor(color: ThemeColor) {
+        viewModelScope.launch { userPrefs.setThemeColor(color) }
+    }
+
+    // ---- Premium features ----
+
+    /** Messages their senders deleted, newest deletion first; null until the first read. */
+    val deletedMessages: StateFlow<List<NotificationModel>?> =
+        dao.observeDeleted()
+            .map { rows -> rows.map { convertEntityToModel(getApplication(), it) } }
+            .flowOn(Dispatchers.IO)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val keywordAlerts: StateFlow<Set<String>> =
+        userPrefs.keywordAlerts.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    fun addKeywordAlert(word: String) {
+        viewModelScope.launch { userPrefs.addKeywordAlert(word) }
+    }
+
+    fun removeKeywordAlert(word: String) {
+        viewModelScope.launch { userPrefs.removeKeywordAlert(word) }
+    }
+
+    val deletedAlertsEnabled: StateFlow<Boolean> =
+        userPrefs.deletedAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setDeletedAlertsEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPrefs.setDeletedAlertsEnabled(enabled) }
+    }
+
+    /** The user's hidden-app choices (shown in the Hidden apps screen even without Premium). */
+    val hiddenApps: StateFlow<Set<String>> =
+        userPrefs.hiddenApps.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    /** The stored hidden set, read through (unlike [hiddenApps], never a placeholder). */
+    suspend fun currentHiddenApps(): Set<String> = userPrefs.hiddenApps.first()
+
+    /** Apps whose notifications are being saved: the ones that can be hidden. */
+    val savedApps: StateFlow<Set<String>> =
+        userPrefs.allowedApps.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    fun setAppHidden(packageName: String, hidden: Boolean) {
+        viewModelScope.launch { userPrefs.setAppHidden(packageName, hidden) }
+    }
+
+    val blockWords: StateFlow<Map<String, Set<String>>> =
+        userPrefs.allBlockWords.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    fun addBlockWord(packageName: String, word: String) {
+        viewModelScope.launch { userPrefs.addBlockWord(packageName, word) }
+    }
+
+    fun removeBlockWord(packageName: String, word: String) {
+        viewModelScope.launch { userPrefs.removeBlockWord(packageName, word) }
+    }
+
+    fun clearBlockWords(packageName: String) {
+        viewModelScope.launch { userPrefs.clearBlockWords(packageName) }
+    }
+
+    private val backupManager by lazy { BackupManager(getApplication()) }
+
+    /** Backup, restore or export in progress (one at a time). */
+    private val _isTransferring = MutableStateFlow(false)
+    val isTransferring: StateFlow<Boolean> = _isTransferring.asStateFlow()
+
+    /** Runs one backup-manager job, then reports the row count (or the failure) on the main thread. */
+    private fun transfer(job: suspend BackupManager.() -> Int, onDone: (Result<Int>) -> Unit) {
+        if (_isTransferring.value) return
+        _isTransferring.value = true
+        viewModelScope.launch {
+            val result = runCatching { backupManager.job() }
+                .onFailure { if (it !is BackupFormatException) CrashReporter.record(it) }
+            _isTransferring.value = false
+            onDone(result)
+        }
+    }
+
+    fun exportCsv(uri: Uri, onDone: (Result<Int>) -> Unit) = transfer({ exportCsv(uri) }, onDone)
+
+    fun backup(uri: Uri, onDone: (Result<Int>) -> Unit) = transfer({ backup(uri) }, onDone)
+
+    fun restore(uri: Uri, onDone: (Result<Int>) -> Unit) = transfer({ restore(uri) }) { result ->
+        if (result.isSuccess) resetHistoryAndLoad()
+        onDone(result)
+    }
+
     private val _showPremiumWelcome = MutableStateFlow(false)
     val showPremiumWelcome: StateFlow<Boolean> = _showPremiumWelcome.asStateFlow()
     private var hasRemoveAdsClick = false
@@ -165,6 +265,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var historyCursor: HistoryCursor? = null
     private var activeHistoryQuery = HistoryPageQuery()
     private var historySearchJob: Job? = null
+
+    /** Hidden apps (Premium), sorted so an unchanged set compares equal. */
+    @Volatile
+    private var hiddenPackages: List<String> = emptyList()
 
     @Volatile
     private var activeHistoryLoadGeneration: Int? = null
@@ -203,7 +307,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val packageName: String? = null,
         val searchQuery: String = "",
         val startInclusive: Long = Long.MIN_VALUE,
-        val endExclusive: Long = Long.MAX_VALUE
+        val endExclusive: Long = Long.MAX_VALUE,
+        val excludedPackages: List<String> = emptyList()
     )
 
 
@@ -226,6 +331,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _settingState.value = settingState
                 if (!hasLoadedInitialHistory) {
                     hasLoadedInitialHistory = true
+                    // Known before the first page so hidden apps never flash in.
+                    hiddenPackages = userPrefs.effectiveHiddenApps.first().sorted()
                     refreshHistory(settingState.historyRetentionDays)
                 } else if (retentionChanged) {
                     refreshHistory(settingState.historyRetentionDays)
@@ -254,7 +361,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         viewModelScope.launch {
-            dao.observeLatestNotificationsByApp().collectLatest { entities ->
+            userPrefs.effectiveHiddenApps.collect { hidden ->
+                val sorted = hidden.sorted()
+                if (sorted == hiddenPackages) return@collect
+                hiddenPackages = sorted
+                if (hasLoadedInitialHistory) resetHistoryAndLoad()
+            }
+        }
+        viewModelScope.launch {
+            combine(dao.observeLatestNotificationsByApp(), userPrefs.effectiveHiddenApps) { entities, hidden ->
+                entities.filterNot { it.packageName in hidden }
+            }.collectLatest { entities ->
                 _appSummaries.value = withContext(Dispatchers.IO) {
                     entities.map { convertEntityToModel(getApplication(), it) }
                 }
@@ -485,6 +602,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val entities = dao.getHistoryPage(
                     packageName = query.packageName,
+                    excludedPackages = query.excludedPackages,
                     searchQuery = query.searchQuery,
                     startInclusive = query.startInclusive,
                     endExclusive = query.endExclusive,
@@ -625,6 +743,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val entities = dao.getHistoryPage(
                 packageName = packageName,
+                excludedPackages = emptyList(),
                 searchQuery = current.searchQuery,
                 startInclusive = Long.MIN_VALUE,
                 endExclusive = Long.MAX_VALUE,
@@ -796,7 +915,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             packageName = packageName,
             searchQuery = searchQuery,
             startInclusive = bounds.startInclusive,
-            endExclusive = bounds.endExclusive
+            endExclusive = bounds.endExclusive,
+            excludedPackages = hiddenPackages
         )
     }
 
@@ -804,7 +924,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         packageName = packageName,
         searchQuery = searchQuery,
         startInclusive = startInclusive,
-        endExclusive = endExclusive
+        endExclusive = endExclusive,
+        excludedPackages = excludedPackages
     )
 
     private fun HistoryCursor.isNewerThan(other: HistoryCursor): Boolean =

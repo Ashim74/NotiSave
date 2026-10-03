@@ -77,6 +77,7 @@ interface NotificationDao {
         SELECT * FROM apps
         WHERE isTrashed = 0
           AND (:packageName IS NULL OR packageName = :packageName)
+          AND packageName NOT IN (:excludedPackages)
           AND (
               :searchQuery = ''
               OR title LIKE '%' || :searchQuery || '%' COLLATE NOCASE
@@ -96,6 +97,8 @@ interface NotificationDao {
     )
     suspend fun getHistoryPage(
         packageName: String?,
+        /** Hidden apps; an empty list excludes nothing. */
+        excludedPackages: List<String>,
         searchQuery: String,
         startInclusive: Long,
         endExclusive: Long,
@@ -115,8 +118,11 @@ interface NotificationDao {
     fun observeLatestNotification(): Flow<NotificationEntity?>
 
     /** Newest active rows for the Home preview; bounded so it stays cheap to observe. */
-    @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC, id DESC LIMIT :limit")
-    fun observeRecentActive(limit: Int): Flow<List<NotificationEntity>>
+    @Query(
+        "SELECT * FROM apps WHERE isTrashed = 0 AND packageName NOT IN (:excludedPackages) " +
+            "ORDER BY receivedAt DESC, id DESC LIMIT :limit"
+    )
+    fun observeRecentActive(limit: Int, excludedPackages: List<String>): Flow<List<NotificationEntity>>
 
     @Query(
         """
@@ -212,6 +218,7 @@ interface NotificationDao {
         WHERE latest.isTrashed = 0
           AND latest.conversationKey IS NOT NULL
           AND (:packageName IS NULL OR latest.packageName = :packageName)
+          AND latest.packageName NOT IN (:excludedPackages)
           AND latest.receivedAt >= :startInclusive
           AND latest.receivedAt < :endExclusive
           AND (
@@ -249,6 +256,8 @@ interface NotificationDao {
     )
     suspend fun getConversationPage(
         packageName: String?,
+        /** Hidden apps; an empty list excludes nothing. */
+        excludedPackages: List<String>,
         searchQuery: String,
         startInclusive: Long,
         endExclusive: Long,
@@ -324,12 +333,71 @@ interface NotificationDao {
         WHERE isTrashed = 0
           AND receivedAt >= :startInclusive
           AND receivedAt < :endExclusive
+          AND packageName NOT IN (:excludedPackages)
         GROUP BY packageName
         ORDER BY count DESC, packageName ASC
         LIMIT :limit
         """
     )
-    fun observeTopApps(startInclusive: Long, endExclusive: Long, limit: Int): Flow<List<AppCountRow>>
+    fun observeTopApps(
+        startInclusive: Long,
+        endExclusive: Long,
+        limit: Int,
+        excludedPackages: List<String> = emptyList()
+    ): Flow<List<AppCountRow>>
+
+    // ---- Deleted-message recovery ----
+
+    /** The saved message a chat app re-rendered as "deleted": same thread key and timestamp. */
+    @Query(
+        """
+        SELECT * FROM apps
+        WHERE notificationKey = :notificationKey AND receivedAt = :receivedAt
+          AND deletedAt IS NULL AND isTrashed = 0
+        ORDER BY id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun findStandingMessage(notificationKey: String, receivedAt: Long): NotificationEntity?
+
+    /** Newest still-standing rows of one notification, for deletions without a timestamp. */
+    @Query(
+        """
+        SELECT * FROM apps
+        WHERE notificationKey = :notificationKey AND receivedAt >= :since
+          AND deletedAt IS NULL AND isTrashed = 0
+        ORDER BY receivedAt DESC, id DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun recentStandingForKey(notificationKey: String, since: Long, limit: Int): List<NotificationEntity>
+
+    @Query("UPDATE apps SET deletedAt = :deletedAt WHERE id = :id AND deletedAt IS NULL")
+    suspend fun markDeleted(id: Long, deletedAt: Long): Int
+
+    @Query("SELECT * FROM apps WHERE deletedAt IS NOT NULL AND isTrashed = 0 ORDER BY deletedAt DESC, id DESC")
+    fun observeDeleted(): Flow<List<NotificationEntity>>
+
+    // ---- Backup / export ----
+
+    /** Keyset chunk of active rows in insertion order, for streaming exports. */
+    @Query("SELECT * FROM apps WHERE isTrashed = 0 AND id > :afterId ORDER BY id LIMIT :limit")
+    suspend fun getActiveChunk(afterId: Long, limit: Int): List<NotificationEntity>
+
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM apps
+            WHERE packageName = :packageName AND receivedAt = :receivedAt
+              AND title = :title AND message = :message
+        )
+        """
+    )
+    suspend fun hasExactRow(packageName: String, receivedAt: Long, title: String, message: String): Boolean
+
+    /** One transaction for a whole restored batch. */
+    @Insert
+    suspend fun insertAll(rows: List<NotificationEntity>)
 
     /**
      * Bucket boundaries and local-time offsets depend on the zone rules, so the SQL is built

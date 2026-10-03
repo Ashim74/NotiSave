@@ -33,7 +33,9 @@ data class ConversationQuery(
     val packageName: String? = null,
     val searchQuery: String = "",
     val startInclusive: Long = Long.MIN_VALUE,
-    val endExclusive: Long = Long.MAX_VALUE
+    val endExclusive: Long = Long.MAX_VALUE,
+    /** Hidden apps, kept out of the list. */
+    val excludedPackages: List<String> = emptyList()
 )
 
 data class ConversationListUiState(
@@ -172,6 +174,7 @@ internal class ConversationHistoryController(
     ): List<ConversationModel> = withContext(Dispatchers.IO) {
         val rows = dao.getConversationPage(
             packageName = query.packageName,
+            excludedPackages = query.excludedPackages,
             searchQuery = query.searchQuery,
             startInclusive = query.startInclusive,
             endExclusive = query.endExclusive,
