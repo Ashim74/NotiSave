@@ -70,6 +70,7 @@ fun HomeScreen(
     val billingManager = LocalPremiumBillingManager.current
     val isPremium by viewmodel.isPremium.collectAsState()
     val showPremiumWelcome by viewmodel.showPremiumWelcome.collectAsState()
+    val deletedMessages by viewmodel.deletedMessages.collectAsState()
     val hasPermission by viewmodel.hasNotificationAccess.collectAsState()
     val listenerConnected by viewmodel.listenerConnected.collectAsState()
     val todaySummary by homeViewModel.todaySummary.collectAsState()
@@ -166,6 +167,9 @@ fun HomeScreen(
             todaySummary = todaySummary,
             recentNotifications = recentNotifications,
             showBatteryWarning = !batteryOptimization.isIgnored,
+            deletedCount = deletedMessages?.size ?: 0,
+            isPremium = isPremium,
+            onDeletedMessages = { navController.navigate(Screens.DeletedMessages.route) },
             onTrackingChanged = { enabled ->
                 when {
                     !enabled -> viewmodel.setToggleTracking(false)

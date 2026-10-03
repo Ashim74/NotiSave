@@ -45,5 +45,7 @@ data class NotificationEntity(
     /** Package-scoped conversation identity; null for non-messaging or unclassified rows. */
     val conversationKey: String? = null,
     /** Display name of the conversation/contact/group at capture time. */
-    val conversationName: String? = null
+    val conversationName: String? = null,
+    /** When the sender deleted this message ("This message was deleted"); null while it stands. */
+    val deletedAt: Long? = null
 )

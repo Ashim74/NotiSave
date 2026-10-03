@@ -63,6 +63,10 @@ import com.droidnova.notificationhistory.presentation.components.EmptyState
 import com.droidnova.notificationhistory.presentation.components.GroupRowGap
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
 import com.droidnova.notificationhistory.presentation.components.IconBadge
+import com.droidnova.notificationhistory.presentation.components.ListRow
+import com.droidnova.notificationhistory.presentation.components.ProBadge
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.ui.res.pluralStringResource
 import com.droidnova.notificationhistory.presentation.components.NotificationHistoryCard
 import com.droidnova.notificationhistory.presentation.components.SectionHeader
 import com.droidnova.notificationhistory.presentation.components.appearIn
@@ -89,6 +93,9 @@ internal fun HomeDashboard(
     todaySummary: HomeTodaySummary,
     recentNotifications: List<NotificationModel>,
     showBatteryWarning: Boolean,
+    deletedCount: Int,
+    isPremium: Boolean,
+    onDeletedMessages: () -> Unit,
     onTrackingChanged: (Boolean) -> Unit,
     onPermissionAction: () -> Unit,
     onReconnect: () -> Unit,
@@ -158,6 +165,20 @@ internal fun HomeDashboard(
                 onInsights = onInsights,
                 onManageApps = onManageApps,
                 onTrash = onTrash
+            )
+        }
+        item(key = "deleted") {
+            ListRow(
+                modifier = side.padding(top = 8.dp).appearIn(8),
+                title = stringResource(R.string.deleted_title),
+                value = if (deletedCount > 0) {
+                    pluralStringResource(R.plurals.home_deleted_count, deletedCount, deletedCount)
+                } else {
+                    stringResource(R.string.home_deleted_none)
+                },
+                leading = { IconBadge(Icons.Outlined.DeleteForever, accent = AccentColors.Purple, size = 38.dp) },
+                trailing = if (isPremium) null else ({ ProBadge() }),
+                onClick = onDeletedMessages
             )
         }
 

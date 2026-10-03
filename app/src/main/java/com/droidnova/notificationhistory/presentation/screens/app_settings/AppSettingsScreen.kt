@@ -3,11 +3,15 @@ package com.droidnova.notificationhistory.presentation.screens.app_settings
 import android.app.Activity
 import android.widget.Toast
 import androidx.compose.ui.res.vectorResource
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +29,13 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.NotificationImportant
+import androidx.compose.material.icons.outlined.Sell
+import androidx.compose.material.icons.outlined.SettingsBackupRestore
+import androidx.compose.material.icons.outlined.TableChart
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.AutoDelete
 import androidx.compose.material.icons.outlined.BatteryAlert
 import androidx.compose.material.icons.outlined.BatteryChargingFull
@@ -78,6 +89,8 @@ import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.core.lock.AppLock
+import com.droidnova.notificationhistory.data.backup.BackupFormatException
+import com.droidnova.notificationhistory.data_shared.ThemeColor
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 import com.droidnova.notificationhistory.presentation.components.AppCard
 import com.droidnova.notificationhistory.presentation.components.AppCardDefaults
@@ -85,6 +98,7 @@ import com.droidnova.notificationhistory.presentation.components.ChoicePill
 import com.droidnova.notificationhistory.presentation.components.GradientBanner
 import com.droidnova.notificationhistory.presentation.components.IconBadge
 import com.droidnova.notificationhistory.presentation.components.ListRow
+import com.droidnova.notificationhistory.presentation.components.ProBadge
 import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
 import com.droidnova.notificationhistory.presentation.components.SectionHeader
 import com.droidnova.notificationhistory.presentation.components.appearIn
@@ -96,7 +110,10 @@ import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDial
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
+import com.droidnova.notificationhistory.presentation.ui.theme.isDark
+import com.droidnova.notificationhistory.presentation.ui.theme.scheme
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
+import java.time.LocalDate
 
 /**
  * Settings in the Secret Calculator style: a Premium banner, then small labelled groups, each one
@@ -125,6 +142,31 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     val consentManager = remember { AdsConsentManager.getInstance(context) }
     val privacyOptionsRequired by consentManager.privacyOptionsRequired.collectAsState()
     val themeMode by mainViewModel.themeMode.collectAsState()
+    val themeColor by mainViewModel.themeColor.collectAsState()
+    val isTransferring by mainViewModel.isTransferring.collectAsState()
+    val deletedAlertsEnabled by mainViewModel.deletedAlertsEnabled.collectAsState()
+    val keywordAlerts by mainViewModel.keywordAlerts.collectAsState()
+    val hiddenApps by mainViewModel.hiddenApps.collectAsState()
+
+    // Backup, restore and export go through the system file picker, so no storage permission.
+    fun report(@PluralsRes done: Int): (Result<Int>) -> Unit = { result ->
+        val message = result.fold(
+            onSuccess = { count -> context.resources.getQuantityString(done, count, count) },
+            onFailure = {
+                context.getString(if (it is BackupFormatException) R.string.restore_invalid else R.string.transfer_failed)
+            }
+        )
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+    }
+    val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let { mainViewModel.backup(it, report(R.plurals.backup_done)) }
+    }
+    val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        uri?.let { mainViewModel.exportCsv(it, report(R.plurals.export_done)) }
+    }
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { mainViewModel.restore(it, report(R.plurals.restore_done)) }
+    }
     val appLockEnabled by remember { AppLock.get(context).isEnabled }.collectAsState(initial = false)
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -259,10 +301,13 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                         modifier = Modifier.padding(bottom = 8.dp)
                     ) {
                         items(RETENTION_OPTIONS_DAYS) { days ->
+                            val selected = days == state.historyRetentionDays
+                            val locked = !isPremium && !selected && days in PRO_RETENTION_DAYS
                             ChoicePill(
                                 label = retentionShortLabel(days),
-                                selected = days == state.historyRetentionDays,
-                                onClick = { mainViewModel.updateHistoryRetentionDays(days) }
+                                selected = selected,
+                                locked = locked,
+                                onClick = { if (locked) onRemoveAds() else mainViewModel.updateHistoryRetentionDays(days) }
                             )
                         }
                     }
@@ -279,6 +324,65 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                         titleColor = MaterialTheme.colorScheme.error,
                         showChevron = false,
                         onClick = { showClearConfirmation = true }
+                    )
+                }
+            }
+
+            item(key = "backup") {
+                val busyValue = if (isTransferring) stringResource(R.string.settings_transfer_running) else null
+                SettingsGroup(stringResource(R.string.settings_backup_section), Modifier.appearIn(4)) {
+                    SettingRow(
+                        icon = Icons.Outlined.CloudUpload,
+                        accent = AccentColors.Blue,
+                        title = stringResource(R.string.settings_backup),
+                        value = busyValue,
+                        locked = !isPremium,
+                        onClick = { if (isPremium) backupLauncher.launch(backupFileName("json")) else onRemoveAds() }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.SettingsBackupRestore,
+                        accent = AccentColors.Green,
+                        title = stringResource(R.string.settings_restore),
+                        locked = !isPremium,
+                        onClick = { if (isPremium) restoreLauncher.launch(BACKUP_MIME_TYPES) else onRemoveAds() }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.TableChart,
+                        accent = AccentColors.Teal,
+                        title = stringResource(R.string.settings_export_csv),
+                        locked = !isPremium,
+                        onClick = { if (isPremium) csvLauncher.launch(backupFileName("csv")) else onRemoveAds() }
+                    )
+                }
+            }
+
+            item(key = "alerts") {
+                SettingsGroup(stringResource(R.string.settings_alerts_section), Modifier.appearIn(4)) {
+                    SettingRow(
+                        icon = Icons.Outlined.DeleteForever,
+                        accent = AccentColors.Purple,
+                        title = stringResource(R.string.deleted_title),
+                        onClick = { navController.navigate(Screens.DeletedMessages.route) }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.NotificationImportant,
+                        accent = AccentColors.Rose,
+                        title = stringResource(R.string.settings_deleted_alerts),
+                        locked = !isPremium,
+                        trailing = { Switch(checked = deletedAlertsEnabled, onCheckedChange = null) },
+                        onClick = {
+                            if (isPremium) mainViewModel.setDeletedAlertsEnabled(!deletedAlertsEnabled) else onRemoveAds()
+                        }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.Sell,
+                        accent = AccentColors.Amber,
+                        title = stringResource(R.string.settings_keyword_alerts),
+                        value = if (isPremium && keywordAlerts.isNotEmpty()) keywordAlerts.size.toString() else null,
+                        locked = !isPremium,
+                        onClick = {
+                            if (isPremium) navController.navigate(Screens.KeywordAlerts.route) else onRemoveAds()
+                        }
                     )
                 }
             }
@@ -310,6 +414,26 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                             }
                         }
                     }
+                    // Second line: the color. Pro colors stay visible but locked, and open the
+                    // Premium sheet instead of applying.
+                    val dark = themeMode.isDark()
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        items(ThemeColor.entries, key = { it.storageKey }) { color ->
+                            val locked = color.pro && !isPremium
+                            ChoicePill(
+                                label = stringResource(color.labelRes()),
+                                selected = color == themeColor,
+                                dotColor = color.scheme(dark).primary,
+                                locked = locked,
+                                showCheck = true,
+                                onClick = { if (locked) onRemoveAds() else mainViewModel.setThemeColor(color) }
+                            )
+                        }
+                    }
                     SettingRow(
                         icon = Icons.Outlined.Lock,
                         accent = AccentColors.Blue,
@@ -318,6 +442,14 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                             if (appLockEnabled) R.string.settings_value_on else R.string.settings_value_off
                         ),
                         onClick = { navController.navigate(Screens.AppLock.route) }
+                    )
+                    SettingRow(
+                        icon = Icons.Outlined.VisibilityOff,
+                        accent = AccentColors.Purple,
+                        title = stringResource(R.string.settings_hidden_apps),
+                        value = if (isPremium && hiddenApps.isNotEmpty()) hiddenApps.size.toString() else null,
+                        locked = !isPremium,
+                        onClick = { if (isPremium) navController.navigate(Screens.HiddenApps.route) else onRemoveAds() }
                     )
                 }
             }
@@ -477,6 +609,9 @@ private fun SettingRow(
     valueColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
     showChevron: Boolean? = null,
+    /** A Premium feature the user doesn't have: a PRO tag replaces the trailing content. */
+    locked: Boolean = false,
+    trailing: (@Composable RowScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
     ListRow(
@@ -487,27 +622,48 @@ private fun SettingRow(
         shape = RoundedCornerShape(16.dp),
         containerColor = Color.Transparent,
         leading = { IconBadge(icon, accent = accent, modifier = Modifier.size(38.dp)) },
+        trailing = if (locked) ({ ProBadge() }) else trailing,
         onClick = onClick,
-        showChevron = showChevron ?: (onClick != null)
+        showChevron = showChevron ?: (onClick != null && !locked && trailing == null)
     )
 }
 
+/** Some file managers label JSON as plain text or binary, so the picker accepts those too. */
+private val BACKUP_MIME_TYPES = arrayOf("application/json", "application/octet-stream", "text/plain")
+
+/** e.g. NotiSave-2026-10-03.json */
+private fun backupFileName(extension: String): String =
+    "NotiSave-${LocalDate.now()}.$extension"
+
 /** 0 means "never delete"; see the retention gate in the listener and MainViewModel. */
-private val RETENTION_OPTIONS_DAYS = listOf(7, 14, 30, 90, 0)
+private val RETENTION_OPTIONS_DAYS = listOf(7, 14, 30, 90, 365, 0)
+
+/** Keeping more than 90 days is Premium. A value chosen before that rule stays in effect. */
+private val PRO_RETENTION_DAYS = setOf(365, 0)
 
 @Composable
-private fun retentionShortLabel(days: Int): String =
-    if (days <= 0) {
-        stringResource(R.string.set_retention_forever_short)
-    } else {
-        pluralStringResource(R.plurals.settings_retention_days, days, days)
-    }
+private fun retentionShortLabel(days: Int): String = when {
+    days <= 0 -> stringResource(R.string.set_retention_forever_short)
+    days == 365 -> stringResource(R.string.set_retention_year_short)
+    else -> pluralStringResource(R.plurals.settings_retention_days, days, days)
+}
 
 @StringRes
 private fun ThemeMode.shortLabelRes(): Int = when (this) {
     ThemeMode.System -> R.string.set_theme_system
     ThemeMode.Light -> R.string.theme_light
     ThemeMode.Dark -> R.string.theme_dark
+}
+
+@StringRes
+private fun ThemeColor.labelRes(): Int = when (this) {
+    ThemeColor.Teal -> R.string.theme_color_teal
+    ThemeColor.Blue -> R.string.theme_color_blue
+    ThemeColor.Forest -> R.string.theme_color_forest
+    ThemeColor.Purple -> R.string.theme_color_purple
+    ThemeColor.Rose -> R.string.theme_color_rose
+    ThemeColor.Sunset -> R.string.theme_color_sunset
+    ThemeColor.Gold -> R.string.theme_color_gold
 }
 
 private fun ThemeMode.icon(): ImageVector = when (this) {

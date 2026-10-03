@@ -31,7 +31,8 @@ fun convertEntityToModel(
     receivedAt = notificationEntity.receivedAt.toReadableTime(),
     receivedAtEpoch = notificationEntity.receivedAt,
     isTrashed = notificationEntity.isTrashed,
-    trashedAtEpoch = notificationEntity.trashedAt
+    trashedAtEpoch = notificationEntity.trashedAt,
+    deletedAtEpoch = notificationEntity.deletedAt
 )
 
 fun convertConversationRowToModel(

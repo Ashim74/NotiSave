@@ -66,7 +66,8 @@ class AppDatabaseMigrationTest {
             .addMigrations(
                 AppDatabase.MIGRATION_1_2,
                 AppDatabase.MIGRATION_2_3,
-                AppDatabase.MIGRATION_3_4
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5
             )
             .allowMainThreadQueries()
             .build()
@@ -138,7 +139,8 @@ class AppDatabaseMigrationTest {
             .addMigrations(
                 AppDatabase.MIGRATION_1_2,
                 AppDatabase.MIGRATION_2_3,
-                AppDatabase.MIGRATION_3_4
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5
             )
             .allowMainThreadQueries()
             .build()
@@ -210,7 +212,8 @@ class AppDatabaseMigrationTest {
             .addMigrations(
                 AppDatabase.MIGRATION_1_2,
                 AppDatabase.MIGRATION_2_3,
-                AppDatabase.MIGRATION_3_4
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5
             )
             .allowMainThreadQueries()
             .build()
@@ -246,12 +249,70 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrationFrom4To5KeepsRowsStanding() {
+        context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null).use { legacyDb ->
+            legacyDb.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `apps` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `packageName` TEXT NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `message` TEXT NOT NULL,
+                    `receivedAt` INTEGER NOT NULL,
+                    `notificationKey` TEXT,
+                    `contentFingerprint` TEXT,
+                    `conversationTitle` TEXT,
+                    `isTrashed` INTEGER NOT NULL DEFAULT 0,
+                    `trashedAt` INTEGER,
+                    `conversationKey` TEXT,
+                    `conversationName` TEXT
+                )
+                """.trimIndent()
+            )
+            legacyDb.execSQL(
+                """
+                INSERT INTO `apps` (`id`, `packageName`, `title`, `message`, `receivedAt`, `conversationKey`)
+                VALUES (3, 'com.whatsapp', 'Ali', 'Hi', 1000, 'com.whatsapp|ali')
+                """.trimIndent()
+            )
+            listOf(
+                "CREATE INDEX `index_apps_receivedAt` ON `apps` (`receivedAt`)",
+                "CREATE INDEX `index_apps_packageName_receivedAt` ON `apps` (`packageName`, `receivedAt`)",
+                "CREATE INDEX `index_apps_notificationKey_contentFingerprint_receivedAt` " +
+                    "ON `apps` (`notificationKey`, `contentFingerprint`, `receivedAt`)",
+                "CREATE INDEX `index_apps_isTrashed_receivedAt_id` ON `apps` (`isTrashed`, `receivedAt`, `id`)",
+                "CREATE INDEX `index_apps_isTrashed_trashedAt_id` ON `apps` (`isTrashed`, `trashedAt`, `id`)",
+                "CREATE INDEX `index_apps_conversationKey_isTrashed_receivedAt_id` " +
+                    "ON `apps` (`conversationKey`, `isTrashed`, `receivedAt`, `id`)"
+            ).forEach(legacyDb::execSQL)
+            legacyDb.version = 4
+        }
+
+        database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
+            .addMigrations(AppDatabase.MIGRATION_4_5)
+            .allowMainThreadQueries()
+            .build()
+
+        checkNotNull(database).openHelper.writableDatabase
+            .query("SELECT id, message, conversationKey, deletedAt FROM apps")
+            .use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(3L, cursor.getLong(0))
+                assertEquals("Hi", cursor.getString(1))
+                assertEquals("com.whatsapp|ali", cursor.getString(2))
+                assertTrue(cursor.isNull(3))
+                assertFalse(cursor.moveToNext())
+            }
+    }
+
+    @Test
     fun persistentDuplicateLookupRequiresSameKeyAndFingerprintWithinWindow() = runBlocking {
         database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
             .addMigrations(
                 AppDatabase.MIGRATION_1_2,
                 AppDatabase.MIGRATION_2_3,
-                AppDatabase.MIGRATION_3_4
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5
             )
             .allowMainThreadQueries()
             .build()

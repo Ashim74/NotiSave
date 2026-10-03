@@ -57,6 +57,8 @@ data class InsightsData(
 class InsightsRepository(
     private val dao: NotificationDao,
     private val packageManager: PackageManager,
+    /** Hidden apps (Premium), left out of the top-apps list. */
+    private val hiddenApps: Flow<Set<String>> = flowOf(emptySet()),
     private val zone: () -> ZoneId = { ZoneId.systemDefault() },
     private val now: () -> Instant = { Instant.now() }
 ) {
@@ -77,7 +79,9 @@ class InsightsRepository(
 
     private fun observe(plan: InsightsPlan): Flow<InsightsData> {
         val summary = dao.observeInsightsSummary(plan.startInclusive, plan.endExclusive)
-        val topApps = dao.observeTopApps(plan.startInclusive, plan.endExclusive, TOP_APPS_LIMIT)
+        val topApps = hiddenApps.flatMapLatest { hidden ->
+            dao.observeTopApps(plan.startInclusive, plan.endExclusive, TOP_APPS_LIMIT, hidden.toList())
+        }
         val buckets = dao.observeBucketCounts(InsightsQueries.bucketCounts(plan).toRoomQuery())
         val busiestHour = dao.observeBusiestHour(InsightsQueries.busiestHour(plan).toRoomQuery())
 

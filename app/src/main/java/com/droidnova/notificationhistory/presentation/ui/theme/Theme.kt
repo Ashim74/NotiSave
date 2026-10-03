@@ -3,6 +3,7 @@ package com.droidnova.notificationhistory.presentation.ui.theme
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -10,6 +11,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.droidnova.notificationhistory.data_shared.ThemeColor
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 
 /** Resolves the user's theme preference against the current system setting. */
@@ -21,12 +23,14 @@ fun ThemeMode.isDark(): Boolean = when (this) {
 }
 
 /**
- * Root theme: the shared teal palette in light or dark. [dynamicColor] (wallpaper colors on
- * Android 12+) is off by default so the app keeps the same look as the developer's other apps.
+ * Root theme: the chosen [themeColor] (teal by default, shared with the developer's other apps)
+ * in light or dark. [dynamicColor] (wallpaper colors on Android 12+) is off by default so the
+ * app keeps the same look as the developer's other apps.
  */
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    themeColor: ThemeColor = ThemeColor.Teal,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -35,8 +39,7 @@ fun AppTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColors
-        else -> LightColors
+        else -> themeColor.scheme(darkTheme)
     }
 
     MaterialTheme(
@@ -45,6 +48,17 @@ fun AppTheme(
         shapes = AppShapes,
         content = content
     )
+}
+
+/** The full color scheme for this accent in light or dark. */
+fun ThemeColor.scheme(dark: Boolean): ColorScheme = when (this) {
+    ThemeColor.Teal -> if (dark) DarkColors else LightColors
+    ThemeColor.Blue -> if (dark) BlueDarkColors else BlueLightColors
+    ThemeColor.Forest -> if (dark) ForestDarkColors else ForestLightColors
+    ThemeColor.Purple -> if (dark) PurpleDarkColors else PurpleLightColors
+    ThemeColor.Rose -> if (dark) RoseDarkColors else RoseLightColors
+    ThemeColor.Sunset -> if (dark) SunsetDarkColors else SunsetLightColors
+    ThemeColor.Gold -> if (dark) GoldDarkColors else GoldLightColors
 }
 
 // Cards default to shapes.medium, so this sets the corner radius for every card in the app.

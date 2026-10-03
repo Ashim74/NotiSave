@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,12 +49,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.droidnova.notificationhistory.R
 
 /*
  * The visual language shared with the developer's other apps (Secret Calculator, Speedometer):
@@ -177,7 +180,10 @@ fun HeaderButton(
     }
 }
 
-/** A selectable pill: optional leading icon, label, and a check when selected. */
+/**
+ * A selectable pill: optional color dot or leading icon, label, a check when selected, and a
+ * lock when [locked] (a Premium-only choice).
+ */
 @Composable
 fun ChoicePill(
     label: String,
@@ -185,7 +191,9 @@ fun ChoicePill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     leadingIcon: ImageVector? = null,
-    showCheck: Boolean = false
+    showCheck: Boolean = false,
+    dotColor: Color? = null,
+    locked: Boolean = false
 ) {
     val colors = MaterialTheme.colorScheme
     val interaction = remember { MutableInteractionSource() }
@@ -205,6 +213,14 @@ fun ChoicePill(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (dotColor != null) {
+            Box(
+                Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(dotColor)
+            )
+        }
         if (leadingIcon != null) {
             Icon(
                 leadingIcon,
@@ -219,9 +235,32 @@ fun ChoicePill(
             color = if (selected) colors.primary else colors.onSurface,
             maxLines = 1
         )
-        if (selected && showCheck) {
-            Icon(Icons.Filled.Check, contentDescription = null, tint = colors.primary, modifier = Modifier.size(16.dp))
+        when {
+            selected && showCheck -> Icon(Icons.Filled.Check, contentDescription = null, tint = colors.primary, modifier = Modifier.size(16.dp))
+            locked -> Icon(Icons.Filled.Lock, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(14.dp))
         }
+    }
+}
+
+/** A small gradient "PRO" tag with a lock, marking a row that needs Premium. */
+@Composable
+fun ProBadge(modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(Brush.linearGradient(listOf(colors.primary, colors.tertiary)))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Lock, contentDescription = null, tint = colors.onPrimary, modifier = Modifier.size(12.dp))
+        Text(
+            stringResource(R.string.pro_badge),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = colors.onPrimary
+        )
     }
 }
 

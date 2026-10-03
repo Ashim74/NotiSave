@@ -12,29 +12,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material.icons.outlined.FilterAltOff
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,28 +40,39 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
+import com.droidnova.notificationhistory.presentation.components.AddWordField
 import com.droidnova.notificationhistory.presentation.components.EmptyState
 import com.droidnova.notificationhistory.presentation.components.GroupRowGap
 import com.droidnova.notificationhistory.presentation.components.HeaderButton
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
 import com.droidnova.notificationhistory.presentation.components.IconBadge
 import com.droidnova.notificationhistory.presentation.components.ListRow
+import com.droidnova.notificationhistory.presentation.components.ProBadge
 import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
+import com.droidnova.notificationhistory.presentation.components.SectionHeader
 import com.droidnova.notificationhistory.presentation.components.appearIn
 import com.droidnova.notificationhistory.presentation.components.groupedShape
 import com.droidnova.notificationhistory.presentation.components.tileColor
 import com.droidnova.notificationhistory.presentation.components.tintedCardColor
+import com.droidnova.notificationhistory.presentation.dialogs.PremiumUpsell
 import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 
-/** Per-app title filters: the app as a header card, one field to add, a list to remove. */
+/** Title filters a free user can keep per app; Premium removes the limit. */
+private const val FREE_TITLE_FILTER_LIMIT = 2
+
+/**
+ * Per-app capture rules: the app as a header card, then "only save titles containing" (a few
+ * free, unlimited with Premium) and "never save if it contains" (Premium block words).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingScreen(navController: NavHostController, packageName: String, mainViewModel: MainViewModel) {
@@ -78,7 +84,13 @@ fun SettingScreen(navController: NavHostController, packageName: String, mainVie
         }.getOrDefault(packageName)
     }
     val filtersMap by mainViewModel.titleFilters.collectAsState()
+    val blockMap by mainViewModel.blockWords.collectAsState()
+    val isPremium by mainViewModel.isPremium.collectAsState()
+    var showPremium by remember { mutableStateOf(false) }
     val filters = filtersMap[packageName].orEmpty().toList().asReversed()
+    val blockWords = blockMap[packageName].orEmpty().toList().asReversed()
+    // Filters saved before the limit existed are kept; only adding more needs Premium.
+    val filtersLocked = !isPremium && filters.size >= FREE_TITLE_FILTER_LIMIT
 
     Scaffold(
         topBar = {
@@ -86,11 +98,14 @@ fun SettingScreen(navController: NavHostController, packageName: String, mainVie
                 title = appLabel,
                 onBack = { navController.popBackStack() },
                 actions = {
-                    if (filters.isNotEmpty()) {
+                    if (filters.isNotEmpty() || blockWords.isNotEmpty()) {
                         HeaderButton(
                             icon = Icons.Outlined.DeleteSweep,
                             contentDescription = stringResource(R.string.btn_clear_all_filters),
-                            onClick = { mainViewModel.clearTitleFilters(packageName) },
+                            onClick = {
+                                mainViewModel.clearTitleFilters(packageName)
+                                mainViewModel.clearBlockWords(packageName)
+                            },
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(end = 8.dp)
                         )
@@ -114,43 +129,115 @@ fun SettingScreen(navController: NavHostController, packageName: String, mainVie
                         .appearIn(0)
                 )
             }
-            item(key = "add") {
-                AddFilterField(
+
+            item(key = "filters-header") {
+                RuleHeader(
+                    title = stringResource(R.string.filters_only_section),
+                    hint = if (isPremium) null else pluralStringResource(
+                        R.plurals.filters_free_limit, FREE_TITLE_FILTER_LIMIT, FREE_TITLE_FILTER_LIMIT
+                    )
+                )
+            }
+            item(key = "filters-add") {
+                AddWordField(
+                    placeholder = stringResource(R.string.label_add_title_filter),
+                    leadingIcon = Icons.Outlined.FilterAlt,
                     onAdd = { mainViewModel.addTitleFilter(packageName, it) },
+                    locked = filtersLocked,
+                    onLocked = { showPremium = true },
                     modifier = Modifier
-                        .padding(start = Dimens.ScreenHorizontal, end = Dimens.ScreenHorizontal, top = 10.dp, bottom = 12.dp)
+                        .padding(horizontal = Dimens.ScreenHorizontal, vertical = 8.dp)
                         .appearIn(1)
                 )
             }
-            if (filters.isEmpty()) {
-                item(key = "empty") {
-                    EmptyState(
-                        title = stringResource(R.string.label_no_filters),
-                        icon = Icons.Outlined.FilterAltOff
-                    )
-                }
-            } else {
-                itemsIndexed(filters, key = { _, title -> title }) { index, title ->
-                    ListRow(
-                        modifier = Modifier
-                            .animateItem()
-                            .padding(horizontal = Dimens.ScreenHorizontal, vertical = GroupRowGap / 2),
-                        shape = groupedShape(index, filters.size),
-                        title = title,
-                        leading = { IconBadge(Icons.Outlined.Title, accent = AccentColors.Teal, size = 34.dp) },
-                        trailing = {
-                            IconButton(onClick = { mainViewModel.removeTitleFilter(packageName, title) }) {
-                                Icon(
-                                    Icons.Filled.Close,
-                                    contentDescription = stringResource(R.string.remove),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+            ruleList(
+                keyPrefix = "filter",
+                words = filters,
+                emptyTitle = R.string.label_no_filters,
+                emptyIcon = Icons.Outlined.FilterAltOff,
+                icon = Icons.Outlined.Title,
+                accent = AccentColors.Teal,
+                onRemove = { mainViewModel.removeTitleFilter(packageName, it) }
+            )
+
+            item(key = "block-header") {
+                RuleHeader(title = stringResource(R.string.filters_block_section), pro = !isPremium)
+            }
+            item(key = "block-add") {
+                AddWordField(
+                    placeholder = stringResource(R.string.label_add_block_word),
+                    leadingIcon = Icons.Outlined.Block,
+                    onAdd = { mainViewModel.addBlockWord(packageName, it) },
+                    locked = !isPremium,
+                    onLocked = { showPremium = true },
+                    modifier = Modifier.padding(horizontal = Dimens.ScreenHorizontal, vertical = 8.dp)
+                )
+            }
+            ruleList(
+                keyPrefix = "block",
+                words = blockWords,
+                emptyTitle = R.string.label_no_block_words,
+                emptyIcon = Icons.Outlined.Block,
+                icon = Icons.Outlined.Block,
+                accent = AccentColors.Rose,
+                onRemove = { mainViewModel.removeBlockWord(packageName, it) }
+            )
+        }
+    }
+
+    PremiumUpsell(mainViewModel, visible = showPremium, onDismiss = { showPremium = false })
+}
+
+@Composable
+private fun RuleHeader(title: String, hint: String? = null, pro: Boolean = false) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = Dimens.ScreenHorizontal, end = Dimens.ScreenHorizontal, top = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SectionHeader(title, Modifier.weight(1f), first = true)
+        if (pro) ProBadge()
+        if (hint != null) {
+            Text(hint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** One rule list as grouped rows with a remove button, or a small empty state. */
+private fun LazyListScope.ruleList(
+    keyPrefix: String,
+    words: List<String>,
+    emptyTitle: Int,
+    emptyIcon: ImageVector,
+    icon: ImageVector,
+    accent: Color,
+    onRemove: (String) -> Unit
+) {
+    if (words.isEmpty()) {
+        item(key = "$keyPrefix-empty") {
+            EmptyState(title = stringResource(emptyTitle), icon = emptyIcon, modifier = Modifier.padding(vertical = 8.dp))
+        }
+        return
+    }
+    itemsIndexed(words, key = { _, word -> "$keyPrefix:$word" }) { index, word ->
+        ListRow(
+            modifier = Modifier
+                .animateItem()
+                .padding(horizontal = Dimens.ScreenHorizontal, vertical = GroupRowGap / 2),
+            shape = groupedShape(index, words.size),
+            title = word,
+            leading = { IconBadge(icon, accent = accent, size = 34.dp) },
+            trailing = {
+                IconButton(onClick = { onRemove(word) }) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.remove),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-        }
+        )
     }
 }
 
@@ -205,43 +292,4 @@ private fun AppHeaderRow(packageName: String, filtering: Boolean, modifier: Modi
             )
         }
     }
-}
-
-/** A single rounded field with its own "add" button; Enter on the keyboard adds too. */
-@Composable
-private fun AddFilterField(onAdd: (String) -> Unit, modifier: Modifier = Modifier) {
-    var input by remember { mutableStateOf("") }
-    val submit = {
-        if (input.isNotBlank()) {
-            onAdd(input.trim())
-            input = ""
-        }
-    }
-    TextField(
-        value = input,
-        onValueChange = { input = it },
-        modifier = modifier.fillMaxWidth(),
-        singleLine = true,
-        shape = RoundedCornerShape(50),
-        placeholder = { Text(stringResource(R.string.label_add_title_filter)) },
-        leadingIcon = { Icon(Icons.Outlined.FilterAlt, contentDescription = null) },
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { submit() }),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = tintedCardColor(),
-            unfocusedContainerColor = tintedCardColor(),
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-        ),
-        trailingIcon = {
-            FilledIconButton(
-                onClick = submit,
-                enabled = input.isNotBlank(),
-                modifier = Modifier.padding(end = 4.dp),
-                colors = IconButtonDefaults.filledIconButtonColors()
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.btn_add))
-            }
-        }
-    )
 }

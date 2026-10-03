@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 // Schemas export to app/schemas (see room.schemaLocation in build.gradle.kts) so future
 // migrations can be verified with MigrationTestHelper against the real historical schema.
-@Database(entities = [NotificationEntity::class], version = 4, exportSchema = true)
+@Database(entities = [NotificationEntity::class], version = 5, exportSchema = true)
 abstract class AppDatabase: RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
 
@@ -22,7 +22,7 @@ abstract class AppDatabase: RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "notification_db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { instance = it }
             }
@@ -79,6 +79,13 @@ abstract class AppDatabase: RoomDatabase() {
                         "`index_apps_conversationKey_isTrashed_receivedAt_id` " +
                         "ON `apps` (`conversationKey`, `isTrashed`, `receivedAt`, `id`)"
                 )
+            }
+        }
+
+        /** Adds when the sender deleted a message; every existing row stands (NULL). */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `apps` ADD COLUMN `deletedAt` INTEGER")
             }
         }
     }

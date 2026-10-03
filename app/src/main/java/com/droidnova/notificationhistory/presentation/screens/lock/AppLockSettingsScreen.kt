@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.core.lock.AutoLockTimeout
 import com.droidnova.notificationhistory.core.lock.BiometricGate
@@ -69,22 +70,27 @@ import com.droidnova.notificationhistory.presentation.components.ChoicePill
 import com.droidnova.notificationhistory.presentation.components.IconBadge
 import com.droidnova.notificationhistory.presentation.components.ListGroup
 import com.droidnova.notificationhistory.presentation.components.ListRow
+import com.droidnova.notificationhistory.presentation.components.ProBadge
 import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
 import com.droidnova.notificationhistory.presentation.components.appearIn
 import com.droidnova.notificationhistory.presentation.components.floating
 import com.droidnova.notificationhistory.presentation.components.pulsing
 import com.droidnova.notificationhistory.presentation.components.tintedCardColor
+import com.droidnova.notificationhistory.presentation.dialogs.PremiumUpsell
 import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 
 @Composable
 fun AppLockSettingsScreen(
     navController: NavController,
+    mainViewModel: MainViewModel,
     viewModel: AppLockSettingsViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val biometricGate = LocalBiometricGate.current
+    val isPremium by mainViewModel.isPremium.collectAsState()
+    var showPremium by remember { mutableStateOf(false) }
 
     BackHandler(enabled = state.flow != LockSettingsFlow.None) { viewModel.back() }
     LaunchedEffect(viewModel) {
@@ -115,7 +121,9 @@ fun AppLockSettingsScreen(
                 LockSettingsFlow.None -> LockSettingsList(
                     config = state.config,
                     biometricGate = biometricGate,
-                    viewModel = viewModel
+                    viewModel = viewModel,
+                    isPremium = isPremium,
+                    onLockedFeature = { showPremium = true }
                 )
                 LockSettingsFlow.SetupPin, LockSettingsFlow.ChangePin -> FlowContainer {
                     NewPinContent(
@@ -148,6 +156,8 @@ fun AppLockSettingsScreen(
             }
         }
     }
+
+    PremiumUpsell(mainViewModel, visible = showPremium, onDismiss = { showPremium = false })
 }
 
 @Composable
@@ -170,7 +180,9 @@ private fun FlowContainer(content: @Composable () -> Unit) {
 private fun LockSettingsList(
     config: LockConfig,
     biometricGate: BiometricGate?,
-    viewModel: AppLockSettingsViewModel
+    viewModel: AppLockSettingsViewModel,
+    isPremium: Boolean,
+    onLockedFeature: () -> Unit
 ) {
     var showTurnOffDialog by remember { mutableStateOf(false) }
     val canUseBiometric = remember { biometricGate?.canUseBiometric() == true }
@@ -201,9 +213,14 @@ private fun LockSettingsList(
                 }
                 if (canUseBiometric) {
                     row { shape ->
+                        // Premium feature. Users who turned it on before it became one keep it
+                        // until they switch it off.
+                        val locked = !isPremium && !config.biometricEnabled
                         val toggleBiometric = { enable: Boolean ->
                             if (!enable) {
                                 viewModel.setBiometricEnabled(false)
+                            } else if (locked) {
+                                onLockedFeature()
                             } else {
                                 // Proves the sensor works for this user before relying on it.
                                 biometricGate?.authenticateBiometric(biometricTitle, biometricSubtitle, cancel) {
@@ -218,7 +235,9 @@ private fun LockSettingsList(
                                 IconBadge(ImageVector.vectorResource(R.drawable.ic_fingerprint), accent = AccentColors.Purple)
                             },
                             onClick = { toggleBiometric(!config.biometricEnabled) },
-                            trailing = { Switch(checked = config.biometricEnabled, onCheckedChange = null) }
+                            trailing = {
+                                if (locked) ProBadge() else Switch(checked = config.biometricEnabled, onCheckedChange = null)
+                            }
                         )
                     }
                 }
