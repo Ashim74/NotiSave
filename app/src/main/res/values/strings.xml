@@ -13,7 +13,7 @@
     <string name="premium_sheet_title">Go Premium</string>
     <string name="premium_sheet_subtitle">Remove ads and support future improvements.</string>
     <string name="premium_sheet_benefit_no_ads">Ad-free experience</string>
-    <string name="premium_sheet_benefit_themes">Pro color themes</string>
+    <string name="premium_sheet_benefit_updates">Support ongoing updates</string>
     <string name="premium_sheet_benefit_support">Priority support</string>
     <string name="premium_sheet_button_with_price">Unlock for %1$s</string>
     <string name="premium_sheet_button_loading">Loading price…</string>
@@ -222,13 +222,6 @@ Find “Notification History” → Turn ON access.
     <string name="theme_system">System default</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
-    <string name="color_theme_teal">Teal</string>
-    <string name="color_theme_blue">Blue</string>
-    <string name="color_theme_pink">Pink</string>
-    <string name="color_theme_purple">Purple</string>
-    <string name="color_theme_midnight">Midnight</string>
-    <string name="color_theme_sunset">Sunset</string>
-    <string name="choice_locked_premium">Premium only</string>
 
     <!-- Shared -->
     <string name="close">Close</string>

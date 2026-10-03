@@ -25,7 +25,7 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.SupportAgent
-import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -121,7 +121,7 @@ fun PremiumPurchaseBottomSheet(
                     .padding(vertical = 12.dp, horizontal = 4.dp)
             ) {
                 BenefitTile(Icons.Outlined.Block, stringResource(R.string.premium_sheet_benefit_no_ads), AccentColors.Rose, 0, Modifier.weight(1f))
-                BenefitTile(Icons.Outlined.Palette, stringResource(R.string.premium_sheet_benefit_themes), AccentColors.Purple, 1, Modifier.weight(1f))
+                BenefitTile(Icons.Outlined.Update, stringResource(R.string.premium_sheet_benefit_updates), AccentColors.Blue, 1, Modifier.weight(1f))
                 BenefitTile(Icons.Outlined.SupportAgent, stringResource(R.string.premium_sheet_benefit_support), AccentColors.Green, 2, Modifier.weight(1f))
             }
 

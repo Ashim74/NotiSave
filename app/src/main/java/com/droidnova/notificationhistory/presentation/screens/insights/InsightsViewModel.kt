@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -44,9 +43,6 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
     /** Bumped to re-plan against the current clock (day change) or to retry after an error. */
     private val reloadTick = MutableStateFlow(0)
 
-    /** Last state handed to the UI; outlives upstream restarts, unlike a scan/fold would. */
-    private var latest = InsightsUiState()
-
     private sealed interface Result {
         data object Loading : Result
         data object Error : Result
@@ -69,12 +65,7 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
             .flowOn(Dispatchers.IO)
             .map { (range, result) ->
                 when (result) {
-                    // The resume refresh (and re-subscribing after a tab switch) re-runs the
-                    // queries for the same range; keep what is on screen instead of flashing
-                    // the loader a second time.
-                    Result.Loading -> latest.takeIf { it.range == range && it.data != null }
-                        ?.copy(isLoading = true)
-                        ?: InsightsUiState(range = range, isLoading = true)
+                    Result.Loading -> InsightsUiState(range = range, isLoading = true)
                     Result.Error -> InsightsUiState(range = range, isLoading = false, hasError = true)
                     is Result.Loaded -> InsightsUiState(
                         range = range,
@@ -83,7 +74,6 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
                     )
                 }
             }
-            .onEach { latest = it }
             .stateIn(
                 viewModelScope,
                 SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),

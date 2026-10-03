@@ -78,7 +78,6 @@ import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.ads.AdsConsentManager
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.core.lock.AppLock
-import com.droidnova.notificationhistory.data_shared.ColorTheme
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 import com.droidnova.notificationhistory.presentation.components.AppCard
 import com.droidnova.notificationhistory.presentation.components.AppCardDefaults
@@ -97,7 +96,6 @@ import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDial
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
-import com.droidnova.notificationhistory.presentation.ui.theme.swatch
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 
 /**
@@ -127,7 +125,6 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
     val consentManager = remember { AdsConsentManager.getInstance(context) }
     val privacyOptionsRequired by consentManager.privacyOptionsRequired.collectAsState()
     val themeMode by mainViewModel.themeMode.collectAsState()
-    val colorTheme by mainViewModel.colorTheme.collectAsState()
     val appLockEnabled by remember { AppLock.get(context).isEnabled }.collectAsState(initial = false)
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -311,27 +308,6 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                             ) {
                                 Text(stringResource(mode.shortLabelRes()), maxLines = 1)
                             }
-                        }
-                    }
-                    // Second row, as in Secret Calculator: the color. Pro colors open the
-                    // Premium sheet until bought.
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    ) {
-                        items(ColorTheme.entries, key = { it.storageKey }) { theme ->
-                            val locked = theme.isPro && !isPremium
-                            ChoicePill(
-                                label = stringResource(theme.labelRes()),
-                                selected = theme == colorTheme,
-                                dotColor = theme.swatch,
-                                locked = locked,
-                                showCheck = true,
-                                onClick = {
-                                    if (locked) onRemoveAds() else mainViewModel.setColorTheme(theme)
-                                }
-                            )
                         }
                     }
                     SettingRow(
@@ -532,16 +508,6 @@ private fun ThemeMode.shortLabelRes(): Int = when (this) {
     ThemeMode.System -> R.string.set_theme_system
     ThemeMode.Light -> R.string.theme_light
     ThemeMode.Dark -> R.string.theme_dark
-}
-
-@StringRes
-private fun ColorTheme.labelRes(): Int = when (this) {
-    ColorTheme.Teal -> R.string.color_theme_teal
-    ColorTheme.Blue -> R.string.color_theme_blue
-    ColorTheme.Pink -> R.string.color_theme_pink
-    ColorTheme.Purple -> R.string.color_theme_purple
-    ColorTheme.Midnight -> R.string.color_theme_midnight
-    ColorTheme.Sunset -> R.string.color_theme_sunset
 }
 
 private fun ThemeMode.icon(): ImageVector = when (this) {

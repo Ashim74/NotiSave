@@ -81,7 +81,6 @@ class MainActivity : FragmentActivity() {
         setContent {
             val themeMode by viewModel.themeMode.collectAsState()
             val darkTheme = themeMode.isDark()
-            val colorTheme by viewModel.colorTheme.collectAsState()
             // System bar icon contrast must follow the in-app theme, not only the OS setting.
             LaunchedEffect(darkTheme) { applyEdgeToEdge(darkTheme) }
 
@@ -91,7 +90,7 @@ class MainActivity : FragmentActivity() {
                 LocalPremiumBillingManager provides billingManager,
                 LocalBiometricGate provides biometricGate
             ) {
-                AppTheme(darkTheme = darkTheme, colorTheme = colorTheme) {
+                AppTheme(darkTheme = darkTheme) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()

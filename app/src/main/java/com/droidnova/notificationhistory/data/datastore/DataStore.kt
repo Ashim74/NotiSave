@@ -16,10 +16,8 @@ import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.LISTENER_C
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.ONBOARDING_COMPLETE
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.SHOW_RATE_US_CARD
 import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.THEME_MODE
-import com.droidnova.notificationhistory.data.datastore.DataStoreKeys.COLOR_THEME
 import com.droidnova.notificationhistory.core.review.ReviewState
 import com.droidnova.notificationhistory.data_shared.SettingState
-import com.droidnova.notificationhistory.data_shared.ColorTheme
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -127,23 +125,6 @@ class UserPreferences(private val context: Context) {
         }
     }
 
-    /**
-     * Freezes the upgrade fallback into the stored flag on startup. Left unset, the flag kept
-     * being re-derived from the selected apps, so deselecting every app in Manage Apps (or the
-     * onboarding pre-selection) flipped the app between onboarding and the main screens.
-     */
-    suspend fun settleOnboardingFlag() {
-        context.dataStore.edit { prefs ->
-            if (prefs[ONBOARDING_COMPLETE] == null) {
-                prefs[ONBOARDING_COMPLETE] = resolveOnboardingComplete(
-                    storedFlag = null,
-                    hasAllowedApps = prefs[allowedAppsKey]?.isNotEmpty() == true,
-                    launchCount = prefs[LAUNCH_COUNT] ?: 0
-                )
-            }
-        }
-    }
-
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
         ThemeMode.fromStorageKey(prefs[THEME_MODE])
     }
@@ -151,16 +132,6 @@ class UserPreferences(private val context: Context) {
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { prefs ->
             prefs[THEME_MODE] = mode.storageKey
-        }
-    }
-
-    val colorTheme: Flow<ColorTheme> = context.dataStore.data.map { prefs ->
-        ColorTheme.fromStorageKey(prefs[COLOR_THEME])
-    }
-
-    suspend fun setColorTheme(theme: ColorTheme) {
-        context.dataStore.edit { prefs ->
-            prefs[COLOR_THEME] = theme.storageKey
         }
     }
 
