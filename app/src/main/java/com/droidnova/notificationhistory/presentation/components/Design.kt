@@ -1,5 +1,6 @@
 package com.droidnova.notificationhistory.presentation.components
 
+import com.droidnova.notificationhistory.R
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -31,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -177,13 +180,18 @@ fun HeaderButton(
     }
 }
 
-/** A selectable pill: optional leading icon, label, and a check when selected. */
+/**
+ * A selectable pill: optional color dot or leading icon, label, and a check when selected
+ * ([showCheck]) or a lock when the choice needs Premium ([locked]).
+ */
 @Composable
 fun ChoicePill(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    dotColor: Color? = null,
+    locked: Boolean = false,
     leadingIcon: ImageVector? = null,
     showCheck: Boolean = false
 ) {
@@ -205,6 +213,14 @@ fun ChoicePill(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (dotColor != null) {
+            Box(
+                Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(dotColor)
+            )
+        }
         if (leadingIcon != null) {
             Icon(
                 leadingIcon,
@@ -219,8 +235,11 @@ fun ChoicePill(
             color = if (selected) colors.primary else colors.onSurface,
             maxLines = 1
         )
-        if (selected && showCheck) {
-            Icon(Icons.Filled.Check, contentDescription = null, tint = colors.primary, modifier = Modifier.size(16.dp))
+        when {
+            selected && showCheck ->
+                Icon(Icons.Filled.Check, contentDescription = null, tint = colors.primary, modifier = Modifier.size(16.dp))
+            locked ->
+                Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.choice_locked_premium), tint = colors.onSurfaceVariant, modifier = Modifier.size(14.dp))
         }
     }
 }

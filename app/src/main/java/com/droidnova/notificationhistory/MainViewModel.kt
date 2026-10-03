@@ -13,6 +13,7 @@ import com.droidnova.notificationhistory.data.model.HistoryDateFilter
 import com.droidnova.notificationhistory.data.model.HistoryFilterState
 import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data.model.toDateBounds
+import com.droidnova.notificationhistory.data_shared.ColorTheme
 import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationDetailUiState
@@ -144,6 +145,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { userPrefs.setThemeMode(mode) }
     }
 
+    /** Pro colors fall back to the default if Premium is gone (refund, other account). */
+    val colorTheme: StateFlow<ColorTheme> =
+        combine(userPrefs.colorTheme, userPrefs.isPremium) { theme, premium ->
+            if (theme.isPro && !premium) ColorTheme.Default else theme
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, ColorTheme.Default)
+
+    fun setColorTheme(theme: ColorTheme) {
+        viewModelScope.launch { userPrefs.setColorTheme(theme) }
+    }
+
     private val _showPremiumWelcome = MutableStateFlow(false)
     val showPremiumWelcome: StateFlow<Boolean> = _showPremiumWelcome.asStateFlow()
     private var hasRemoveAdsClick = false
@@ -208,6 +219,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
 
     init {
+        viewModelScope.launch { userPrefs.settleOnboardingFlag() }
         viewModelScope.launch {
             userPrefs.allTitleFilters.collect { map ->
                 _titleFilters.value = map

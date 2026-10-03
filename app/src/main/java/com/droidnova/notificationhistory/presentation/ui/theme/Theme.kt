@@ -10,6 +10,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.droidnova.notificationhistory.data_shared.ColorTheme
 import com.droidnova.notificationhistory.data_shared.ThemeMode
 
 /** Resolves the user's theme preference against the current system setting. */
@@ -21,12 +22,14 @@ fun ThemeMode.isDark(): Boolean = when (this) {
 }
 
 /**
- * Root theme: the shared teal palette in light or dark. [dynamicColor] (wallpaper colors on
- * Android 12+) is off by default so the app keeps the same look as the developer's other apps.
+ * Root theme: the [colorTheme] picked in Settings (teal by default) in light or dark.
+ * [dynamicColor] (wallpaper colors on Android 12+) is off by default so the app keeps the same
+ * look as the developer's other apps.
  */
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    colorTheme: ColorTheme = ColorTheme.Default,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -35,8 +38,7 @@ fun AppTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColors
-        else -> LightColors
+        else -> colorTheme.colorScheme(darkTheme)
     }
 
     MaterialTheme(
