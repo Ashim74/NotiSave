@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.JsonReader
 import android.util.JsonToken
 import android.util.JsonWriter
+import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.core.apps.AppInfoCache
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
@@ -36,7 +37,7 @@ class BackupManager(private val context: Context) {
         stream.bufferedWriter().use { out ->
             // A byte-order mark makes Excel read the file as UTF-8 (emoji, non-Latin scripts).
             out.write("﻿")
-            out.write(CSV_HEADER)
+            out.write(context.getString(R.string.csv_header))
             out.newLine()
             forEachActiveRow { row ->
                 val fields = listOf(
@@ -256,7 +257,6 @@ class BackupManager(private val context: Context) {
         const val KEY_TITLE_FILTERS = "titleFilters"
         const val KEY_BLOCK_WORDS = "blockWords"
         const val KEY_NOTIFICATIONS = "notifications"
-        const val CSV_HEADER = "Date,App,Package,Title,Message,Deleted at"
     }
 }
 

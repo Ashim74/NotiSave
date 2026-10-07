@@ -2,6 +2,7 @@ package com.droidnova.notificationhistory.billing
 
 import android.app.Activity
 import android.content.Context
+import androidx.annotation.StringRes
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -14,6 +15,7 @@ import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import com.droidnova.notificationhistory.BuildConfig
+import com.droidnova.notificationhistory.R
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -33,6 +35,8 @@ class PremiumBillingManager(
         CONNECTING,
         CONNECTED
     }
+
+    private val appContext: Context = context.applicationContext
 
     private val billingClient: BillingClient = BillingClient.newBuilder(context)
         .setListener(this)
@@ -84,13 +88,13 @@ class PremiumBillingManager(
                 } else {
                     _connectionState.value = ConnectionState.DISCONNECTED
                     readyCallbacks.clear()
-                    emitError("Billing unavailable right now. Please try again later.")
+                    emitError(R.string.billing_error_unavailable)
                 }
             }
 
             override fun onBillingServiceDisconnected() {
                 _connectionState.value = ConnectionState.DISCONNECTED
-                emitError("Billing service disconnected. We'll retry when you try again.")
+                emitError(R.string.billing_error_disconnected_retry)
             }
         })
     }
@@ -115,10 +119,10 @@ class PremiumBillingManager(
                     _productDetails.value = queryResult.productDetailsList
                         .firstOrNull { it.productId == productId }
                     if (_productDetails.value == null) {
-                        emitError("Product not available right now. Please try again later.")
+                        emitError(R.string.billing_error_product_unavailable)
                     }
                 } else {
-                    emitError("Failed to load product details. Please try again.")
+                    emitError(R.string.billing_error_load_details)
                 }
             }
         }
@@ -128,7 +132,7 @@ class PremiumBillingManager(
         startConnection {
             val details = _productDetails.value
             if (details == null) {
-                emitError("Product not ready yet. Loading pricing…")
+                emitError(R.string.billing_error_product_not_ready)
                 queryProductDetails()
                 return@startConnection
             }
@@ -153,7 +157,7 @@ class PremiumBillingManager(
             val billingResult = billingClient.launchBillingFlow(activity, params)
             if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                 _isPurchaseInProgress.value = false
-                emitError("Unable to start purchase. Please try again.")
+                emitError(R.string.billing_error_start_purchase)
             }
         }
     }
@@ -174,7 +178,7 @@ class PremiumBillingManager(
                         onPremiumStatusChanged(false)
                     }
                 } else {
-                    emitError("Unable to verify purchases right now.")
+                    emitError(R.string.billing_error_verify_unavailable)
                 }
             }
         }
@@ -187,7 +191,7 @@ class PremiumBillingManager(
                 purchases?.forEach { purchase -> handlePurchase(purchase) }
             }
             BillingClient.BillingResponseCode.USER_CANCELED -> {
-                emitError("Purchase canceled.")
+                emitError(R.string.billing_error_canceled)
             }
             BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
                 // Restore the owned item through the normal verification path rather than granting
@@ -195,10 +199,10 @@ class PremiumBillingManager(
                 queryActivePurchases()
             }
             BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> {
-                emitError("Billing service disconnected. Please try again.")
+                emitError(R.string.billing_error_disconnected)
             }
             else -> {
-                emitError("Purchase failed: ${billingResult.debugMessage}")
+                emitError(R.string.billing_error_failed, billingResult.debugMessage)
             }
         }
     }
@@ -213,7 +217,7 @@ class PremiumBillingManager(
         when (purchase.purchaseState) {
             Purchase.PurchaseState.PURCHASED -> {
                 if (!isSignatureValid(purchase.originalJson, purchase.signature)) {
-                    emitError("Purchase verification failed.")
+                    emitError(R.string.billing_error_verification_failed)
                     return
                 }
 
@@ -227,7 +231,7 @@ class PremiumBillingManager(
                 }
             }
             Purchase.PurchaseState.PENDING -> {
-                emitError("Purchase pending. You'll get premium once it's completed.")
+                emitError(R.string.billing_error_pending)
             }
             else -> Unit
         }
@@ -249,12 +253,13 @@ class PremiumBillingManager(
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 onPremiumStatusChanged(true)
             } else {
-                emitError("Failed to acknowledge purchase. Please contact support.")
+                emitError(R.string.billing_error_acknowledge)
             }
         }
     }
 
-    private fun emitError(message: String) {
+    private fun emitError(@StringRes messageRes: Int, vararg formatArgs: Any) {
+        val message = appContext.getString(messageRes, *formatArgs)
         _errors.tryEmit(message)
         onError(message)
     }

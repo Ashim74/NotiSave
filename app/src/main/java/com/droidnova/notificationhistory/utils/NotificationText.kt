@@ -1,17 +1,19 @@
 package com.droidnova.notificationhistory.utils
 
+import android.content.Context
+import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.data.model.NotificationModel
 
-fun NotificationModel.toReadableShareText(): String {
+fun NotificationModel.toReadableShareText(context: Context): String {
     val appLabel = appName.ifBlank { packageName }
-    val titleLabel = title.ifBlank { "No title" }
-    val messageLabel = text.ifBlank { "No message" }
-    val timeLabel = receivedAt.ifBlank { "Unknown time" }
+    val titleLabel = title.ifBlank { context.getString(R.string.share_text_no_title) }
+    val messageLabel = text.ifBlank { context.getString(R.string.share_text_no_message) }
+    val timeLabel = receivedAt.ifBlank { context.getString(R.string.share_text_unknown_time) }
 
     return buildString {
-        appendLine("App: $appLabel")
-        appendLine("Title: $titleLabel")
-        appendLine("Message: $messageLabel")
-        append("Time: $timeLabel")
+        appendLine(context.getString(R.string.share_text_app, appLabel))
+        appendLine(context.getString(R.string.share_text_title, titleLabel))
+        appendLine(context.getString(R.string.share_text_message, messageLabel))
+        append(context.getString(R.string.share_text_time, timeLabel))
     }
 }

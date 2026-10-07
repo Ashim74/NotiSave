@@ -101,6 +101,24 @@ class NotificationCapturePolicyTest {
         hasNotificationAccess = hasAccess,
         trackingEnabled = tracking,
         allowedPackages = allowedPackages,
-        packageName = packageName
+        packageName = packageName,
+        ownPackage = OWN_PACKAGE
     )
+
+    @Test
+    fun `own alerts are never captured even when selected`() {
+        // A captured keyword alert would match its keyword again and re-alert in a loop.
+        assertFalse(
+            shouldCapture(
+                hasAccess = true,
+                tracking = true,
+                packageName = OWN_PACKAGE,
+                allowedPackages = setOf(OWN_PACKAGE, selectedPackage)
+            )
+        )
+    }
+
+    private companion object {
+        const val OWN_PACKAGE = "com.droidnova.notificationhistory"
+    }
 }

@@ -18,6 +18,8 @@ fun getInstalledApps(context: Context, allowedList: Set<String>): List<AppInfo> 
         val activities = launcherApps.getActivityList(null, profile)
         for (app in activities) {
             val ai = app.applicationInfo
+            // Capturing ourselves would feed our own alerts back into the listener.
+            if (ai.packageName == context.packageName) continue
             if (!seen.add(ai.packageName)) continue
 
             val label = pm.getApplicationLabel(ai).toString()

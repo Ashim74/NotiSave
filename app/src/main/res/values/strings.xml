@@ -500,4 +500,35 @@ Find “Notification History” → Turn ON access.
     <string name="premium_sheet_benefit_hidden">Hidden apps</string>
     <string name="premium_sheet_benefit_insights">Advanced insights</string>
     <string name="premium_sheet_benefit_block">Block words</string>
+
+    <!-- Notification listener service -->
+    <string name="notification_listener_label">Notification Listener</string>
+
+    <!-- Share / copy text -->
+    <string name="share_text_no_title">No title</string>
+    <string name="share_text_no_message">No message</string>
+    <string name="share_text_unknown_time">Unknown time</string>
+    <string name="share_text_app">App: %1$s</string>
+    <string name="share_text_title">Title: %1$s</string>
+    <string name="share_text_message">Message: %1$s</string>
+    <string name="share_text_time">Time: %1$s</string>
+    <string name="separator_dot">" · "</string>
+
+    <!-- CSV export -->
+    <string name="csv_header">Date,App,Package,Title,Message,Deleted at</string>
+
+    <!-- Billing errors -->
+    <string name="billing_error_unavailable">Billing unavailable right now. Please try again later.</string>
+    <string name="billing_error_disconnected_retry">Billing service disconnected. We\'ll retry when you try again.</string>
+    <string name="billing_error_product_unavailable">Product not available right now. Please try again later.</string>
+    <string name="billing_error_load_details">Failed to load product details. Please try again.</string>
+    <string name="billing_error_product_not_ready">Product not ready yet. Loading pricing…</string>
+    <string name="billing_error_start_purchase">Unable to start purchase. Please try again.</string>
+    <string name="billing_error_verify_unavailable">Unable to verify purchases right now.</string>
+    <string name="billing_error_canceled">Purchase canceled.</string>
+    <string name="billing_error_disconnected">Billing service disconnected. Please try again.</string>
+    <string name="billing_error_failed">Purchase failed: %1$s</string>
+    <string name="billing_error_verification_failed">Purchase verification failed.</string>
+    <string name="billing_error_pending">Purchase pending. You\'ll get premium once it\'s completed.</string>
+    <string name="billing_error_acknowledge">Failed to acknowledge purchase. Please contact support.</string>
 </resources>

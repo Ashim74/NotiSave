@@ -425,7 +425,7 @@ fun ConversationDetailScreen(
                 IntentUtil.copyToClipboard(
                     context,
                     context.getString(R.string.notification_fallback_title),
-                    notification.toReadableShareText()
+                    notification.toReadableShareText(context)
                 )
                 selectedNotification = null
             },
@@ -433,7 +433,7 @@ fun ConversationDetailScreen(
                 IntentUtil.shareText(
                     context,
                     context.getString(R.string.share_notification_chooser),
-                    notification.toReadableShareText()
+                    notification.toReadableShareText(context)
                 )
                 selectedNotification = null
             },

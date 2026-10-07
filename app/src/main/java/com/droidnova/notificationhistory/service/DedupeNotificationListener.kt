@@ -82,6 +82,9 @@ class NotificationListener : NotificationListenerService() {
                 titleFilters = prefs.allTitleFilters.first()
                 isPremium = prefs.isPremium.first()
                 blockWords = prefs.allBlockWords.first()
+                // Older builds captured their own keyword alerts in a loop; drop those rows.
+                AppDatabase.getInstance(applicationContext).notificationDao()
+                    .deleteAllForPackage(applicationContext.packageName)
             } catch (t: Throwable) {
                 CrashReporter.record(t)
             } finally {
@@ -152,6 +155,8 @@ class NotificationListener : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val packageName = sbn.packageName ?: return
+        // Our own alerts must never be captured or matched (see shouldCaptureNotification).
+        if (packageName == applicationContext.packageName) return
 
         // Preserve M1: permission, user tracking, and explicit package selection are all
         // required. This fast path only drops on cached state after priming; before that,
@@ -160,7 +165,8 @@ class NotificationListener : NotificationListenerService() {
                 hasNotificationAccess = isConnected,
                 trackingEnabled = trackingEnabled,
                 allowedPackages = allowedCache,
-                packageName = packageName
+                packageName = packageName,
+                ownPackage = applicationContext.packageName
             )
         ) return
 
@@ -180,7 +186,8 @@ class NotificationListener : NotificationListenerService() {
                     hasNotificationAccess = isConnected,
                     trackingEnabled = trackingEnabled,
                     allowedPackages = allowedCache,
-                    packageName = packageName
+                    packageName = packageName,
+                    ownPackage = applicationContext.packageName
                 )
             ) return@launch
 
@@ -450,9 +457,15 @@ internal fun matchesTitleFilter(title: String, filters: Set<String>): Boolean {
     }
 }
 
+/**
+ * Never captures [ownPackage]: our keyword alerts repeat the matched text, so capturing them
+ * would match again and re-post an alert about the alert, forever.
+ */
 internal fun shouldCaptureNotification(
     hasNotificationAccess: Boolean,
     trackingEnabled: Boolean,
     allowedPackages: Set<String>,
-    packageName: String
-): Boolean = hasNotificationAccess && trackingEnabled && packageName in allowedPackages
+    packageName: String,
+    ownPackage: String
+): Boolean = hasNotificationAccess && trackingEnabled &&
+    packageName != ownPackage && packageName in allowedPackages

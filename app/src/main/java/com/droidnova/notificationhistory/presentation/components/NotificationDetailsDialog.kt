@@ -128,7 +128,7 @@ fun NotificationDetailsDialog(
                 Text(
                     text = listOf(notification.appName, notification.receivedAt)
                         .filter { it.isNotBlank() }
-                        .joinToString(" · "),
+                        .joinToString(stringResource(R.string.separator_dot)),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
