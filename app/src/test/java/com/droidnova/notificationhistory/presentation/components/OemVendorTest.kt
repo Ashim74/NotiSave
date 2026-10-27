@@ -25,3 +25,38 @@ class OemVendorTest {
         assertEquals(OemVendor.Other, oemVendorOf(null))
     }
 }
+
+class OemStepVisibilityTest {
+
+    private fun show(
+        hasStep: Boolean = true,
+        dismissed: Boolean = true,
+        captureExpected: Boolean = true,
+        listenerConnected: Boolean = true
+    ) = shouldShowOemStep(hasStep, dismissed, captureExpected, listenerConnected)
+
+    @Test
+    fun `undismissed step is shown`() {
+        assertEquals(true, show(dismissed = false))
+    }
+
+    @Test
+    fun `dismissed step stays hidden while capture works`() {
+        assertEquals(false, show())
+    }
+
+    @Test
+    fun `dismissed step comes back while the listener is disconnected`() {
+        assertEquals(true, show(listenerConnected = false))
+    }
+
+    @Test
+    fun `dismissed step stays hidden when capture is off on purpose`() {
+        assertEquals(false, show(captureExpected = false, listenerConnected = false))
+    }
+
+    @Test
+    fun `no step for this phone means nothing to show`() {
+        assertEquals(false, show(hasStep = false, dismissed = false, listenerConnected = false))
+    }
+}

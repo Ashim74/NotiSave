@@ -107,7 +107,7 @@ internal fun HomeDashboard(
     onTrash: () -> Unit,
     onBatteryAction: () -> Unit,
     onOemAction: () -> Unit,
-    onReliabilityDone: () -> Unit,
+    onReliabilityDone: (() -> Unit)?,
     onNotificationClick: (NotificationModel) -> Unit
 ) {
     val side = Modifier.padding(horizontal = Dimens.ScreenHorizontal)
@@ -385,6 +385,7 @@ private fun WarningRow(
 /**
  * [WarningRow] grown into a checklist when this phone's maker needs an extra step. Done only
  * dismisses that step: while battery optimization is still on, its row keeps the card up.
+ * [onDone] is null when the step is back after Done because capture is down.
  */
 @Composable
 private fun ReliabilityCard(
@@ -393,7 +394,7 @@ private fun ReliabilityCard(
     @StringRes oemStepText: Int,
     onBatteryAction: () -> Unit,
     onOemAction: () -> Unit,
-    onDone: () -> Unit
+    onDone: (() -> Unit)?
 ) {
     AppCard(
         modifier = modifier.fillMaxWidth(),
@@ -422,8 +423,12 @@ private fun ReliabilityCard(
                 action = stringResource(R.string.reliability_open),
                 onAction = onOemAction
             )
-            TextButton(onClick = onDone, modifier = Modifier.align(Alignment.End)) {
-                Text(stringResource(R.string.reliability_done))
+            if (onDone != null) {
+                TextButton(onClick = onDone, modifier = Modifier.align(Alignment.End)) {
+                    Text(stringResource(R.string.reliability_done))
+                }
+            } else {
+                Spacer(Modifier.height(10.dp))
             }
         }
     }

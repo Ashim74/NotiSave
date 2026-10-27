@@ -26,6 +26,17 @@ internal fun oemVendorOf(manufacturer: String?): OemVendor =
         else -> OemVendor.Other
     }
 
+/**
+ * Done hides the step only while capture works. A listener that stays disconnected is exactly
+ * what the step fixes (MIUI rejects every bind without autostart), so it comes back then.
+ */
+internal fun shouldShowOemStep(
+    hasStep: Boolean,
+    dismissed: Boolean,
+    captureExpected: Boolean,
+    listenerConnected: Boolean
+): Boolean = hasStep && (!dismissed || (captureExpected && !listenerConnected))
+
 /** One extra "let the app run in the background" step for this phone's maker. */
 class OemReliabilityStep(
     @StringRes val textRes: Int,

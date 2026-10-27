@@ -45,6 +45,7 @@ import com.droidnova.notificationhistory.presentation.components.NotificationPer
 import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
 import com.droidnova.notificationhistory.presentation.components.HeaderButton
 import com.droidnova.notificationhistory.presentation.components.oemReliabilityStep
+import com.droidnova.notificationhistory.presentation.components.shouldShowOemStep
 import com.droidnova.notificationhistory.presentation.components.rememberBatteryOptimizationState
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
@@ -170,7 +171,14 @@ fun HomeScreen(
             todaySummary = todaySummary,
             recentNotifications = recentNotifications,
             showBatteryWarning = !batteryOptimization.isIgnored,
-            oemStepText = oemStep?.textRes?.takeUnless { oemGuidanceDismissed },
+            oemStepText = oemStep?.textRes?.takeIf {
+                shouldShowOemStep(
+                    hasStep = true,
+                    dismissed = oemGuidanceDismissed,
+                    captureExpected = state.userToggleTracking && hasPermission,
+                    listenerConnected = listenerConnected
+                )
+            },
             deletedCount = deletedMessages?.size ?: 0,
             isPremium = isPremium,
             onDeletedMessages = { navController.navigate(Screens.DeletedMessages.route) },
@@ -189,7 +197,8 @@ fun HomeScreen(
             onTrash = { navController.navigate(Screens.Trash.route) },
             onBatteryAction = batteryOptimization.requestExemption,
             onOemAction = { oemStep?.open(context) },
-            onReliabilityDone = homeViewModel::dismissOemGuidance,
+            // Already dismissed: the step is back only because capture is down, so no Done.
+            onReliabilityDone = if (oemGuidanceDismissed) null else homeViewModel::dismissOemGuidance,
             onNotificationClick = { showDetailsDialog = it }
         )
     }
