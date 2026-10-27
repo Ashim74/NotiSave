@@ -23,6 +23,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -437,8 +440,16 @@ class NotificationListener : NotificationListenerService() {
          * Live binding state, readable from the UI process (the listener runs in the
          * default app process). False also while the service has never been created.
          */
-        @Volatile var isConnected: Boolean = false
-            private set
+        var isConnected: Boolean
+            get() = connectedState.value
+            private set(value) {
+                connectedState.value = value
+            }
+
+        private val connectedState = MutableStateFlow(false)
+
+        /** [isConnected] as a flow, so the UI follows connects and drops while it is open. */
+        val connected: StateFlow<Boolean> = connectedState.asStateFlow()
 
         /** Last known user toggle, readable by the delayed alert after the instance is gone. */
         @Volatile private var trackingEnabledSnapshot: Boolean = true

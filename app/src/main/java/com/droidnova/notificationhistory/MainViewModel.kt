@@ -61,13 +61,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _hasNotificationAccess = MutableStateFlow(false)
     val hasNotificationAccess: StateFlow<Boolean> = _hasNotificationAccess.asStateFlow()
 
-    // Persisted flag comes from the listener's connect/disconnect callbacks; the live flag is the
-    // in-process binding state re-read on resume. Either being true means we are capturing.
-    private val _listenerConnectedLive = MutableStateFlow(NotificationListener.isConnected)
+    // The listener runs in this process, so its live state is the truth. The persisted flag only
+    // bridges the first moments after a cold start, while the system is still binding.
+    private val listenerStartupGraceOver = MutableStateFlow(false).also { over ->
+        viewModelScope.launch {
+            delay(LISTENER_STARTUP_GRACE_MS)
+            over.value = true
+        }
+    }
     val listenerConnected: StateFlow<Boolean> =
-        combine(userPrefs.listenerConnected, _listenerConnectedLive) { persisted, live ->
-            persisted || live
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+        combine(
+            userPrefs.listenerConnected,
+            NotificationListener.connected,
+            listenerStartupGraceOver,
+            ::displayListenerConnected
+        ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     private val _events = MutableSharedFlow<HomeUiEvent>()
     val events: SharedFlow<HomeUiEvent> = _events.asSharedFlow()
@@ -406,7 +414,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun onResume() {
         val granted = NotificationAccessChecker.hasNotificationAccessPermission(getApplication())
         _hasNotificationAccess.value = granted
-        _listenerConnectedLive.value = NotificationListener.isConnected
         if (granted) {
             if (awaitingGrant) {
                 awaitingGrant = false
@@ -940,6 +947,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val SEARCH_DEBOUNCE_MS = 300L
+        /** How long a cold start trusts the persisted "connected" flag before the live state. */
+        const val LISTENER_STARTUP_GRACE_MS = 5_000L
         /** Upper bound on rows held in memory for the flat history list (30 pages of 100). */
         const val MAX_LOADED_HISTORY = 3_000
 
@@ -966,3 +975,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             query.trim().replace(SEARCH_WHITESPACE, " ")
     }
 }
+
+/**
+ * What Home shows as "capturing". The live binding wins; the persisted flag only counts during
+ * the startup grace. Afterwards a flag that still says connected while the live state says not is
+ * a listener the system killed without a callback, and showing "Recording" there hid it.
+ */
+internal fun displayListenerConnected(
+    persisted: Boolean,
+    live: Boolean,
+    startupGraceOver: Boolean
+): Boolean = live || (persisted && !startupGraceOver)
