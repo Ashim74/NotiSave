@@ -120,7 +120,8 @@ class NotificationListener : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         isConnected = true
-        ListenerReconnector.notifyConnected()
+        ListenerReconnector.notifyConnected(applicationContext)
+        ListenerWatchdog.schedule(applicationContext)
         mainHandler.removeCallbacks(disconnectAlert)
         ListenerAlerts.cancel(applicationContext)
         CrashReporter.setCustomKey("listener_connected", true)
@@ -132,10 +133,11 @@ class NotificationListener : NotificationListenerService() {
         isConnected = false
         CrashReporter.setCustomKey("listener_connected", false)
         persistConnectedState(false)
-        // Gentle recovery attempt; ListenerReconnector escalates from the UI if this fails.
+        // Gentle recovery attempt; the watchdog escalates in the background if this fails.
         runCatching {
             requestRebind(ComponentName(this, NotificationListener::class.java))
         }.onFailure(CrashReporter::record)
+        ListenerWatchdog.checkSoon(applicationContext, WATCHDOG_CHECK_DELAY_MS)
         mainHandler.removeCallbacks(disconnectAlert)
         mainHandler.postDelayed(disconnectAlert, DISCONNECT_ALERT_DELAY_MS)
     }
@@ -446,6 +448,7 @@ class NotificationListener : NotificationListenerService() {
         private val SUMMARY_SETTLE_MS = TimeUnit.SECONDS.toMillis(2)
         private val RETENTION_CLEANUP_INTERVAL_MS = TimeUnit.HOURS.toMillis(6)
         private val DISCONNECT_ALERT_DELAY_MS = TimeUnit.SECONDS.toMillis(45)
+        private val WATCHDOG_CHECK_DELAY_MS = TimeUnit.SECONDS.toMillis(30)
     }
 }
 

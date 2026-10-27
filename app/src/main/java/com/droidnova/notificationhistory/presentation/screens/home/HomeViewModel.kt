@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /** Today's headline numbers for the Home dashboard. */
 data class HomeTodaySummary(
@@ -41,7 +42,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dao = AppDatabase.getInstance(application).notificationDao()
     private val packageManager = application.packageManager
-    private val hiddenApps = UserPreferences(application).effectiveHiddenApps.map { it.toList() }
+    private val prefs = UserPreferences(application)
+    private val hiddenApps = prefs.effectiveHiddenApps.map { it.toList() }
 
     // Midnight can pass while the app is backgrounded; refresh() re-anchors the window.
     private val dayStart = MutableStateFlow(startOfTodayMillis())
@@ -83,6 +85,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             emit(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    // Starts true so the OEM step never flashes in before the stored choice loads.
+    val oemGuidanceDismissed: StateFlow<Boolean> = prefs.oemGuidanceDismissed
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun dismissOemGuidance() {
+        viewModelScope.launch {
+            runCatching { prefs.dismissOemGuidance() }.onFailure(CrashReporter::record)
+        }
+    }
 
     private companion object {
         const val RECENT_LIMIT = 5

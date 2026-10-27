@@ -113,6 +113,14 @@ class UserPreferences(private val context: Context) {
         }
     }
 
+    val oemGuidanceDismissed: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[DataStoreKeys.OEM_GUIDANCE_DISMISSED] ?: false
+    }
+
+    suspend fun dismissOemGuidance() {
+        context.dataStore.edit { it[DataStoreKeys.OEM_GUIDANCE_DISMISSED] = true }
+    }
+
     /**
      * The flag is written by the onboarding flow (added in 0.20) and, for users upgrading from
      * older versions, by [incrementLaunchCount] at startup: anyone who already selected apps or

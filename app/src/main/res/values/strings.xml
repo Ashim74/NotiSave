@@ -114,6 +114,13 @@ Find “Notification History” → Turn ON access.
     <string name="home_manage_apps">Manage Apps</string>
     <string name="battery_warning_title">Improve reliability</string>
     <string name="fix">Fix</string>
+    <string name="reliability_step_battery">Turn off battery optimization</string>
+    <string name="reliability_step_samsung">Add Notification History to “Never sleeping apps” (Battery › Background usage limits)</string>
+    <string name="reliability_step_autostart">Allow Notification History to auto-start and run in the background</string>
+    <string name="reliability_open">Open</string>
+    <string name="reliability_done">Done</string>
+    <string name="settings_background_activity">Background activity</string>
+    <string name="settings_background_activity_value">Keep the app awake — tap to open</string>
     <string name="billing_unavailable">Billing is not available right now.</string>
     <string name="purchase_unavailable">Unable to start purchase from this screen.</string>
     <string name="settings_tracking_section">Tracking</string>

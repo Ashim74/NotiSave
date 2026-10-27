@@ -44,6 +44,7 @@ import com.droidnova.notificationhistory.presentation.components.NotificationDet
 import com.droidnova.notificationhistory.presentation.components.NotificationPermissionBottomSheet
 import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
 import com.droidnova.notificationhistory.presentation.components.HeaderButton
+import com.droidnova.notificationhistory.presentation.components.oemReliabilityStep
 import com.droidnova.notificationhistory.presentation.components.rememberBatteryOptimizationState
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
@@ -85,6 +86,8 @@ fun HomeScreen(
     var showPermissionSheet by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     val batteryOptimization = rememberBatteryOptimizationState()
+    val oemStep = remember { oemReliabilityStep(context) }
+    val oemGuidanceDismissed by homeViewModel.oemGuidanceDismissed.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val permissionSheetState = rememberModalBottomSheetState(
@@ -167,6 +170,7 @@ fun HomeScreen(
             todaySummary = todaySummary,
             recentNotifications = recentNotifications,
             showBatteryWarning = !batteryOptimization.isIgnored,
+            oemStepText = oemStep?.textRes?.takeUnless { oemGuidanceDismissed },
             deletedCount = deletedMessages?.size ?: 0,
             isPremium = isPremium,
             onDeletedMessages = { navController.navigate(Screens.DeletedMessages.route) },
@@ -184,6 +188,8 @@ fun HomeScreen(
             onInsights = { navController.navigateToTab(Screens.Insights.route) },
             onTrash = { navController.navigate(Screens.Trash.route) },
             onBatteryAction = batteryOptimization.requestExemption,
+            onOemAction = { oemStep?.open(context) },
+            onReliabilityDone = homeViewModel::dismissOemGuidance,
             onNotificationClick = { showDetailsDialog = it }
         )
     }
