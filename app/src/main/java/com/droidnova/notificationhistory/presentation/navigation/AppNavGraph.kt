@@ -46,7 +46,12 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
@@ -175,6 +180,7 @@ fun AppNavGraph(launchAction: LaunchAction = LaunchAction.None) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) {
     val navController = rememberNavController()
@@ -182,6 +188,11 @@ private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isTopLevel = currentRoute in Screens.TOP_LEVEL_ROUTES
+    // The keyboard covers the tab bar anyway, so it steps aside while typing.
+    val showTabBar = isTopLevel && !WindowInsets.isImeVisible
+    // The keyboard also covers the ad banner; screens using imePadding() (the chat reply bar)
+    // must not pad for that part again. Reported by the ad itself, not measured in layout.
+    var adBannerHeight by remember { mutableStateOf(0.dp) }
 
     // Shortcut / alert intents are honored once per process, after the graph exists.
     var launchHandled by rememberSaveable { mutableStateOf(false) }
@@ -202,13 +213,14 @@ private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) 
 
     Column(
         // The NavigationBar pads itself for the gesture bar; without it the column must.
-        modifier = if (isTopLevel) Modifier else Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+        modifier = if (showTabBar) Modifier else Modifier.windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         Box(
             modifier = Modifier
                 .weight(1f)
                 // Screens below sit above the bar/banner, so they must not pad for the inset again.
                 .consumeWindowInsets(WindowInsets.navigationBars)
+                .consumeWindowInsets(PaddingValues(bottom = adBannerHeight))
         ) {
             NavHost(
                 navController = navController,
@@ -300,9 +312,9 @@ private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) 
         }
         // Hidden for premium users and during an ad-free period earned from a rewarded ad
         if (rememberShowAds(isPremium)) {
-            CollapsibleAdBanner()
+            CollapsibleAdBanner(onHeightChange = { adBannerHeight = it })
         }
-        if (isTopLevel) {
+        if (showTabBar) {
             AppNavigationBar(
                 currentRoute = currentRoute,
                 onNavigate = { route -> navController.navigateToTab(route) }

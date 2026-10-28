@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.clip
 import com.droidnova.notificationhistory.presentation.components.EmptyState
+import com.droidnova.notificationhistory.presentation.screens.conversations.rememberOpenChatToReply
 import com.droidnova.notificationhistory.presentation.components.HeaderButton
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
 import com.droidnova.notificationhistory.presentation.components.tintedCardColor
@@ -96,6 +97,7 @@ fun AppHistoryScreen(
     val isLoadingMore = appHistoryState.isLoadingMore
     val canLoadMore = !appHistoryState.endReached
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
+    val openChatToReply = rememberOpenChatToReply(mainViewModel, navController)
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var searchQuery by rememberSaveable(packageName) {
@@ -373,7 +375,13 @@ fun AppHistoryScreen(
                 showDeleteConfirmDialog = notification
                 selectedNotification = null
             },
-            onDismiss = { selectedNotification = null }
+            onDismiss = { selectedNotification = null },
+            onReply = notification.conversationKey?.let { key ->
+                {
+                    selectedNotification = null
+                    openChatToReply(key)
+                }
+            }
         )
     }
 }

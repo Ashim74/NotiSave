@@ -14,7 +14,11 @@ interface NotificationDao {
     suspend fun getAppByPackage(packageName: String): NotificationEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertApp(app: NotificationEntity)
+    suspend fun insertApp(app: NotificationEntity): Long
+
+    /** Removes a row outright; used to undo a reply that was saved but could not be sent. */
+    @Query("DELETE FROM apps WHERE id = :notificationId")
+    suspend fun deleteById(notificationId: Long): Int
 
     @Query(
         """
@@ -65,6 +69,29 @@ interface NotificationDao {
     suspend fun hasSameContentBetween(
         packageName: String,
         contentFingerprint: String,
+        from: Long,
+        to: Long
+    ): Boolean
+
+    /**
+     * A reply sent from the conversation screen (saved without a key) with this text. Chat apps
+     * echo a sent reply back in their re-posted thread; that echo must not be saved twice.
+     */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM apps
+            WHERE conversationKey = :conversationKey
+              AND notificationKey IS NULL
+              AND message = :message
+              AND receivedAt BETWEEN :from AND :to
+            LIMIT 1
+        )
+        """
+    )
+    suspend fun hasOwnReplyBetween(
+        conversationKey: String,
+        message: String,
         from: Long,
         to: Long
     ): Boolean

@@ -1,8 +1,13 @@
 package com.droidnova.notificationhistory
 
 import android.app.Application
+import android.app.PendingIntent
+import android.app.RemoteInput
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Bundle
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.droidnova.notificationhistory.core.apps.AppInfoCache
@@ -11,6 +16,7 @@ import com.droidnova.notificationhistory.data.backup.BackupFormatException
 import com.droidnova.notificationhistory.data.backup.BackupManager
 import com.droidnova.notificationhistory.data.datastore.UserPreferences
 import com.droidnova.notificationhistory.data.db.AppDatabase
+import com.droidnova.notificationhistory.data.db.NotificationEntity
 import com.droidnova.notificationhistory.data.mapper.convertEntityToModel
 import com.droidnova.notificationhistory.data.model.HistoryDateFilter
 import com.droidnova.notificationhistory.data.model.HistoryFilterState
@@ -26,11 +32,14 @@ import com.droidnova.notificationhistory.presentation.screens.conversations.Conv
 import com.droidnova.notificationhistory.presentation.screens.home.HomeUiEvent
 import com.droidnova.notificationhistory.presentation.screens.select_app.AppInfo
 import com.droidnova.notificationhistory.service.NotificationListener
+import com.droidnova.notificationhistory.service.ReplyTarget
+import com.droidnova.notificationhistory.service.ReplyTargetStore
 import com.droidnova.notificationhistory.utils.CrashReporter
 import com.droidnova.notificationhistory.utils.getInstalledApps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -847,6 +856,77 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadOlderConversationMessages(conversationKey: String) =
         conversations.loadOlderMessages(conversationKey)
+
+    /** Loaded eagerly so it is known long before anyone can tap Reply. */
+    val replyNoticeShown: StateFlow<Boolean> =
+        userPrefs.replyNoticeShown.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun markReplyNoticeShown() {
+        viewModelScope.launch { userPrefs.markReplyNoticeShown() }
+    }
+
+    /** The live reply action for [conversationKey]; null once its notification is gone. */
+    fun conversationReplyTarget(conversationKey: String): Flow<ReplyTarget?> =
+        ReplyTargetStore.observe(conversationKey)
+
+    /**
+     * Sends [text] through the chat notification's own "Reply" action, the same way the
+     * notification shade's inline reply does, and saves it as an outgoing message.
+     */
+    fun sendConversationReply(conversationKey: String, text: String, onResult: (Boolean) -> Unit) {
+        val reply = text.trim()
+        if (reply.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val target = ReplyTargetStore.get(conversationKey)
+            if (target == null) {
+                withContext(Dispatchers.Main) { onResult(false) }
+                return@launch
+            }
+            // Saved before sending: the chat app echoes the reply back in its re-posted thread
+            // within a second, and the listener only recognises the echo once this row exists.
+            val savedId = runCatching {
+                dao.insertApp(
+                    NotificationEntity(
+                        packageName = target.packageName,
+                        title = getApplication<Application>().getString(R.string.conversation_reply_you),
+                        message = reply,
+                        receivedAt = System.currentTimeMillis(),
+                        // No key or fingerprint: dedupe must never hide the contact's next message.
+                        notificationKey = null,
+                        contentFingerprint = null,
+                        conversationKey = conversationKey,
+                        conversationName = target.conversationName
+                    )
+                )
+            }.onFailure(CrashReporter::record).getOrNull()
+
+            val sent = runCatching {
+                sendReply(target, reply)
+                true
+            }.onFailure { error ->
+                // A cancelled intent just means the notification went away; anything else is a bug.
+                if (error !is PendingIntent.CanceledException) CrashReporter.record(error)
+            }.getOrDefault(false)
+
+            if (!sent) {
+                savedId?.let { id -> runCatching { dao.deleteById(id) }.onFailure(CrashReporter::record) }
+                ReplyTargetStore.forget(conversationKey, target.notificationKey)
+            }
+            withContext(Dispatchers.Main) { onResult(sent) }
+        }
+    }
+
+    private fun sendReply(target: ReplyTarget, text: String) {
+        val results = Bundle().apply {
+            target.remoteInputs.forEach { putCharSequence(it.resultKey, text) }
+        }
+        val intent = Intent()
+        RemoteInput.addResultsToIntent(target.remoteInputs, intent, results)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            RemoteInput.setResultsSource(intent, RemoteInput.SOURCE_FREE_FORM_INPUT)
+        }
+        target.actionIntent.send(getApplication(), 0, intent)
+    }
 
     private fun refreshLoadedAppHistory(packageName: String) {
         val state = appHistoryStates[packageName]?.value ?: return

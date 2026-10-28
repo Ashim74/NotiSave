@@ -287,6 +287,12 @@ Find “Notification History” → Turn ON access.
     <string name="conversations_empty_search">No conversations match your search.</string>
     <string name="conversations_empty_filters">No conversations match these filters.</string>
     <string name="conversation_empty_messages">No messages in this conversation.</string>
+    <!-- Sender shown on replies sent from the conversation screen; also marks them as outgoing. -->
+    <string name="conversation_reply_you">You</string>
+    <string name="conversation_reply_hint">Reply</string>
+    <string name="conversation_reply_unavailable">Reply here once a new message arrives</string>
+    <string name="conversation_reply_send">Send reply</string>
+    <string name="conversation_reply_failed">Couldn\'t send. Open the app to reply.</string>
 
     <!-- Manage apps -->
     <string name="search_apps_hint">Search apps</string>
@@ -409,6 +415,11 @@ Find “Notification History” → Turn ON access.
     <string name="lock_feature_pin">PIN</string>
     <string name="lock_feature_fingerprint">Fingerprint</string>
     <string name="lock_feature_recovery">Recovery</string>
+    <string name="hist_action_reply">Reply</string>
+    <!-- One-time notice before the first in-app reply. -->
+    <string name="reply_notice_title">New: reply from here</string>
+    <string name="reply_notice_message">This is a new feature and may not work with every app. Give it a try, then open the chat app to check that your reply was sent.</string>
+    <string name="reply_notice_got_it">Got it</string>
     <string name="hist_action_details">Details</string>
     <string name="hist_action_open">Open</string>
     <string name="hist_action_trash">Trash</string>
