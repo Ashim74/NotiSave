@@ -85,10 +85,10 @@ fun AlertsBlockedBanner(modifier: Modifier = Modifier) {
     }
 }
 
-private fun areAlertsEnabled(context: Context): Boolean =
+internal fun areAlertsEnabled(context: Context): Boolean =
     NotificationManagerCompat.from(context).areNotificationsEnabled()
 
-private fun openAppNotificationSettings(context: Context) {
+internal fun openAppNotificationSettings(context: Context) {
     val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
         .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

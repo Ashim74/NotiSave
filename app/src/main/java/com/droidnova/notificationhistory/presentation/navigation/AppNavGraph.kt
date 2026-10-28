@@ -96,6 +96,7 @@ import com.droidnova.notificationhistory.presentation.screens.onboarding.Onboard
 import com.droidnova.notificationhistory.presentation.screens.select_app.SelectAppScreen
 import com.droidnova.notificationhistory.presentation.screens.setting.SettingScreen
 import com.droidnova.notificationhistory.presentation.screens.trash.TrashScreen
+import com.droidnova.notificationhistory.presentation.screens.reliability.ReliabilitySetupScreen
 
 private const val TRANSITION_MS = 300
 // Material "fade through" for tab switches: the old tab fades out quickly, then the new one
@@ -250,6 +251,10 @@ private fun MainShell(mainViewModel: MainViewModel, launchAction: LaunchAction) 
                 }
                 composable(Screens.Trash.route) {
                     TrashScreen(mainViewModel, navController)
+                }
+                composable(Screens.ReliabilitySetup.route) {
+                    val homeViewModel: HomeViewModel = viewModel()
+                    ReliabilitySetupScreen(mainViewModel, homeViewModel, navController)
                 }
                 composable(Screens.AboutScreen.route) {
                     AboutScreen(navController)

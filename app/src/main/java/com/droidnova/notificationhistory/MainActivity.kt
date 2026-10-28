@@ -37,6 +37,7 @@ import com.droidnova.notificationhistory.presentation.screens.splash.SplashIntro
 import com.droidnova.notificationhistory.presentation.ui.theme.AppTheme
 import com.droidnova.notificationhistory.presentation.ui.theme.isDark
 import com.droidnova.notificationhistory.service.ListenerReconnector
+import com.droidnova.notificationhistory.service.ListenerWatchdog
 import com.droidnova.notificationhistory.utils.Analytics
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -175,7 +176,8 @@ class MainActivity : FragmentActivity() {
         super.onResume()
         appLock.controller.onAppResumed()
         // Recover a listener binding the system dropped; no-op while healthy.
-        ListenerReconnector.ensureConnected(applicationContext)
+        val action = ListenerReconnector.ensureConnected(applicationContext)
+        ListenerWatchdog.followUp(applicationContext, action)
     }
 
     override fun onDestroy() {

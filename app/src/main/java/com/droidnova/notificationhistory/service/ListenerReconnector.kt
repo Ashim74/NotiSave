@@ -18,6 +18,9 @@ enum class ReconnectAction { NONE, REQUEST_REBIND, FORCE_TOGGLE }
  * Escalation: first a plain [NotificationListenerService.requestRebind]; if the
  * listener is still disconnected after [ESCALATION_WINDOW_MS], toggle the service
  * component off/on, which forces the system to re-evaluate enabled listeners.
+ * The rebind alone only helps a listener the system snoozed; after the process was
+ * killed and not restarted it does nothing (seen on Android 10 / MIUI), so callers
+ * follow it up instead of waiting for the next periodic run.
  *
  * The attempt timestamps live in SharedPreferences, not memory: the background
  * [ListenerWatchdog] usually runs in a freshly started process, and escalation has
@@ -41,10 +44,11 @@ object ListenerReconnector {
 
     /**
      * Safe to call on every Activity resume and from background work; does nothing
-     * when healthy. Returns the action taken.
+     * when healthy. Returns the action taken. [userInitiated] (the Reconnect tap) skips
+     * the settle wait: the user is looking at a dead listener, so escalate now.
      */
     @Synchronized
-    fun ensureConnected(context: Context): ReconnectAction {
+    fun ensureConnected(context: Context, userInitiated: Boolean = false): ReconnectAction {
         val hasPermission = NotificationAccessChecker.hasNotificationAccessPermission(context)
         val prefs = prefs(context)
         val now = System.currentTimeMillis()
@@ -55,7 +59,8 @@ object ListenerReconnector {
             lastForceToggleAt = prefs.getLong(KEY_LAST_FORCE_TOGGLE_AT, 0L),
             now = now,
             escalationWindowMs = ESCALATION_WINDOW_MS,
-            forceToggleCooldownMs = FORCE_TOGGLE_COOLDOWN_MS
+            forceToggleCooldownMs = FORCE_TOGGLE_COOLDOWN_MS,
+            userInitiated = userInitiated
         )
         if (action == ReconnectAction.NONE) return action
 
@@ -94,7 +99,8 @@ internal fun nextReconnectAction(
     lastForceToggleAt: Long,
     now: Long,
     escalationWindowMs: Long,
-    forceToggleCooldownMs: Long
+    forceToggleCooldownMs: Long,
+    userInitiated: Boolean = false
 ): ReconnectAction {
     if (!hasPermission || isConnected) return ReconnectAction.NONE
     val sinceLastAttempt = now - lastAttemptAt
@@ -103,7 +109,7 @@ internal fun nextReconnectAction(
         // No prior attempt (or the clock moved backwards): start gently.
         lastAttemptAt == 0L || sinceLastAttempt < 0 -> ReconnectAction.REQUEST_REBIND
         // A recent attempt may still be settling; don't spam the system.
-        sinceLastAttempt < escalationWindowMs -> ReconnectAction.NONE
+        sinceLastAttempt < escalationWindowMs && !userInitiated -> ReconnectAction.NONE
         // Toggling the component is heavy; while it's cooling down, keep rebinding.
         lastForceToggleAt != 0L && sinceLastToggle in 0 until forceToggleCooldownMs ->
             ReconnectAction.REQUEST_REBIND

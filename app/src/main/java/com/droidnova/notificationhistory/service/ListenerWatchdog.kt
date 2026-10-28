@@ -35,6 +35,9 @@ object ListenerWatchdog {
     private val RECOVERY_WAIT_MS = TimeUnit.SECONDS.toMillis(20)
     private val POLL_MS = 500L
 
+    /** With [CONNECT_GRACE_MS] on top, the follow-up lands past the reconnector's settle window. */
+    private val FOLLOW_UP_DELAY_MS = TimeUnit.SECONDS.toMillis(10)
+
     /** The background alert repeats at most this often, so a dead listener can't nag every run. */
     private val ALERT_INTERVAL_MS = TimeUnit.HOURS.toMillis(6)
     private const val PREFS_NAME = "listener_watchdog"
@@ -72,6 +75,14 @@ object ListenerWatchdog {
         }.onFailure(CrashReporter::record)
     }
 
+    /**
+     * Follows up a foreground reconnect attempt (the activity resuming, the Reconnect tap),
+     * so a rebind the system ignored escalates without the user reopening the app.
+     */
+    fun followUp(context: Context, action: ReconnectAction) {
+        if (action != ReconnectAction.NONE) checkSoon(context, FOLLOW_UP_DELAY_MS)
+    }
+
     internal suspend fun runCheck(context: Context) {
         val prefs = UserPreferences(context)
         val hasPermission = NotificationAccessChecker.hasNotificationAccessPermission(context)
@@ -87,8 +98,17 @@ object ListenerWatchdog {
         )
         if (health == ListenerHealth.NOT_EXPECTED || health == ListenerHealth.HEALTHY) return
 
-        val action = ListenerReconnector.ensureConnected(context)
-        val recovered = awaitConnection(RECOVERY_WAIT_MS)
+        var action = ListenerReconnector.ensureConnected(context)
+        var recovered = awaitConnection(RECOVERY_WAIT_MS)
+        if (!recovered && action == ReconnectAction.REQUEST_REBIND) {
+            // A killed listener ignores the rebind; escalate now rather than a period later.
+            // RECOVERY_WAIT_MS outlasts the reconnector's settle window, so this can toggle.
+            val escalated = ListenerReconnector.ensureConnected(context)
+            if (escalated != ReconnectAction.NONE) {
+                action = escalated
+                recovered = awaitConnection(RECOVERY_WAIT_MS)
+            }
+        }
         // The flag drives Home's "Reconnecting" state; after a silent kill it still says connected.
         prefs.setListenerConnected(NotificationListener.isConnected)
         if (!recovered) maybeAlert(context)

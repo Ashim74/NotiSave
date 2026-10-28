@@ -14,7 +14,8 @@ class ListenerReconnectorTest {
         isConnected: Boolean = false,
         lastAttemptAt: Long = 0L,
         lastForceToggleAt: Long = 0L,
-        now: Long = this.now
+        now: Long = this.now,
+        userInitiated: Boolean = false
     ) = nextReconnectAction(
         hasPermission = hasPermission,
         isConnected = isConnected,
@@ -22,7 +23,8 @@ class ListenerReconnectorTest {
         lastForceToggleAt = lastForceToggleAt,
         now = now,
         escalationWindowMs = window,
-        forceToggleCooldownMs = cooldown
+        forceToggleCooldownMs = cooldown,
+        userInitiated = userInitiated
     )
 
     @Test
@@ -94,6 +96,24 @@ class ListenerReconnectorTest {
         assertEquals(
             ReconnectAction.REQUEST_REBIND,
             action(lastAttemptAt = 0L, lastForceToggleAt = now - 1)
+        )
+    }
+
+    // The Reconnect tap: the user sees a dead listener, so the settle wait is skipped.
+
+    @Test
+    fun `user tap right after a rebind escalates to a toggle`() {
+        assertEquals(
+            ReconnectAction.FORCE_TOGGLE,
+            action(lastAttemptAt = now - 1_000L, userInitiated = true)
+        )
+    }
+
+    @Test
+    fun `user tap still respects the toggle cooldown`() {
+        assertEquals(
+            ReconnectAction.REQUEST_REBIND,
+            action(lastAttemptAt = now - 1_000L, lastForceToggleAt = now - 60_000L, userInitiated = true)
         )
     }
 }

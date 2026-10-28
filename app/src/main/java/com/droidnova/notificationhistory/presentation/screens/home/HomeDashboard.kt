@@ -100,6 +100,7 @@ internal fun HomeDashboard(
     onTrash: () -> Unit,
     onBatteryAction: () -> Unit,
     onOemAction: () -> Unit,
+    onOpenSetup: () -> Unit,
     onReliabilityDone: (() -> Unit)?
 ) {
     val side = Modifier.padding(horizontal = Dimens.ScreenHorizontal)
@@ -139,6 +140,7 @@ internal fun HomeDashboard(
                     oemStepText = oemStepText,
                     onBatteryAction = onBatteryAction,
                     onOemAction = onOemAction,
+                    onOpenSetup = onOpenSetup,
                     onDone = onReliabilityDone
                 )
             }
@@ -343,6 +345,7 @@ private fun ReliabilityCard(
     @StringRes oemStepText: Int,
     onBatteryAction: () -> Unit,
     onOemAction: () -> Unit,
+    onOpenSetup: () -> Unit,
     onDone: (() -> Unit)?
 ) {
     AppCard(
@@ -372,12 +375,15 @@ private fun ReliabilityCard(
                 action = stringResource(R.string.reliability_open),
                 onAction = onOemAction
             )
-            if (onDone != null) {
-                TextButton(onClick = onDone, modifier = Modifier.align(Alignment.End)) {
-                    Text(stringResource(R.string.reliability_done))
+            Row(Modifier.align(Alignment.End)) {
+                TextButton(onClick = onOpenSetup) {
+                    Text(stringResource(R.string.reliability_setup_open))
                 }
-            } else {
-                Spacer(Modifier.height(10.dp))
+                if (onDone != null) {
+                    TextButton(onClick = onDone) {
+                        Text(stringResource(R.string.reliability_done))
+                    }
+                }
             }
         }
     }

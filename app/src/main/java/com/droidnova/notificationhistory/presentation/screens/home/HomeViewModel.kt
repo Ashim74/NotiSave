@@ -84,6 +84,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Starts true for the same reason: the setup must not open before the stored flag loads.
+    val reliabilitySetupShown: StateFlow<Boolean> = prefs.reliabilitySetupShown
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun markReliabilitySetupShown() {
+        viewModelScope.launch {
+            runCatching { prefs.markReliabilitySetupShown() }.onFailure(CrashReporter::record)
+        }
+    }
+
     private companion object {
         fun startOfTodayMillis(): Long {
             val zone = ZoneId.systemDefault()

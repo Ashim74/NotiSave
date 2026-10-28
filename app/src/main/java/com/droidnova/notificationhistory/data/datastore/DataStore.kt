@@ -121,6 +121,14 @@ class UserPreferences(private val context: Context) {
         context.dataStore.edit { it[DataStoreKeys.OEM_GUIDANCE_DISMISSED] = true }
     }
 
+    val reliabilitySetupShown: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[DataStoreKeys.RELIABILITY_SETUP_SHOWN] ?: false
+    }
+
+    suspend fun markReliabilitySetupShown() {
+        context.dataStore.edit { it[DataStoreKeys.RELIABILITY_SETUP_SHOWN] = true }
+    }
+
     /**
      * The flag is written by the onboarding flow (added in 0.20) and, for users upgrading from
      * older versions, by [incrementLaunchCount] at startup: anyone who already selected apps or
