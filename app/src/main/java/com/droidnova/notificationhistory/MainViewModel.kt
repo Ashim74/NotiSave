@@ -857,6 +857,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun loadOlderConversationMessages(conversationKey: String) =
         conversations.loadOlderMessages(conversationKey)
 
+    /** Loaded eagerly so it is known long before anyone can tap Reply. */
+    val replyNoticeShown: StateFlow<Boolean> =
+        userPrefs.replyNoticeShown.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun markReplyNoticeShown() {
+        viewModelScope.launch { userPrefs.markReplyNoticeShown() }
+    }
+
     /** The live reply action for [conversationKey]; null once its notification is gone. */
     fun conversationReplyTarget(conversationKey: String): Flow<ReplyTarget?> =
         ReplyTargetStore.observe(conversationKey)

@@ -23,6 +23,7 @@ object DataStoreKeys {
 
     /** The "Keep capture running" setup opened on its own once; later it's reached from Home. */
     val RELIABILITY_SETUP_SHOWN = booleanPreferencesKey("reliability_setup_shown")
+    val REPLY_NOTICE_SHOWN = booleanPreferencesKey("reply_notice_shown")
     const val FILTERS_PREFIX = "filters_"
     /** Per-app "never save if it contains" words (Premium). */
     const val BLOCK_PREFIX = "block_"

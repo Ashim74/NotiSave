@@ -125,6 +125,7 @@ import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
 import com.droidnova.notificationhistory.presentation.components.fitToWidth
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.presentation.screens.conversations.ConversationListContent
+import com.droidnova.notificationhistory.presentation.screens.conversations.rememberOpenChatToReply
 import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
 import com.droidnova.notificationhistory.presentation.ui.theme.ScreenListContentPadding
 import com.droidnova.notificationhistory.presentation.ui.theme.listItemPadding
@@ -166,6 +167,7 @@ fun HistoryScreen(
     var showCustomDateRange by remember { mutableStateOf(false) }
     var view by rememberSaveable { mutableStateOf(HistoryView.All) }
     var selectedNotification by remember { mutableStateOf<NotificationModel?>(null) }
+    val openChatToReply = rememberOpenChatToReply(mainViewmodel, navController)
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf(historyFilters.searchQuery) }
@@ -446,8 +448,8 @@ fun HistoryScreen(
             onDismiss = { selectedNotification = null },
             onReply = notification.conversationKey?.let { key ->
                 {
-                    navController.navigate(Screens.ConversationDetail.createRoute(key))
                     selectedNotification = null
+                    openChatToReply(key)
                 }
             }
         )

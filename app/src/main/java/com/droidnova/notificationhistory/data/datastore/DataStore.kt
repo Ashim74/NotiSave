@@ -129,6 +129,15 @@ class UserPreferences(private val context: Context) {
         context.dataStore.edit { it[DataStoreKeys.RELIABILITY_SETUP_SHOWN] = true }
     }
 
+    /** True once the user acknowledged that in-app reply is new and may not work everywhere. */
+    val replyNoticeShown: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[DataStoreKeys.REPLY_NOTICE_SHOWN] ?: false
+    }
+
+    suspend fun markReplyNoticeShown() {
+        context.dataStore.edit { it[DataStoreKeys.REPLY_NOTICE_SHOWN] = true }
+    }
+
     /**
      * The flag is written by the onboarding flow (added in 0.20) and, for users upgrading from
      * older versions, by [incrementLaunchCount] at startup: anyone who already selected apps or
