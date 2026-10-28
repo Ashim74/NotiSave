@@ -119,13 +119,7 @@ class NotificationDaoTest {
     }
 
     @Test
-    fun recentActiveIsNewestFirstAndBounded() = runBlocking {
-        repeat(8) { i -> insert("com.a", "n$i", receivedAt = i.toLong()) }
-        val recent = dao.observeRecentActive(limit = 5, excludedPackages = emptyList()).first()
-        assertEquals(listOf("n7", "n6", "n5", "n4", "n3"), recent.map { it.title })
-    }
-    @Test
-    fun hiddenAppsLeaveHistoryRecentAndTopApps() = runBlocking {
+    fun hiddenAppsLeaveHistoryAndTopApps() = runBlocking {
         insert("com.a", "visible", 100)
         insert("com.secret", "hidden", 200)
         insert("com.secret", "hidden again", 300)
@@ -136,10 +130,6 @@ class NotificationDaoTest {
             cursorReceivedAt = null, cursorId = null, limit = 10
         )
         assertEquals(listOf("visible"), page.map { it.title })
-        assertEquals(
-            listOf("visible"),
-            dao.observeRecentActive(limit = 5, excludedPackages = listOf("com.secret")).first().map { it.title }
-        )
         assertEquals(
             listOf("com.a"),
             dao.observeTopApps(0, Long.MAX_VALUE, 5, listOf("com.secret")).first().map { it.packageName }

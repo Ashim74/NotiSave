@@ -117,13 +117,6 @@ interface NotificationDao {
     @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC, id DESC LIMIT 1")
     fun observeLatestNotification(): Flow<NotificationEntity?>
 
-    /** Newest active rows for the Home preview; bounded so it stays cheap to observe. */
-    @Query(
-        "SELECT * FROM apps WHERE isTrashed = 0 AND packageName NOT IN (:excludedPackages) " +
-            "ORDER BY receivedAt DESC, id DESC LIMIT :limit"
-    )
-    fun observeRecentActive(limit: Int, excludedPackages: List<String>): Flow<List<NotificationEntity>>
-
     @Query(
         """
         SELECT * FROM apps AS summary

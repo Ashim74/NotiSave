@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -55,24 +54,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.droidnova.notificationhistory.R
-import com.droidnova.notificationhistory.data.model.NotificationModel
 import com.droidnova.notificationhistory.data_shared.SettingState
 import com.droidnova.notificationhistory.presentation.components.AnimatedText
 import com.droidnova.notificationhistory.presentation.components.AppCard
 import com.droidnova.notificationhistory.presentation.components.AppCardDefaults
-import com.droidnova.notificationhistory.presentation.components.EmptyState
-import com.droidnova.notificationhistory.presentation.components.GroupRowGap
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
 import com.droidnova.notificationhistory.presentation.components.IconBadge
 import com.droidnova.notificationhistory.presentation.components.ListRow
 import com.droidnova.notificationhistory.presentation.components.ProBadge
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.ui.res.pluralStringResource
-import com.droidnova.notificationhistory.presentation.components.NotificationHistoryCard
 import com.droidnova.notificationhistory.presentation.components.SectionHeader
 import com.droidnova.notificationhistory.presentation.components.appearIn
 import com.droidnova.notificationhistory.presentation.components.fitToWidth
-import com.droidnova.notificationhistory.presentation.components.groupedShape
 import com.droidnova.notificationhistory.presentation.components.pulsing
 import com.droidnova.notificationhistory.presentation.ui.theme.AccentColors
 import com.droidnova.notificationhistory.presentation.ui.theme.Dimens
@@ -83,7 +77,7 @@ private enum class CaptureState { Recording, Paused, Reconnecting, AccessNeeded 
 /**
  * Home, top to bottom, laid out like Secret Calculator's vault home: a status card with the
  * switch, any one-line warnings, today's numbers as three tiles, four shortcut tiles, then the
- * most recent notifications as one grouped block.
+ * deleted-messages row. Saved notifications themselves live in History, not here.
  */
 @Composable
 internal fun HomeDashboard(
@@ -92,7 +86,6 @@ internal fun HomeDashboard(
     hasPermission: Boolean,
     listenerConnected: Boolean,
     todaySummary: HomeTodaySummary,
-    recentNotifications: List<NotificationModel>,
     showBatteryWarning: Boolean,
     @StringRes oemStepText: Int?,
     deletedCount: Int,
@@ -107,8 +100,7 @@ internal fun HomeDashboard(
     onTrash: () -> Unit,
     onBatteryAction: () -> Unit,
     onOemAction: () -> Unit,
-    onReliabilityDone: (() -> Unit)?,
-    onNotificationClick: (NotificationModel) -> Unit
+    onReliabilityDone: (() -> Unit)?
 ) {
     val side = Modifier.padding(horizontal = Dimens.ScreenHorizontal)
     val noAppsSelected = state.userToggleTracking && state.selectedAppsCount == 0
@@ -197,49 +189,6 @@ internal fun HomeDashboard(
             )
         }
 
-        item(key = "recent-header") {
-            Row(
-                modifier = side
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SectionHeader(
-                    text = stringResource(R.string.home_recent_section),
-                    modifier = Modifier.weight(1f),
-                    first = true
-                )
-                if (recentNotifications.isNotEmpty()) {
-                    TextButton(onClick = onSeeAllHistory) {
-                        Text(stringResource(R.string.home_see_all))
-                    }
-                } else {
-                    Spacer(Modifier.height(40.dp))
-                }
-            }
-        }
-        if (recentNotifications.isEmpty()) {
-            item(key = "recent-empty") {
-                EmptyState(
-                    modifier = side,
-                    icon = Icons.Outlined.Notifications,
-                    title = stringResource(R.string.home_recent_empty_title)
-                )
-            }
-        } else {
-            itemsIndexed(recentNotifications, key = { _, item -> item.id }) { index, notification ->
-                NotificationHistoryCard(
-                    modifier = Modifier
-                        .animateItem()
-                        .appearIn(6 + index),
-                    notification = notification,
-                    searchQuery = "",
-                    onClick = { onNotificationClick(notification) },
-                    shape = groupedShape(index, recentNotifications.size),
-                    spacing = GroupRowGap
-                )
-            }
-        }
     }
 }
 
