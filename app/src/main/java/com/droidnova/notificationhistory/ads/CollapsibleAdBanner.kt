@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,7 +43,11 @@ import com.google.android.gms.ads.LoadAdError
 fun CollapsibleAdBanner(
     modifier: Modifier = Modifier,
     collapsiblePlacement: String = "bottom", // "bottom" or "top"
+    /** Reports the space the banner takes (0 while nothing is loaded or it is gone). */
+    onHeightChange: (Dp) -> Unit = {},
 ) {
+    val currentOnHeightChange by rememberUpdatedState(onHeightChange)
+    DisposableEffect(Unit) { onDispose { currentOnHeightChange(0.dp) } }
     val context = LocalContext.current
     val adsReady by remember { AdsConsentManager.getInstance(context) }.adsReady.collectAsState()
     if (!adsReady) return
@@ -56,6 +64,7 @@ fun CollapsibleAdBanner(
 
     var adHeightPx by remember { mutableIntStateOf(0) }
     val adHeightDp = with(density) { adHeightPx.toDp() }
+    LaunchedEffect(adHeightDp) { currentOnHeightChange(adHeightDp) }
 
     val adView = remember(adSize) {
         AdView(context).apply {
