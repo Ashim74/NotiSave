@@ -322,6 +322,7 @@ class NotificationListener : NotificationListenerService() {
             }
             // Anything at or before the newest saved row of this thread was already captured.
             if (latestSaved != null && receivedAt <= latestSaved) return@forEach
+            if (isOwnReplyEcho(dao, row.conversationKey, message.text, receivedAt)) return@forEach
             val fingerprint = message.fingerprint()
             if (dao.hasSameContentBetween(
                     packageName = row.packageName,
@@ -416,9 +417,23 @@ class NotificationListener : NotificationListenerService() {
                 to = Long.MAX_VALUE
             )
         ) return
+        if (isOwnReplyEcho(dao, row.conversationKey, row.message, now)) return
         dao.insertApp(row)
         outcome.saved += row
     }
+
+    /** True when [text] is a reply this app just sent into the chat, echoed back by the chat app. */
+    private suspend fun isOwnReplyEcho(
+        dao: NotificationDao,
+        conversationKey: String?,
+        text: String,
+        at: Long
+    ): Boolean = conversationKey != null && dao.hasOwnReplyBetween(
+        conversationKey = conversationKey,
+        message = text,
+        from = at - OWN_REPLY_ECHO_WINDOW_MS,
+        to = at + OWN_REPLY_ECHO_WINDOW_MS
+    )
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         sbn.key?.let(activeContent::onRemoved)
@@ -488,6 +503,7 @@ class NotificationListener : NotificationListenerService() {
 
         private val KEY_DEDUPE_WINDOW_MS = TimeUnit.HOURS.toMillis(24)
         private val CONTENT_DEDUPE_WINDOW_MS = TimeUnit.MINUTES.toMillis(5)
+        private val OWN_REPLY_ECHO_WINDOW_MS = TimeUnit.MINUTES.toMillis(2)
         private val SUMMARY_SETTLE_MS = TimeUnit.SECONDS.toMillis(2)
         private val RETENTION_CLEANUP_INTERVAL_MS = TimeUnit.HOURS.toMillis(6)
         private val DISCONNECT_ALERT_DELAY_MS = TimeUnit.SECONDS.toMillis(45)

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -37,6 +38,29 @@ class NotificationDaoTest {
         dao.insertApp(
             NotificationEntity(packageName = pkg, title = title, message = "m", receivedAt = receivedAt)
         )
+    }
+
+    @Test
+    fun ownReplyIsFoundOnlyForKeylessRowsOfThatChat() = runBlocking {
+        val chat = "com.whatsapp|s:alice"
+        dao.insertApp(
+            NotificationEntity(
+                packageName = "com.whatsapp", title = "You", message = "On my way",
+                receivedAt = 1_000, conversationKey = chat
+            )
+        )
+        // The contact saying the same words is a captured row (with a key), never an echo.
+        dao.insertApp(
+            NotificationEntity(
+                packageName = "com.whatsapp", title = "Alice", message = "Same here",
+                receivedAt = 1_000, notificationKey = "k", conversationKey = chat
+            )
+        )
+
+        assertTrue(dao.hasOwnReplyBetween(chat, "On my way", from = 900, to = 1_100))
+        assertFalse(dao.hasOwnReplyBetween(chat, "On my way", from = 1_001, to = 2_000))
+        assertFalse(dao.hasOwnReplyBetween("com.whatsapp|s:bob", "On my way", from = 900, to = 1_100))
+        assertFalse(dao.hasOwnReplyBetween(chat, "Same here", from = 900, to = 1_100))
     }
 
     @Test

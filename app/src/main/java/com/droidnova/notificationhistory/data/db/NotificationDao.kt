@@ -69,6 +69,29 @@ interface NotificationDao {
         to: Long
     ): Boolean
 
+    /**
+     * A reply sent from the conversation screen (saved without a key) with this text. Chat apps
+     * echo a sent reply back in their re-posted thread; that echo must not be saved twice.
+     */
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM apps
+            WHERE conversationKey = :conversationKey
+              AND notificationKey IS NULL
+              AND message = :message
+              AND receivedAt BETWEEN :from AND :to
+            LIMIT 1
+        )
+        """
+    )
+    suspend fun hasOwnReplyBetween(
+        conversationKey: String,
+        message: String,
+        from: Long,
+        to: Long
+    ): Boolean
+
     @Query("SELECT * FROM apps WHERE isTrashed = 0 ORDER BY receivedAt DESC")
     suspend fun getAllApps(): List<NotificationEntity>
 
