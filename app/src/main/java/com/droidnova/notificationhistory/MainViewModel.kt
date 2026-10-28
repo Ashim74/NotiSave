@@ -870,7 +870,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (reply.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             val target = ReplyTargetStore.get(conversationKey)
-            val sent = target != null && runCatching {
+            if (target == null) {
+                withContext(Dispatchers.Main) { onResult(false) }
+                return@launch
+            }
+            // Saved before sending: the chat app echoes the reply back in its re-posted thread
+            // within a second, and the listener only recognises the echo once this row exists.
+            val savedId = runCatching {
+                dao.insertApp(
+                    NotificationEntity(
+                        packageName = target.packageName,
+                        title = getApplication<Application>().getString(R.string.conversation_reply_you),
+                        message = reply,
+                        receivedAt = System.currentTimeMillis(),
+                        // No key or fingerprint: dedupe must never hide the contact's next message.
+                        notificationKey = null,
+                        contentFingerprint = null,
+                        conversationKey = conversationKey,
+                        conversationName = target.conversationName
+                    )
+                )
+            }.onFailure(CrashReporter::record).getOrNull()
+
+            val sent = runCatching {
                 sendReply(target, reply)
                 true
             }.onFailure { error ->
@@ -878,23 +900,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (error !is PendingIntent.CanceledException) CrashReporter.record(error)
             }.getOrDefault(false)
 
-            if (target != null && sent) {
-                runCatching {
-                    dao.insertApp(
-                        NotificationEntity(
-                            packageName = target.packageName,
-                            title = getApplication<Application>().getString(R.string.conversation_reply_you),
-                            message = reply,
-                            receivedAt = System.currentTimeMillis(),
-                            // No key or fingerprint: dedupe must never hide the contact's next message.
-                            notificationKey = null,
-                            contentFingerprint = null,
-                            conversationKey = conversationKey,
-                            conversationName = target.conversationName
-                        )
-                    )
-                }.onFailure(CrashReporter::record)
-            } else if (target != null) {
+            if (!sent) {
+                savedId?.let { id -> runCatching { dao.deleteById(id) }.onFailure(CrashReporter::record) }
                 ReplyTargetStore.forget(conversationKey, target.notificationKey)
             }
             withContext(Dispatchers.Main) { onResult(sent) }

@@ -14,7 +14,11 @@ interface NotificationDao {
     suspend fun getAppByPackage(packageName: String): NotificationEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertApp(app: NotificationEntity)
+    suspend fun insertApp(app: NotificationEntity): Long
+
+    /** Removes a row outright; used to undo a reply that was saved but could not be sent. */
+    @Query("DELETE FROM apps WHERE id = :notificationId")
+    suspend fun deleteById(notificationId: Long): Int
 
     @Query(
         """
