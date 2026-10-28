@@ -415,6 +415,7 @@ Find “Notification History” → Turn ON access.
     <string name="lock_feature_pin">PIN</string>
     <string name="lock_feature_fingerprint">Fingerprint</string>
     <string name="lock_feature_recovery">Recovery</string>
+    <string name="hist_action_reply">Reply</string>
     <string name="hist_action_details">Details</string>
     <string name="hist_action_open">Open</string>
     <string name="hist_action_trash">Trash</string>

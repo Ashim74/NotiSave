@@ -443,7 +443,13 @@ fun HistoryScreen(
                 showDeleteConfirmDialog = notification
                 selectedNotification = null
             },
-            onDismiss = { selectedNotification = null }
+            onDismiss = { selectedNotification = null },
+            onReply = notification.conversationKey?.let { key ->
+                {
+                    navController.navigate(Screens.ConversationDetail.createRoute(key))
+                    selectedNotification = null
+                }
+            }
         )
     }
 }//historyScreen

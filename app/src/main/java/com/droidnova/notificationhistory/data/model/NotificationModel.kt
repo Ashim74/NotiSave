@@ -12,5 +12,7 @@ data class NotificationModel(
     val isTrashed: Boolean = false,
     val trashedAtEpoch: Long? = null,
     /** When the sender deleted it; null while the message stands. */
-    val deletedAtEpoch: Long? = null
+    val deletedAtEpoch: Long? = null,
+    /** The chat this message belongs to; null for non-messaging notifications. */
+    val conversationKey: String? = null
 )

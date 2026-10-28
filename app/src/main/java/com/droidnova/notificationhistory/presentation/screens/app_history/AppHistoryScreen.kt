@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.clip
 import com.droidnova.notificationhistory.presentation.components.EmptyState
+import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.presentation.components.HeaderButton
 import com.droidnova.notificationhistory.presentation.components.HistoryAppIcon
 import com.droidnova.notificationhistory.presentation.components.tintedCardColor
@@ -373,7 +374,13 @@ fun AppHistoryScreen(
                 showDeleteConfirmDialog = notification
                 selectedNotification = null
             },
-            onDismiss = { selectedNotification = null }
+            onDismiss = { selectedNotification = null },
+            onReply = notification.conversationKey?.let { key ->
+                {
+                    navController.navigate(Screens.ConversationDetail.createRoute(key))
+                    selectedNotification = null
+                }
+            }
         )
     }
 }

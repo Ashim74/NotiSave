@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Info
@@ -29,6 +30,8 @@ fun NotificationActionSheet(
     onShare: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
+    /** Opens the chat to reply from; null hides the action (not a chat message, or already there). */
+    onReply: (() -> Unit)? = null,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Row(
@@ -38,40 +41,50 @@ fun NotificationActionSheet(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             val tile = Modifier.weight(1f)
+            val offset = if (onReply != null) 1 else 0
+            if (onReply != null) {
+                ActionTile(
+                    icon = Icons.AutoMirrored.Outlined.Reply,
+                    label = stringResource(R.string.hist_action_reply),
+                    onClick = onReply,
+                    accent = AccentColors.Teal,
+                    modifier = tile.appearIn(0)
+                )
+            }
             ActionTile(
                 icon = Icons.Outlined.Info,
                 label = stringResource(R.string.hist_action_details),
                 onClick = onViewDetails,
                 accent = AccentColors.Blue,
-                modifier = tile.appearIn(0)
+                modifier = tile.appearIn(offset)
             )
             ActionTile(
                 icon = Icons.AutoMirrored.Outlined.OpenInNew,
                 label = stringResource(R.string.hist_action_open),
                 onClick = onOpenApp,
                 accent = AccentColors.Teal,
-                modifier = tile.appearIn(1)
+                modifier = tile.appearIn(offset + 1)
             )
             ActionTile(
                 icon = Icons.Outlined.ContentCopy,
                 label = stringResource(R.string.content_description_copy),
                 onClick = onCopy,
                 accent = AccentColors.Purple,
-                modifier = tile.appearIn(2)
+                modifier = tile.appearIn(offset + 2)
             )
             ActionTile(
                 icon = Icons.Outlined.Share,
                 label = stringResource(R.string.content_description_share),
                 onClick = onShare,
                 accent = AccentColors.Green,
-                modifier = tile.appearIn(3)
+                modifier = tile.appearIn(offset + 3)
             )
             ActionTile(
                 icon = Icons.Outlined.DeleteOutline,
                 label = stringResource(R.string.hist_action_trash),
                 onClick = onDelete,
                 destructive = true,
-                modifier = tile.appearIn(4)
+                modifier = tile.appearIn(offset + 4)
             )
         }
     }
