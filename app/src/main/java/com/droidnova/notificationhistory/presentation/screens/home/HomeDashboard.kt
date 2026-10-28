@@ -1,5 +1,6 @@
 package com.droidnova.notificationhistory.presentation.screens.home
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
@@ -38,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -85,6 +87,7 @@ internal fun HomeDashboard(
     listenerConnected: Boolean,
     todaySummary: HomeTodaySummary,
     showBatteryWarning: Boolean,
+    @StringRes oemStepText: Int?,
     deletedCount: Int,
     isPremium: Boolean,
     onDeletedMessages: () -> Unit,
@@ -95,7 +98,10 @@ internal fun HomeDashboard(
     onManageApps: () -> Unit,
     onInsights: () -> Unit,
     onTrash: () -> Unit,
-    onBatteryAction: () -> Unit
+    onBatteryAction: () -> Unit,
+    onOemAction: () -> Unit,
+    onOpenSetup: () -> Unit,
+    onReliabilityDone: (() -> Unit)?
 ) {
     val side = Modifier.padding(horizontal = Dimens.ScreenHorizontal)
     val noAppsSelected = state.userToggleTracking && state.selectedAppsCount == 0
@@ -126,7 +132,19 @@ internal fun HomeDashboard(
                 )
             }
         }
-        if (showBatteryWarning) {
+        if (oemStepText != null) {
+            item(key = "battery") {
+                ReliabilityCard(
+                    modifier = Modifier.animateItem().then(side).padding(top = 8.dp),
+                    showBatteryStep = showBatteryWarning,
+                    oemStepText = oemStepText,
+                    onBatteryAction = onBatteryAction,
+                    onOemAction = onOemAction,
+                    onOpenSetup = onOpenSetup,
+                    onDone = onReliabilityDone
+                )
+            }
+        } else if (showBatteryWarning) {
             item(key = "battery") {
                 WarningRow(
                     modifier = Modifier.animateItem().then(side).padding(top = 8.dp),
@@ -312,6 +330,79 @@ private fun WarningRow(
             )
             FilledTonalButton(onClick = onAction) { Text(action) }
         }
+    }
+}
+
+/**
+ * [WarningRow] grown into a checklist when this phone's maker needs an extra step. Done only
+ * dismisses that step: while battery optimization is still on, its row keeps the card up.
+ * [onDone] is null when the step is back after Done because capture is down.
+ */
+@Composable
+private fun ReliabilityCard(
+    modifier: Modifier,
+    showBatteryStep: Boolean,
+    @StringRes oemStepText: Int,
+    onBatteryAction: () -> Unit,
+    onOemAction: () -> Unit,
+    onOpenSetup: () -> Unit,
+    onDone: (() -> Unit)?
+) {
+    AppCard(
+        modifier = modifier.fillMaxWidth(),
+        colors = AppCardDefaults.colors(
+            containerColor = AccentColors.Amber.copy(alpha = 0.16f)
+        )
+    ) {
+        Column(Modifier.padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 2.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(Icons.Default.BatteryAlert, accent = AccentColors.Amber, size = 34.dp)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.battery_warning_title),
+                    style = MaterialTheme.typography.titleSmall
+                )
+            }
+            if (showBatteryStep) {
+                ReliabilityStep(
+                    text = stringResource(R.string.reliability_step_battery),
+                    action = stringResource(R.string.fix),
+                    onAction = onBatteryAction
+                )
+            }
+            ReliabilityStep(
+                text = stringResource(oemStepText),
+                action = stringResource(R.string.reliability_open),
+                onAction = onOemAction
+            )
+            Row(Modifier.align(Alignment.End)) {
+                TextButton(onClick = onOpenSetup) {
+                    Text(stringResource(R.string.reliability_setup_open))
+                }
+                if (onDone != null) {
+                    TextButton(onClick = onDone) {
+                        Text(stringResource(R.string.reliability_done))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReliabilityStep(text: String, action: String, onAction: () -> Unit) {
+    Row(
+        modifier = Modifier.padding(start = 46.dp, top = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(8.dp))
+        FilledTonalButton(onClick = onAction) { Text(action) }
     }
 }
 

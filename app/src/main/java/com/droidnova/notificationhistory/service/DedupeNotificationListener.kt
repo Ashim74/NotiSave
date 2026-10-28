@@ -23,6 +23,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -120,7 +123,8 @@ class NotificationListener : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         isConnected = true
-        ListenerReconnector.notifyConnected()
+        ListenerReconnector.notifyConnected(applicationContext)
+        ListenerWatchdog.schedule(applicationContext)
         mainHandler.removeCallbacks(disconnectAlert)
         ListenerAlerts.cancel(applicationContext)
         CrashReporter.setCustomKey("listener_connected", true)
@@ -132,10 +136,11 @@ class NotificationListener : NotificationListenerService() {
         isConnected = false
         CrashReporter.setCustomKey("listener_connected", false)
         persistConnectedState(false)
-        // Gentle recovery attempt; ListenerReconnector escalates from the UI if this fails.
+        // Gentle recovery attempt; the watchdog escalates in the background if this fails.
         runCatching {
             requestRebind(ComponentName(this, NotificationListener::class.java))
         }.onFailure(CrashReporter::record)
+        ListenerWatchdog.checkSoon(applicationContext, WATCHDOG_CHECK_DELAY_MS)
         mainHandler.removeCallbacks(disconnectAlert)
         mainHandler.postDelayed(disconnectAlert, DISCONNECT_ALERT_DELAY_MS)
     }
@@ -435,8 +440,16 @@ class NotificationListener : NotificationListenerService() {
          * Live binding state, readable from the UI process (the listener runs in the
          * default app process). False also while the service has never been created.
          */
-        @Volatile var isConnected: Boolean = false
-            private set
+        var isConnected: Boolean
+            get() = connectedState.value
+            private set(value) {
+                connectedState.value = value
+            }
+
+        private val connectedState = MutableStateFlow(false)
+
+        /** [isConnected] as a flow, so the UI follows connects and drops while it is open. */
+        val connected: StateFlow<Boolean> = connectedState.asStateFlow()
 
         /** Last known user toggle, readable by the delayed alert after the instance is gone. */
         @Volatile private var trackingEnabledSnapshot: Boolean = true
@@ -446,6 +459,7 @@ class NotificationListener : NotificationListenerService() {
         private val SUMMARY_SETTLE_MS = TimeUnit.SECONDS.toMillis(2)
         private val RETENTION_CLEANUP_INTERVAL_MS = TimeUnit.HOURS.toMillis(6)
         private val DISCONNECT_ALERT_DELAY_MS = TimeUnit.SECONDS.toMillis(45)
+        private val WATCHDOG_CHECK_DELAY_MS = TimeUnit.SECONDS.toMillis(30)
     }
 }
 

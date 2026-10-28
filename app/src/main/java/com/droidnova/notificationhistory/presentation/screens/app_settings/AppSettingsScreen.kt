@@ -103,6 +103,7 @@ import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
 import com.droidnova.notificationhistory.presentation.components.SectionHeader
 import com.droidnova.notificationhistory.presentation.components.appearIn
 import com.droidnova.notificationhistory.presentation.components.pulsing
+import com.droidnova.notificationhistory.presentation.components.oemReliabilityStep
 import com.droidnova.notificationhistory.presentation.components.rememberBatteryOptimizationState
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
@@ -137,6 +138,7 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
         ?.firstOrNull()
         ?.formattedPrice
     val batteryOptimization = rememberBatteryOptimizationState()
+    val oemStep = remember { oemReliabilityStep(context) }
     var showClearConfirmation by remember { mutableStateOf(false) }
     var showPurchaseSheet by remember { mutableStateOf(false) }
     val consentManager = remember { AdsConsentManager.getInstance(context) }
@@ -351,6 +353,16 @@ fun AppSettingsScreen(mainViewModel: MainViewModel, navController: NavController
                         },
                         onClick = if (batteryOptimization.isIgnored) null else batteryOptimization.requestExemption
                     )
+                    // Stays here after Home's reliability card is dismissed.
+                    oemStep?.let { step ->
+                        SettingRow(
+                            icon = Icons.Outlined.BatteryAlert,
+                            accent = AccentColors.Amber,
+                            title = stringResource(R.string.settings_background_activity),
+                            value = stringResource(R.string.settings_background_activity_value),
+                            onClick = { step.open(context) }
+                        )
+                    }
                 }
             }
 

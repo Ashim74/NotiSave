@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -42,6 +43,9 @@ import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
 import com.droidnova.notificationhistory.presentation.components.NotificationPermissionBottomSheet
 import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
 import com.droidnova.notificationhistory.presentation.components.HeaderButton
+import com.droidnova.notificationhistory.presentation.components.oemReliabilityStep
+import com.droidnova.notificationhistory.presentation.components.shouldShowOemStep
+import com.droidnova.notificationhistory.presentation.screens.reliability.reliabilitySetupPending
 import com.droidnova.notificationhistory.presentation.components.rememberBatteryOptimizationState
 import com.droidnova.notificationhistory.presentation.components.openNotificationAccessSettings
 import com.droidnova.notificationhistory.presentation.dialogs.PremiumPurchaseBottomSheet
@@ -49,6 +53,7 @@ import com.droidnova.notificationhistory.presentation.dialogs.PremiumWelcomeDial
 import com.droidnova.notificationhistory.presentation.navigation.Screens
 import com.droidnova.notificationhistory.presentation.navigation.navigateToTab
 import com.droidnova.notificationhistory.service.ListenerReconnector
+import com.droidnova.notificationhistory.service.ListenerWatchdog
 import com.droidnova.notificationhistory.utils.Analytics
 import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import kotlinx.coroutines.launch
@@ -81,6 +86,10 @@ fun HomeScreen(
     var showPurchaseSheet by remember { mutableStateOf(false) }
     var showPermissionSheet by remember { mutableStateOf(false) }
     val batteryOptimization = rememberBatteryOptimizationState()
+    val oemStep = remember { oemReliabilityStep(context) }
+    val oemGuidanceDismissed by homeViewModel.oemGuidanceDismissed.collectAsState()
+    val reliabilitySetupShown by homeViewModel.reliabilitySetupShown.collectAsState()
+    var autoOpenedSetup by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val permissionSheetState = rememberModalBottomSheetState(
@@ -96,6 +105,21 @@ fun HomeScreen(
         billingManager?.errors?.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
     }
     LaunchedEffect(isPremium) { if (isPremium) showPurchaseSheet = false }
+    // Once capture is set up (access granted, apps picked), walk the user through what keeps it
+    // alive in the background. Only once; Home's reliability card leads back afterwards.
+    val setupPending = reliabilitySetupPending(
+        batteryIgnored = batteryOptimization.isIgnored,
+        hasOemStep = oemStep != null,
+        oemConfirmed = oemGuidanceDismissed
+    )
+    val captureReady = hasPermission && state.userToggleTracking && state.selectedAppsCount > 0
+    LaunchedEffect(reliabilitySetupShown, captureReady, setupPending) {
+        if (!reliabilitySetupShown && !autoOpenedSetup && captureReady && setupPending) {
+            autoOpenedSetup = true
+            homeViewModel.markReliabilitySetupShown()
+            navController.navigate(Screens.ReliabilitySetup.route)
+        }
+    }
     LaunchedEffect(viewmodel.events) {
         viewmodel.events.collect { event ->
             when (event) {
@@ -162,6 +186,14 @@ fun HomeScreen(
             listenerConnected = listenerConnected,
             todaySummary = todaySummary,
             showBatteryWarning = !batteryOptimization.isIgnored,
+            oemStepText = oemStep?.textRes?.takeIf {
+                shouldShowOemStep(
+                    hasStep = true,
+                    dismissed = oemGuidanceDismissed,
+                    captureExpected = state.userToggleTracking && hasPermission,
+                    listenerConnected = listenerConnected
+                )
+            },
             deletedCount = deletedMessages?.size ?: 0,
             isPremium = isPremium,
             onDeletedMessages = { navController.navigate(Screens.DeletedMessages.route) },
@@ -173,12 +205,19 @@ fun HomeScreen(
                 }
             },
             onPermissionAction = { showPermissionSheet = true },
-            onReconnect = { ListenerReconnector.ensureConnected(context) },
+            onReconnect = {
+                val action = ListenerReconnector.ensureConnected(context, userInitiated = true)
+                ListenerWatchdog.followUp(context, action)
+            },
             onSeeAllHistory = { navController.navigateToTab(Screens.History.route) },
             onManageApps = { navController.navigate(Screens.ManageNotifications.route) },
             onInsights = { navController.navigateToTab(Screens.Insights.route) },
             onTrash = { navController.navigate(Screens.Trash.route) },
-            onBatteryAction = batteryOptimization.requestExemption
+            onBatteryAction = batteryOptimization.requestExemption,
+            onOemAction = { oemStep?.open(context) },
+            onOpenSetup = { navController.navigate(Screens.ReliabilitySetup.route) },
+            // Already dismissed: the step is back only because capture is down, so no Done.
+            onReliabilityDone = if (oemGuidanceDismissed) null else homeViewModel::dismissOemGuidance
         )
     }
 

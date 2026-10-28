@@ -18,6 +18,11 @@ object DataStoreKeys {
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val THEME_COLOR = stringPreferencesKey("theme_color")
     val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
+    /** The user tapped Done on the OEM step of Home's "Improve reliability" card. */
+    val OEM_GUIDANCE_DISMISSED = booleanPreferencesKey("oem_guidance_dismissed")
+
+    /** The "Keep capture running" setup opened on its own once; later it's reached from Home. */
+    val RELIABILITY_SETUP_SHOWN = booleanPreferencesKey("reliability_setup_shown")
     const val FILTERS_PREFIX = "filters_"
     /** Per-app "never save if it contains" words (Premium). */
     const val BLOCK_PREFIX = "block_"

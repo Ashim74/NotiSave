@@ -15,6 +15,8 @@ object Analytics {
     const val INSIGHTS_OPEN = "insights_open"
     const val RECONNECT_TAPPED = "reconnect_tapped"
     const val LISTENER_ALERT_SHOWN = "listener_alert_shown"
+    /** One background recovery attempt; params [PARAM_REASON], [PARAM_ACTION], [PARAM_RECOVERED]. */
+    const val LISTENER_WATCHDOG_RECOVERY = "listener_watchdog_recovery"
     const val APP_LOCK_ENABLED = "app_lock_enabled"
     const val APP_LOCK_DISABLED = "app_lock_disabled"
     const val APP_LOCK_CHANGED = "app_lock_changed"
@@ -26,6 +28,9 @@ object Analytics {
 
     // Event params. Never the PIN, its length or any hash.
     const val PARAM_METHOD = "method"
+    const val PARAM_REASON = "reason"
+    const val PARAM_ACTION = "action"
+    const val PARAM_RECOVERED = "recovered"
 
     @Volatile
     private var appContext: Context? = null
