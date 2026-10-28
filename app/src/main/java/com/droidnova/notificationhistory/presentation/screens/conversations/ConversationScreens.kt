@@ -75,6 +75,26 @@ import com.droidnova.notificationhistory.utils.about_utils.IntentUtil
 import com.droidnova.notificationhistory.utils.toReadableShareText
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -316,6 +336,29 @@ fun ConversationDetailScreen(
     var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf<NotificationModel?>(null) }
 
+    val replyTarget by remember(conversationKey) {
+        mainViewModel.conversationReplyTarget(conversationKey)
+    }.collectAsStateWithLifecycle(initialValue = null)
+    // Free for now; gating on Premium later only means adding `&& isPremium` here.
+    val canReply = replyTarget != null
+    var replyText by rememberSaveable(conversationKey) { mutableStateOf("") }
+    var isSending by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val sendFailedMessage = stringResource(R.string.conversation_reply_failed)
+    val outgoingTitle = stringResource(R.string.conversation_reply_you)
+    val sendReply = {
+        isSending = true
+        mainViewModel.sendConversationReply(conversationKey, replyText) { sent ->
+            isSending = false
+            if (sent) {
+                replyText = ""
+            } else {
+                scope.launch { snackbarHostState.showSnackbar(sendFailedMessage) }
+            }
+        }
+    }
+
     val canLoadOlder = !state.endReached && !state.isLoadingMore
     val currentCanLoadOlder by rememberUpdatedState(canLoadOlder)
     val currentRowCount by rememberUpdatedState(rows.size)
@@ -355,6 +398,16 @@ fun ConversationDetailScreen(
                 }
             )
         },
+        bottomBar = {
+            ReplyBar(
+                text = replyText,
+                onTextChange = { replyText = it },
+                enabled = canReply,
+                isSending = isSending,
+                onSend = sendReply
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(bottom = 4.dp)
     ) { innerPadding ->
@@ -380,6 +433,7 @@ fun ConversationDetailScreen(
                             is TimelineRow.Message -> TimelineMessage(
                                 notification = row.notification,
                                 conversationTitle = state.title,
+                                isOutgoing = row.notification.title == outgoingTitle,
                                 onClick = { selectedNotification = row.notification }
                             )
                         }
@@ -479,6 +533,7 @@ private fun TimelineDateHeader(date: LocalDate) {
 private fun TimelineMessage(
     notification: NotificationModel,
     conversationTitle: String,
+    isOutgoing: Boolean,
     onClick: () -> Unit
 ) {
     val time = remember(notification.receivedAtEpoch) {
@@ -488,23 +543,30 @@ private fun TimelineMessage(
     }
     // Only show the saved title when it adds information beyond the conversation name.
     val subtitle = notification.title.takeIf {
-        it.isNotBlank() && !it.startsWith(conversationTitle, ignoreCase = true)
+        !isOutgoing && it.isNotBlank() && !it.startsWith(conversationTitle, ignoreCase = true)
     }
     // A chat bubble: as wide as its text needs, sender on top, time tucked in the corner.
+    // Replies sent from here sit on the right with the corner mirrored, like a messaging app.
     val interaction = remember { MutableInteractionSource() }
-    val bubbleShape = RoundedCornerShape(topStart = 6.dp, topEnd = 20.dp, bottomEnd = 20.dp, bottomStart = 20.dp)
+    val bubbleShape = if (isOutgoing) {
+        RoundedCornerShape(topStart = 20.dp, topEnd = 6.dp, bottomEnd = 20.dp, bottomStart = 20.dp)
+    } else {
+        RoundedCornerShape(topStart = 6.dp, topEnd = 20.dp, bottomEnd = 20.dp, bottomStart = 20.dp)
+    }
+    val bubbleColor = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else tintedCardColor()
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Dimens.ScreenHorizontal, vertical = 3.dp)
-            .appearIn(0)
+            .appearIn(0),
+        horizontalArrangement = if (isOutgoing) Arrangement.End else Arrangement.Start
     ) {
         Column(
             modifier = Modifier
                 .widthIn(max = 320.dp)
                 .pressScale(interaction, 0.97f)
                 .clip(bubbleShape)
-                .background(tintedCardColor())
+                .background(bubbleColor)
                 .clickable(interactionSource = interaction, indication = ripple(), onClick = onClick)
                 .padding(horizontal = 12.dp, vertical = 7.dp)
         ) {
@@ -520,16 +582,84 @@ private fun TimelineMessage(
             }
             Text(
                 text = notification.text.ifBlank { notification.title },
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else Color.Unspecified
             )
             Text(
                 text = time,
                 modifier = Modifier.align(Alignment.End),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isOutgoing) {
+                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
         }
     }
+}
+
+/**
+ * Types a reply that goes out through the chat notification's own "Reply" action. Disabled
+ * while no such notification is shown, since there is then nothing to send through.
+ */
+@Composable
+private fun ReplyBar(
+    text: String,
+    onTextChange: (String) -> Unit,
+    enabled: Boolean,
+    isSending: Boolean,
+    onSend: () -> Unit
+) {
+    val canSend = enabled && !isSending && text.isNotBlank()
+    TextField(
+        value = text,
+        onValueChange = onTextChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .imePadding()
+            .navigationBarsPadding()
+            .padding(horizontal = Dimens.ScreenHorizontal, vertical = 8.dp),
+        enabled = enabled,
+        maxLines = 4,
+        shape = RoundedCornerShape(24.dp),
+        placeholder = {
+            Text(
+                text = stringResource(
+                    if (enabled) R.string.conversation_reply_hint else R.string.conversation_reply_unavailable
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Sentences,
+            imeAction = ImeAction.Send
+        ),
+        keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = tintedCardColor(),
+            unfocusedContainerColor = tintedCardColor(),
+            disabledContainerColor = tintedCardColor(),
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+        ),
+        trailingIcon = {
+            FilledIconButton(
+                onClick = onSend,
+                enabled = canSend,
+                modifier = Modifier.padding(end = 4.dp),
+                colors = IconButtonDefaults.filledIconButtonColors()
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Send,
+                    contentDescription = stringResource(R.string.conversation_reply_send)
+                )
+            }
+        }
+    )
 }
 
 private fun Long.toLocalDate(zoneId: ZoneId): LocalDate =
