@@ -91,7 +91,7 @@ Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 *The visible redesign. Fixes: U1, U4, U5, A5; plan §3.1–3.3.*
 
 - [x] Bottom navigation (`AppNavGraph`): Home / History / Insights / Settings via `NavigationBar`, `navigateToTab()` (single-top, per-tab state save/restore), fade for tab switches vs. slide for pushed screens, ad banner sits above the bar, back arrows removed from the three tab screens (U5)
-- [x] Home rebuild: `CaptureStatusCard` (Recording / Paused / Reconnecting / Access needed, with today's saved count), Today stat row (notifications, apps, top app → Insights), Manage-apps card, contextual warnings (no apps selected, battery), Recent preview (last 5 via new `HomeViewModel` + `observeRecentActive`) with "See all". **RateUsCard call, trigger and callbacks unchanged** — only wrapped in a `Box` to keep its 16 dp margin (plan §3.2)
+- [x] Home rebuild: `CaptureStatusCard` (Recording / Paused / Reconnecting / Access needed, with today's saved count), Today stat row (notifications, apps, top app → Insights), Manage-apps card, contextual warnings (no apps selected, battery). Today's counts come from the new `HomeViewModel`. The Recent preview was removed on 2026-10-28; saved notifications now live only in History. **RateUsCard call, trigger and callbacks unchanged** — only wrapped in a `Box` to keep its 16 dp margin (plan §3.2)
 - [x] History simplification: `HistoryView { All, Conversations, Apps }` segmented control replaces TabRow + nested selector; filter bar shared by All/Conversations; capped-list hint shown when `isCapped` (U4)
 - [x] Migrate pull-to-refresh to M3 `PullToRefreshBox` in History + AppHistory; drop M2 dep (U1) — *done early in M3*
 - [x] URI-encode `app_notifications/{packageName}` and `SettingScreen/{packageName}` route args (A5)
@@ -125,7 +125,7 @@ Status legend: ⬜ Not started · 🟨 In progress · ✅ Done
 *Fixes: A1 (bounded), A6; plan §4.*
 
 - [x] `MainViewModel` split — **stopped by the risk rule**: Home moved to `HomeViewModel` in M5; History/Trash/AppSelection share invalidation state and need a repository layer + device regression first. Plan recorded in FUTURE_FEATURES → Platform (A1)
-- [x] Tests (A6): unit `OnboardingResolutionTest` (5, upgrade-safety of onboarding); instrumented `NotificationDaoTest` (5: cursor paging with tied timestamps, filters, trash purge, retention vs trash, recent preview) and `ComponentSmokeTest` (3: EmptyState action, StatusCard dark, StatCard). Rate-trigger test intentionally skipped — card is frozen (see FUTURE_FEATURES)
+- [x] Tests (A6): unit `OnboardingResolutionTest` (5, upgrade-safety of onboarding); instrumented `NotificationDaoTest` (cursor paging with tied timestamps, filters, trash purge, retention vs trash; the recent-preview test was removed on 2026-10-28 along with `observeRecentActive`) and `ComponentSmokeTest` (3: EmptyState action, StatusCard dark, StatCard). Rate-trigger test intentionally skipped — card is frozen (see FUTURE_FEATURES)
 - [x] R8: `proguard-rules.pro` keeps line numbers for Crashlytics; `minifyReleaseWithR8` passes, mapping generated
 - [ ] Manual regression on the minified build — needs a device
 - [ ] Manual regression matrix: Android 8 (minSdk 26), 12 (dynamic color), 14/15/16; light/dark; rotation; process death; multi-profile (work apps)

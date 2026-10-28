@@ -200,9 +200,6 @@ Find “Notification History” → Turn ON access.
     <string name="home_stat_notifications">Notifications</string>
     <string name="home_stat_apps">Apps</string>
     <string name="home_stat_top_app">Top app</string>
-    <string name="home_recent_section">Recent</string>
-    <string name="home_see_all">See all</string>
-    <string name="home_recent_empty_title">Nothing saved yet</string>
     <string name="home_no_apps_selected_title">No apps selected</string>
     <string name="home_select_apps_action">Select</string>
 

@@ -39,8 +39,6 @@ import androidx.navigation.NavController
 import com.droidnova.notificationhistory.MainViewModel
 import com.droidnova.notificationhistory.R
 import com.droidnova.notificationhistory.billing.LocalPremiumBillingManager
-import com.droidnova.notificationhistory.data.model.NotificationModel
-import com.droidnova.notificationhistory.presentation.components.NotificationDetailsDialog
 import com.droidnova.notificationhistory.presentation.components.NotificationPermissionBottomSheet
 import com.droidnova.notificationhistory.presentation.components.ScreenTopBar
 import com.droidnova.notificationhistory.presentation.components.HeaderButton
@@ -74,7 +72,6 @@ fun HomeScreen(
     val hasPermission by viewmodel.hasNotificationAccess.collectAsState()
     val listenerConnected by viewmodel.listenerConnected.collectAsState()
     val todaySummary by homeViewModel.todaySummary.collectAsState()
-    val recentNotifications by homeViewModel.recentNotifications.collectAsState()
     val productDetails = billingManager?.productDetails?.collectAsState()?.value
     val isFetchingPrice = billingManager?.isFetchingProductDetails?.collectAsState()?.value ?: false
     val isPurchaseInProgress = billingManager?.isPurchaseInProgress?.collectAsState()?.value ?: false
@@ -83,7 +80,6 @@ fun HomeScreen(
         ?.formattedPrice
     var showPurchaseSheet by remember { mutableStateOf(false) }
     var showPermissionSheet by remember { mutableStateOf(false) }
-    var showDetailsDialog by remember { mutableStateOf<NotificationModel?>(null) }
     val batteryOptimization = rememberBatteryOptimizationState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -165,7 +161,6 @@ fun HomeScreen(
             hasPermission = hasPermission,
             listenerConnected = listenerConnected,
             todaySummary = todaySummary,
-            recentNotifications = recentNotifications,
             showBatteryWarning = !batteryOptimization.isIgnored,
             deletedCount = deletedMessages?.size ?: 0,
             isPremium = isPremium,
@@ -183,8 +178,7 @@ fun HomeScreen(
             onManageApps = { navController.navigate(Screens.ManageNotifications.route) },
             onInsights = { navController.navigateToTab(Screens.Insights.route) },
             onTrash = { navController.navigate(Screens.Trash.route) },
-            onBatteryAction = batteryOptimization.requestExemption,
-            onNotificationClick = { showDetailsDialog = it }
+            onBatteryAction = batteryOptimization.requestExemption
         )
     }
 
@@ -202,13 +196,6 @@ fun HomeScreen(
                 ).show()
                 openNotificationAccessSettings(context)
             }
-        )
-    }
-
-    showDetailsDialog?.let { notification ->
-        NotificationDetailsDialog(
-            notification = notification,
-            onDismiss = { showDetailsDialog = null }
         )
     }
 
